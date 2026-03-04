@@ -245,23 +245,6 @@ export default function SettingsDashboard() {
                                         style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}
                                     />
                                 </div>
-                                <div>
-                                    <label className="block text-xs font-semibold t-secondary uppercase tracking-wider mb-2 flex items-center gap-2">
-                                        Logo (SVG Code)
-                                        {settings.app_logo_svg && (
-                                            <div className="w-6 h-6 rounded flex items-center justify-center border t-secondary [&>svg]:w-4 [&>svg]:h-4"
-                                                style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}
-                                                dangerouslySetInnerHTML={{ __html: settings.app_logo_svg }}></div>
-                                        )}
-                                    </label>
-                                    <textarea rows="3"
-                                        value={settings.app_logo_svg}
-                                        onChange={(e) => setSettings({ ...settings, app_logo_svg: e.target.value })}
-                                        disabled={!hasBrandingCols}
-                                        className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/50 transition-all font-mono text-xs t-secondary resize-none disabled:opacity-50"
-                                        style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}
-                                    ></textarea>
-                                </div>
                             </div>
                         </div>
 
@@ -313,25 +296,27 @@ export default function SettingsDashboard() {
                                 )}
                             </button>
                         </div>
-                    </form>
-                </div>
+                    </form >
+                </div >
 
                 {/* RIGHT Column */}
-                <div className="space-y-8">
+                < div className="space-y-8" >
 
                     {/* Notification Templates */}
-                    <div className="glass-card p-6 md:p-8">
+                    < div className="glass-card p-6 md:p-8" >
                         <h3 className="text-xl font-bold t-primary mb-2 flex items-center gap-2">
                             <MessageSquare className="w-5 h-5 text-brand-green" />
                             Template Pesan WhatsApp
                         </h3>
                         <p className="text-sm t-secondary mb-4">Gunakan variabel dalam tanda kurung kurawal. Contoh: {'{operator}'}, {'{item}'}, {'{qty}'}, {'{unit}'}, {'{notes}'}, {'{final_stock}'}, {'{order}'}</p>
 
-                        {!hasTemplateCols && (
-                            <div className="p-3 mb-4 bg-brand-amber/10 border border-brand-amber/20 rounded-lg text-sm text-brand-amber">
-                                Update schema database untuk membuka fitur ini (jalankan add_wa_templates.sql).
-                            </div>
-                        )}
+                        {
+                            !hasTemplateCols && (
+                                <div className="p-3 mb-4 bg-brand-amber/10 border border-brand-amber/20 rounded-lg text-sm text-brand-amber">
+                                    Update schema database untuk membuka fitur ini (jalankan add_wa_templates.sql).
+                                </div>
+                            )
+                        }
 
                         <div className="space-y-5">
                             <div>
@@ -364,10 +349,10 @@ export default function SettingsDashboard() {
                                 {isSaving ? 'Menyimpan...' : 'Simpan Semua Perubahan'}
                             </button>
                         </div>
-                    </div>
+                    </div >
 
                     {/* Theme Toggle */}
-                    <div className="glass-card p-6 md:p-8">
+                    < div className="glass-card p-6 md:p-8" >
                         <h3 className="text-xl font-bold t-primary mb-4 flex items-center gap-2">
                             {theme === 'dark' ? <Moon className="w-5 h-5 text-blue-400" /> : <Sun className="w-5 h-5 text-brand-amber" />}
                             Mode Tampilan
@@ -382,10 +367,10 @@ export default function SettingsDashboard() {
                                 <Sun className="w-5 h-5" /> <span className="text-sm">Light Mode</span>
                             </button>
                         </div>
-                    </div>
+                    </div >
 
-                </div>
-            </div>
-        </div>
+                </div >
+            </div >
+        </div >
     );
 }
