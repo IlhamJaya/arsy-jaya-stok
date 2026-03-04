@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
     Package, Users, Settings, FileText, FileEdit, LogOut,
-    ChevronRight, CircleCheck, Sun, Moon, Menu, X, AlertTriangle
+    ChevronRight, CircleCheck, Sun, Moon, Menu, X, AlertTriangle, Factory
 } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import useAppStore from '../../store/useAppStore';
@@ -43,6 +43,7 @@ export default function Sidebar({ userRole }) {
     let menuItems = [
         { icon: CircleCheck, label: 'Approval', path: '/dashboard' },
         { icon: Package, label: 'Inventory', path: '/inventory' },
+        { icon: Factory, label: 'Partner & Supplier', path: '/suppliers' },
         { icon: FileText, label: 'Reports', path: '/reports' },
         { icon: AlertTriangle, label: 'Lapor Kendala', path: '/defects' }
     ];

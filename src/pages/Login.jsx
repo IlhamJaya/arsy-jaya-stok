@@ -46,19 +46,20 @@ export default function Login() {
 
             <div className="w-full max-w-md relative z-10">
 
-                {/* Header */}
-                <div className="flex flex-col items-center justify-center mb-8">
-                    <img src="/Logo.svg" alt="ARSY JAYA Logo" className="w-[4.4rem] h-[4.4rem] object-contain mb-4 drop-shadow-[0_0_12px_rgba(6,182,212,0.6)]" />
-                    <h1 className="text-3xl font-bold tracking-tight t-primary mb-2 uppercase">{appTitle}</h1>
-                    <p className="t-muted text-sm font-mono uppercase tracking-widest">{appSubtitle}</p>
-                </div>
-
                 {/* Login Form Card */}
                 <div className="glass-card p-8 sm:p-10 border-white/10 shadow-2xl relative overflow-hidden">
                     {/* Subtle highlight line at top */}
                     <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-brand-green/50 to-transparent"></div>
 
-                    <h2 className="text-xl font-semibold t-primary mb-6">Portal Masuk</h2>
+                    {/* Logo and Branding Header Inside Modal */}
+                    <div className="flex items-center gap-5 mb-8 pb-6 border-b border-theme border-dashed">
+                        <img src="/Logo.svg" alt="ARSY JAYA Logo" className="w-[4.4rem] h-[4.4rem] object-contain drop-shadow-[0_0_12px_rgba(6,182,212,0.6)] shrink-0" />
+                        <div className="flex flex-col justify-center">
+                            <h1 className="text-2xl font-extrabold tracking-tight t-primary uppercase leading-none mb-1">{appTitle}</h1>
+                            <p className="t-muted text-[10px] font-mono uppercase tracking-widest leading-none">{appSubtitle}</p>
+                            <span className="inline-block mt-2 text-xs font-semibold t-secondary bg-brand-green/10 text-brand-green px-2 py-0.5 rounded-md w-max">PORTAL MASUK</span>
+                        </div>
+                    </div>
 
                     <form onSubmit={handleLogin} className="space-y-5">
                         <div>

@@ -12,6 +12,7 @@ import ProfilesDashboard from './pages/dashboard/ProfilesDashboard'
 import SettingsDashboard from './pages/dashboard/SettingsDashboard'
 import InputReportDashboard from './pages/dashboard/InputReportDashboard'
 import DefectsDashboard from './pages/dashboard/DefectsDashboard'
+import SuppliersDashboard from './pages/dashboard/SuppliersDashboard'
 
 function ProtectedRoute({ session, userRole, isLoading }) {
   const location = useLocation();
@@ -99,6 +100,7 @@ function App() {
           <Route path="/inventory" element={<InventoryDashboard userRole={userRole} />} />
           <Route path="/input-report" element={<InputReportDashboard userRole={userRole} />} />
           <Route path="/defects" element={<DefectsDashboard />} />
+          <Route path="/suppliers" element={<SuppliersDashboard userRole={userRole} />} />
           <Route path="/reports" element={<ReportsDashboard />} />
           <Route path="/profiles" element={<ProfilesDashboard />} />
           <Route path="/settings" element={<SettingsDashboard />} />
