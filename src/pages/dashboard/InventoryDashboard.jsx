@@ -10,6 +10,7 @@ import {
 export default function InventoryDashboard({ userRole }) {
     const [activeTab, setActiveTab] = useState('inventory'); // 'inventory' | 'suppliers' | 'stock_in'
     const [searchTerm, setSearchTerm] = useState('');
+    const [selectedCategory, setSelectedCategory] = useState('Semua');
 
     // Data States
     const [items, setItems] = useState([]);
@@ -146,10 +147,15 @@ export default function InventoryDashboard({ userRole }) {
         window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
     };
 
-    const filteredItems = items.filter(i =>
-        i.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        i.brand.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const categories = ['Semua', ...Array.from(new Set(items.map(i => i.category).filter(Boolean))).sort()];
+
+    const filteredItems = items.filter(i => {
+        const matchSearch =
+            i.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (i.brand || '').toLowerCase().includes(searchTerm.toLowerCase());
+        const matchCategory = selectedCategory === 'Semua' || i.category === selectedCategory;
+        return matchSearch && matchCategory;
+    });
 
     const filteredSuppliers = suppliers.filter(s =>
         s.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -350,6 +356,24 @@ export default function InventoryDashboard({ userRole }) {
                     </div>
                 )}
             </div>
+
+            {/* Category Filter Pills - Hanya tampil di tab Inventory */}
+            {activeTab === 'inventory' && categories.length > 1 && (
+                <div className="flex flex-wrap gap-2 mb-6">
+                    {categories.map(cat => (
+                        <button
+                            key={cat}
+                            onClick={() => setSelectedCategory(cat)}
+                            className={`px-4 py-1.5 rounded-full text-xs font-semibold border transition-all duration-200 ${selectedCategory === cat
+                                    ? 'bg-brand-green text-slate-900 border-brand-green shadow-[0_0_12px_rgba(6,182,212,0.4)]'
+                                    : 'bg-transparent t-muted border-theme hover:border-brand-green hover:t-primary'
+                                }`}
+                        >
+                            {cat}
+                        </button>
+                    ))}
+                </div>
+            )}
 
             {/* INVENTORY VIEW */}
             {activeTab === 'inventory' && (

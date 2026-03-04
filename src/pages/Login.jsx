@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import useAppStore from '../store/useAppStore';
-import { Package, Lock, Mail, AlertCircle, ArrowRight } from 'lucide-react';
+import { Lock, Mail, AlertCircle, ArrowRight, Eye, EyeOff } from 'lucide-react';
 
 export default function Login() {
     const { appTitle, appSubtitle, appLogoSvg } = useAppStore();
@@ -10,6 +10,7 @@ export default function Login() {
     const [password, setPassword] = useState('');
     const [error, setError] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
     const navigate = useNavigate();
 
     const handleLogin = async (e) => {
@@ -85,14 +86,22 @@ export default function Login() {
                                     <Lock className="w-5 h-5 text-slate-500" />
                                 </div>
                                 <input
-                                    type="password"
+                                    type={showPassword ? 'text' : 'password'}
                                     required
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    className="w-full border rounded-xl pl-11 pr-4 py-3.5 focus:outline-none focus:border-brand-green focus:ring-1 focus:ring-brand-green/50 transition-all t-primary"
+                                    className="w-full border rounded-xl pl-11 pr-12 py-3.5 focus:outline-none focus:border-brand-green focus:ring-1 focus:ring-brand-green/50 transition-all t-primary"
                                     style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}
                                     placeholder="••••••••"
                                 />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute inset-y-0 right-0 pr-4 flex items-center t-muted hover:t-primary transition-colors"
+                                    tabIndex={-1}
+                                >
+                                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                </button>
                             </div>
                         </div>
 
