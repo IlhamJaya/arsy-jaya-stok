@@ -365,8 +365,8 @@ export default function InventoryDashboard({ userRole }) {
                             key={cat}
                             onClick={() => setSelectedCategory(cat)}
                             className={`px-4 py-1.5 rounded-full text-xs font-semibold border transition-all duration-200 ${selectedCategory === cat
-                                    ? 'bg-brand-green text-slate-900 border-brand-green shadow-[0_0_12px_rgba(6,182,212,0.4)]'
-                                    : 'bg-transparent t-muted border-theme hover:border-brand-green hover:t-primary'
+                                ? 'bg-brand-green text-slate-900 border-brand-green shadow-[0_0_12px_rgba(6,182,212,0.4)]'
+                                : 'bg-transparent t-muted border-theme hover:border-brand-green hover:t-primary'
                                 }`}
                         >
                             {cat}
@@ -378,45 +378,33 @@ export default function InventoryDashboard({ userRole }) {
             {/* INVENTORY VIEW */}
             {activeTab === 'inventory' && (
                 <div className="space-y-6">
-                    {/* Bento Stats */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                        <div className="glass-card p-6 flex flex-col justify-between group cursor-default">
-                            <div className="flex items-start justify-between mb-4">
-                                <div className="p-3 bg-slate-500/10 rounded-2xl t-secondary border border-slate-500/20 group-hover:bg-slate-500/20 transition-colors">
-                                    <Package className="w-5 h-5" />
-                                </div>
+                    {/* Compact Stats Bar */}
+                    <div className="grid grid-cols-3 gap-3 mb-6">
+                        <div className="glass-card px-4 py-3 flex items-center gap-3 group cursor-default">
+                            <div className="p-2 bg-slate-500/10 rounded-xl t-secondary border border-slate-500/20 shrink-0">
+                                <Package className="w-4 h-4" />
                             </div>
-                            <div>
-                                <h3 className="t-secondary text-sm font-medium mb-1 uppercase tracking-wider">Total Item Aktif</h3>
-                                <div className="text-4xl font-mono font-bold t-primary group-hover:t-secondary transition-colors">
-                                    {stats.total}
-                                </div>
+                            <div className="min-w-0">
+                                <p className="t-muted text-[10px] uppercase tracking-wider font-semibold leading-tight">Total Item</p>
+                                <p className="text-2xl font-mono font-bold t-primary leading-tight">{stats.total}</p>
                             </div>
                         </div>
-                        <div className="glass-card p-6 flex flex-col justify-between group cursor-default">
-                            <div className="flex items-start justify-between mb-4">
-                                <div className="p-3 bg-brand-green/10 rounded-2xl text-brand-green border border-brand-green/20 group-hover:bg-brand-green/20 transition-colors">
-                                    <CheckCircle2 className="w-5 h-5" />
-                                </div>
+                        <div className="glass-card px-4 py-3 flex items-center gap-3 group cursor-default">
+                            <div className="p-2 bg-brand-green/10 rounded-xl text-brand-green border border-brand-green/20 shrink-0">
+                                <CheckCircle2 className="w-4 h-4" />
                             </div>
-                            <div>
-                                <h3 className="t-secondary text-sm font-medium mb-1 uppercase tracking-wider">Stok Aman</h3>
-                                <div className="text-4xl font-mono font-bold t-primary group-hover:text-brand-green transition-colors">
-                                    {stats.healthy}
-                                </div>
+                            <div className="min-w-0">
+                                <p className="t-muted text-[10px] uppercase tracking-wider font-semibold leading-tight">Stok Aman</p>
+                                <p className="text-2xl font-mono font-bold text-brand-green leading-tight">{stats.healthy}</p>
                             </div>
                         </div>
-                        <div className="glass-card p-6 flex flex-col justify-between group cursor-default">
-                            <div className="flex items-start justify-between mb-4">
-                                <div className="p-3 bg-brand-red/10 rounded-2xl text-brand-red border border-brand-red/20 group-hover:bg-brand-red/20 transition-colors">
-                                    <AlertTriangle className="w-5 h-5" />
-                                </div>
+                        <div className="glass-card px-4 py-3 flex items-center gap-3 group cursor-default">
+                            <div className="p-2 bg-brand-red/10 rounded-xl text-brand-red border border-brand-red/20 shrink-0">
+                                <AlertTriangle className="w-4 h-4" />
                             </div>
-                            <div>
-                                <h3 className="t-secondary text-sm font-medium mb-1 uppercase tracking-wider">Stok Kritis</h3>
-                                <div className="text-4xl font-mono font-bold t-primary group-hover:text-brand-red transition-colors flex items-end gap-2">
-                                    {stats.critical} <span className="text-sm font-sans font-normal text-brand-red/70 mb-1">butuh re-order</span>
-                                </div>
+                            <div className="min-w-0">
+                                <p className="t-muted text-[10px] uppercase tracking-wider font-semibold leading-tight">Kritis</p>
+                                <p className="text-2xl font-mono font-bold text-brand-red leading-tight">{stats.critical}</p>
                             </div>
                         </div>
                     </div>
