@@ -57,6 +57,16 @@ serve(async (req) => {
         // Helper function to replace template variables
         const formatMessage = (templateText: string, data: any) => {
             if (!templateText) return "";
+            const now = new Date();
+            const jakartaDate = new Intl.DateTimeFormat('id-ID', {
+                timeZone: 'Asia/Makassar',
+                day: '2-digit', month: '2-digit', year: 'numeric'
+            }).format(now);
+            const jakartaTime = new Intl.DateTimeFormat('id-ID', {
+                timeZone: 'Asia/Makassar',
+                hour: '2-digit', minute: '2-digit', hour12: false
+            }).format(now) + ' WITA';
+
             return templateText
                 .replace(/{operator}/g, data.operator || 'Unknown')
                 .replace(/{item}/g, data.item || 'Unknown')
@@ -67,7 +77,9 @@ serve(async (req) => {
                 .replace(/{order}/g, data.order || '-')
                 .replace(/{category}/g, data.category || '-')
                 .replace(/{source}/g, data.source || '-')
-                .replace(/{reporter}/g, data.reporter || 'System');
+                .replace(/{reporter}/g, data.reporter || 'System')
+                .replace(/{date}/g, jakartaDate)
+                .replace(/{time}/g, jakartaTime);
         }
 
         // ==========================================
