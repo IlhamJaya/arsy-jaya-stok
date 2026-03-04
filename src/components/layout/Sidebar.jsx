@@ -61,27 +61,12 @@ export default function Sidebar({ userRole }) {
     return (
         <>
             {/* Mobile Top Bar */}
-            <div className="lg:hidden fixed top-0 left-0 right-0 z-[60] glass-panel flex items-center justify-between px-4 h-14"
+            <div className="lg:hidden fixed top-0 left-0 right-0 z-[60] glass-panel flex items-center px-4 h-14 gap-3"
                 style={{ borderBottom: '1px solid var(--border-glass)' }}>
-                <div className="flex items-center gap-3">
-                    <button onClick={() => setIsOpen(true)} className="p-2 rounded-xl t-primary hover:bg-brand-green/10 transition-colors">
-                        <Menu className="w-5 h-5" />
-                    </button>
-                    <div className="flex items-center gap-2">
-                        <img src="/Logo.svg" alt="Logo" className="w-7 h-7 object-contain drop-shadow-[0_0_4px_rgba(6,182,212,0.7)]" />
-                        <h1 className="font-bold text-sm tracking-tight t-primary uppercase">{appTitle}</h1>
-                    </div>
-                </div>
-                <div className="flex items-center gap-2">
-                    <button onClick={toggleTheme}
-                        className="p-2 rounded-xl border border-theme t-muted hover:text-brand-amber transition-colors"
-                        title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}>
-                        {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-                    </button>
-                    <div className="w-8 h-8 rounded-full bg-surface border border-theme flex items-center justify-center">
-                        <span className="text-xs font-medium t-secondary">{profile.initial}</span>
-                    </div>
-                </div>
+                <button onClick={() => setIsOpen(true)} className="p-2 rounded-xl t-primary hover:bg-brand-green/10 transition-colors shrink-0">
+                    <Menu className="w-5 h-5" />
+                </button>
+                <h1 className="font-bold text-base tracking-tight t-primary uppercase">{appTitle}</h1>
             </div>
 
             {/* Mobile Overlay */}
