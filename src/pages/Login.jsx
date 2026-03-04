@@ -47,11 +47,7 @@ export default function Login() {
 
                 {/* Header */}
                 <div className="flex flex-col items-center justify-center mb-8">
-                    <div
-                        className="w-16 h-16 rounded-2xl bg-brand-green/10 border border-brand-green/30 flex items-center justify-center mb-4 shadow-[0_0_30px_rgba(34,197,94,0.15)] ring-1 ring-white/5 text-brand-green"
-                    >
-                        <img src="/Logo.svg" alt="ARSY JAYA Logo" className="w-10 h-10 object-contain" />
-                    </div>
+                    <img src="/Logo.svg" alt="ARSY JAYA Logo" className="w-[4.4rem] h-[4.4rem] object-contain mb-4 drop-shadow-[0_0_12px_rgba(6,182,212,0.6)]" />
                     <h1 className="text-3xl font-bold tracking-tight t-primary mb-2 uppercase">{appTitle}</h1>
                     <p className="t-muted text-sm font-mono uppercase tracking-widest">{appSubtitle}</p>
                 </div>

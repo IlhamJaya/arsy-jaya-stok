@@ -68,9 +68,7 @@ export default function Sidebar({ userRole }) {
                         <Menu className="w-5 h-5" />
                     </button>
                     <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-md bg-brand-green/20 border border-brand-green/50 flex flex-col items-center justify-center p-0.5">
-                            <img src="/Logo.svg" alt="Logo" className="w-full h-full object-contain filter drop-shadow-[0_0_2px_rgba(6,182,212,0.8)]" />
-                        </div>
+                        <img src="/Logo.svg" alt="Logo" className="w-7 h-7 object-contain drop-shadow-[0_0_4px_rgba(6,182,212,0.7)]" />
                         <h1 className="font-bold text-sm tracking-tight t-primary uppercase">{appTitle}</h1>
                     </div>
                 </div>
@@ -101,9 +99,7 @@ export default function Sidebar({ userRole }) {
                 {/* Logo Area */}
                 <div className="h-16 lg:h-20 flex items-center justify-between px-5 border-b border-theme shrink-0">
                     <div className="flex items-center">
-                        <div className="w-8 h-8 rounded-lg bg-brand-green/20 border border-brand-green/50 flex flex-col items-center justify-center mr-3 p-1">
-                            <img src="/Logo.svg" alt="Logo" className="w-full h-full object-contain filter drop-shadow-[0_0_3px_rgba(6,182,212,0.8)]" />
-                        </div>
+                        <img src="/Logo.svg" alt="Logo" className="w-[2.2rem] h-[2.2rem] object-contain mr-3 drop-shadow-[0_0_5px_rgba(6,182,212,0.7)]" />
                         <div>
                             <h1 className="font-bold text-lg tracking-tight t-primary uppercase">{appTitle}</h1>
                             <p className="text-[10px] t-muted font-mono tracking-wider uppercase">{appSubtitle}</p>
