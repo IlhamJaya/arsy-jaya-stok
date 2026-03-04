@@ -48,8 +48,6 @@ export default function Login() {
 
                 {/* Login Form Card */}
                 <div className="glass-card p-8 sm:p-10 border-white/10 shadow-2xl relative overflow-hidden">
-                    {/* Subtle highlight line at top */}
-                    <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-brand-green/50 to-transparent"></div>
 
                     {/* Logo and Branding Header Inside Modal */}
                     <div className="flex items-center gap-5 mb-8 pb-6 border-b border-theme border-dashed">
