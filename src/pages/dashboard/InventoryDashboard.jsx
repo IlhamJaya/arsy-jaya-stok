@@ -4,8 +4,96 @@ import { supabase } from '../../supabaseClient';
 import {
     Package, Search, Plus, Upload, Filter, Link,
     AlertTriangle, CheckCircle2, Factory, Phone,
-    MessageCircle, FileEdit, Edit3
+    MessageCircle, FileEdit, Edit3, ChevronDown
 } from 'lucide-react';
+
+const CustomItemSelect = ({ value, onChange, items, title }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [search, setSearch] = useState('');
+    const wrapperRef = React.useRef(null);
+
+    React.useEffect(() => {
+        function handleClickOutside(event) {
+            if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+                setIsOpen(false);
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [wrapperRef]);
+
+    const selectedItem = items.find(i => i.id === value);
+    const filteredItems = items.filter(i =>
+        i.name.toLowerCase().includes(search.toLowerCase()) ||
+        (i.brand || '').toLowerCase().includes(search.toLowerCase()) ||
+        (i.code || '').toLowerCase().includes(search.toLowerCase())
+    );
+
+    return (
+        <div className="relative" ref={wrapperRef}>
+            <button
+                type="button"
+                onClick={() => setIsOpen(!isOpen)}
+                className="w-full bg-input border border-theme t-primary rounded-xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-brand-green/50 flex justify-between items-center text-left transition-all"
+            >
+                <div className="flex-1 min-w-0 pr-4">
+                    {selectedItem ? (
+                        <div>
+                            <p className="font-semibold text-sm t-primary truncate">{selectedItem.name} {selectedItem.brand ? `(${selectedItem.brand})` : ''}</p>
+                            <p className="text-[10px] t-muted font-mono mt-0.5">Sisa stok system: {selectedItem.stock} {selectedItem.unit}</p>
+                        </div>
+                    ) : (
+                        <span className="t-muted text-sm">{title || '-- Pilih Barang --'}</span>
+                    )}
+                </div>
+                <ChevronDown className={`w-5 h-5 t-muted transition-transform duration-200 shrink-0 ${isOpen ? 'rotate-180 text-brand-green' : ''}`} />
+            </button>
+
+            {isOpen && (
+                <div className="absolute z-50 w-full mt-2 bg-slate-900 border border-theme rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2">
+                    <div className="p-2 border-b border-theme/50 bg-slate-900 sticky top-0 z-10">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 t-muted" />
+                            <input
+                                type="text"
+                                placeholder="Ketik nama/brand/kode..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                className="w-full bg-slate-950 border border-theme/50 t-primary rounded-lg py-2 pl-9 pr-3 text-xs focus:outline-none focus:border-brand-green"
+                                onClick={(e) => e.stopPropagation()}
+                            />
+                        </div>
+                    </div>
+                    <div className="max-h-60 overflow-y-auto overscroll-contain pb-1 custom-scrollbar">
+                        {filteredItems.length > 0 ? filteredItems.map(item => (
+                            <button
+                                key={item.id}
+                                type="button"
+                                onClick={() => { onChange(item.id); setIsOpen(false); setSearch(''); }}
+                                className={`w-full text-left px-4 py-3 hover:bg-slate-800 transition-colors border-b border-theme/30 last:border-0 ${value === item.id ? 'bg-brand-green/10' : ''}`}
+                            >
+                                <div className="flex justify-between items-start gap-2">
+                                    <div className="min-w-0 flex-1">
+                                        <p className={`font-semibold text-sm truncate ${value === item.id ? 'text-brand-green' : 't-primary'}`}>
+                                            {item.name} {item.brand ? `(${item.brand})` : ''}
+                                        </p>
+                                        <p className="text-[10px] t-muted font-mono mt-1">CODE: {item.code?.replace(' ', '')}</p>
+                                    </div>
+                                    <div className="text-right shrink-0">
+                                        <p className={`text-xs font-mono font-bold ${item.isCritical ? 'text-brand-red' : 't-primary'}`}>{item.stock}</p>
+                                        <p className="text-[9px] t-muted uppercase">{item.unit}</p>
+                                    </div>
+                                </div>
+                            </button>
+                        )) : (
+                            <div className="p-4 text-center text-sm t-muted">Barang tidak ditemukan</div>
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
 
 export default function InventoryDashboard({ userRole }) {
     const [activeTab, setActiveTab] = useState('inventory'); // 'inventory' | 'suppliers' | 'stock_in'
@@ -439,19 +527,12 @@ export default function InventoryDashboard({ userRole }) {
                             <form onSubmit={handleStockInSubmit} className="space-y-5">
                                 <div>
                                     <label className="block text-sm font-medium t-secondary mb-2">Pilih Barang</label>
-                                    <select
-                                        required
+                                    <CustomItemSelect
+                                        items={items}
                                         value={stockInForm.item_id}
-                                        onChange={(e) => setStockInForm({ ...stockInForm, item_id: e.target.value })}
-                                        className="w-full bg-input border border-theme t-primary rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-green/50 appearance-none"
-                                    >
-                                        <option value="" disabled>-- Pilih Barang --</option>
-                                        {items.map(item => (
-                                            <option key={item.id} value={item.id}>
-                                                {item.name} {item.brand ? `(${item.brand})` : ''} - Stok Saat Ini: {item.stock} {item.unit}
-                                            </option>
-                                        ))}
-                                    </select>
+                                        onChange={(id) => setStockInForm({ ...stockInForm, item_id: id })}
+                                        title="-- Cari & Pilih Barang --"
+                                    />
                                 </div>
 
                                 <div>
