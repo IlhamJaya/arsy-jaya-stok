@@ -164,28 +164,48 @@ export default function ReportsDashboard() {
     setIsLoading(true);
     try {
       const { start, end } = getTimeFilter();
+      // Step 1: Fetch cutting logs (no join — operator_id FK is to auth.users, not profiles)
       let query = supabase
         .from('trx_cutting_log')
-        .select(`
-            id, order_name, qty_cut, notes, created_at,
-            operator:profiles!trx_cutting_log_operator_id_fkey(full_name)
-        `)
+        .select('id, order_name, qty_cut, notes, created_at, operator_id')
         .order('created_at', { ascending: false })
         .limit(200);
 
       if (start) query = query.gte('created_at', start);
       if (end) query = query.lte('created_at', end);
 
-      const { data, error } = await query;
+      const { data: logs, error } = await query;
       if (error) throw error;
 
-      setCuttingLogs(data || []);
+      if (!logs || logs.length === 0) {
+        setCuttingLogs([]);
+        return;
+      }
+
+      // Step 2: Get unique operator IDs and fetch their names from profiles
+      const operatorIds = [...new Set(logs.map(l => l.operator_id))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', operatorIds);
+
+      const profileMap = {};
+      (profiles || []).forEach(p => { profileMap[p.id] = p.full_name; });
+
+      // Step 3: Merge operator name into logs
+      const enriched = logs.map(l => ({
+        ...l,
+        operator: { full_name: profileMap[l.operator_id] || 'Unknown' }
+      }));
+
+      setCuttingLogs(enriched);
     } catch (err) {
       console.error("Error fetching cutting logs:", err);
     } finally {
       setIsLoading(false);
     }
   }, [dateRange, getTimeFilter]);
+
 
   useEffect(() => {
     if (activeTab === 'produksi') {
