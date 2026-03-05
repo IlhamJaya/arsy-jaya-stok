@@ -806,7 +806,7 @@ export default function ReportsDashboard({ userRole }) {
                     <p className="text-xs t-secondary text-center">Belum ada data bahan untuk direkap.</p>
                   </div>
                 ) : (
-                  <ResponsiveContainer width="100%" height="auto" minHeight={140}>
+                  <ResponsiveContainer width="100%" height={250}>
                     <BarChart data={topBahanData} layout="vertical" margin={{ top: 0, right: 30, left: 10, bottom: 0 }} barSize={16}>
                       <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(255,255,255,0.05)" />
                       <XAxis type="number" stroke="#64748b" fontSize={11} tickFormatter={(val) => val} />
