@@ -107,7 +107,7 @@ function App() {
           <Route path="/input-report" element={<InputReportDashboard userRole={userRole} />} />
           <Route path="/defects" element={<DefectsDashboard />} />
           <Route path="/suppliers" element={<SuppliersDashboard userRole={userRole} />} />
-          <Route path="/reports" element={<ReportsDashboard />} />
+          <Route path="/reports" element={<ReportsDashboard userRole={userRole} />} />
           <Route path="/profiles" element={<ProfilesDashboard />} />
           <Route path="/settings" element={<SettingsDashboard />} />
         </Route>
