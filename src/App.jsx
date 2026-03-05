@@ -35,6 +35,12 @@ function ProtectedRoute({ session, userRole, isLoading }) {
     return <Navigate to="/dashboard" replace />;
   }
 
+  // Role Protection (SPV and HRD Only routes)
+  const spvHrdRoutes = ['/suppliers', '/reports'];
+  if (spvHrdRoutes.includes(location.pathname) && !['SPV', 'HRD'].includes(userRole)) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   return (
     <MainLayout userRole={userRole}>
       <Outlet />
