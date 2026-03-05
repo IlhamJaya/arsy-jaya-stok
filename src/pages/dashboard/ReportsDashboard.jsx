@@ -4,7 +4,7 @@ import { supabase } from '../../supabaseClient';
 import {
   FileText, Calendar, Filter, Download,
   BarChart3, PieChart as PieChartIcon, CheckCircle2, Factory, User, Package, AlertTriangle,
-  ArrowUpCircle, ArrowDownCircle, Settings2, History
+  ArrowUpCircle, ArrowDownCircle, Settings2, History, Scissors
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -27,6 +27,7 @@ export default function ReportsDashboard() {
   const [activeTab, setActiveTab] = useState('produksi'); // 'produksi' | 'stok'
   const [reports, setReports] = useState([]);
   const [stockLogs, setStockLogs] = useState([]);
+  const [cuttingLogs, setCuttingLogs] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Filters
@@ -141,13 +142,44 @@ export default function ReportsDashboard() {
     }
   }, [dateRange, selectedType, getTimeFilter]);
 
+  // === TAB 3: Fetch Cutting Logs from trx_cutting_log ===
+  const fetchCuttingLogs = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const timeFilter = getTimeFilter();
+      let query = supabase
+        .from('trx_cutting_log')
+        .select(`
+            id, order_name, qty_cut, notes, created_at,
+            operator:profiles!trx_cutting_log_operator_id_fkey(full_name)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(200);
+
+      if (timeFilter) {
+        query = query.gte('created_at', timeFilter);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      setCuttingLogs(data || []);
+    } catch (err) {
+      console.error("Error fetching cutting logs:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [dateRange, getTimeFilter]);
+
   useEffect(() => {
     if (activeTab === 'produksi') {
       fetchReports();
-    } else {
+    } else if (activeTab === 'stok') {
       fetchStockLogs();
+    } else if (activeTab === 'cutting') {
+      fetchCuttingLogs();
     }
-  }, [activeTab, fetchReports, fetchStockLogs]);
+  }, [activeTab, fetchReports, fetchStockLogs, fetchCuttingLogs]);
 
   // === Analytics (Tab 1 only) ===
   const analyticsData = useMemo(() => {
@@ -175,18 +207,27 @@ export default function ReportsDashboard() {
     return { totalIn, totalOut, totalAudit, totalEntries: stockLogs.length };
   }, [stockLogs]);
 
+  // === Cutting Log Stats (Tab 3) ===
+  const cuttingLogStats = useMemo(() => {
+    const totalCut = cuttingLogs.reduce((acc, curr) => acc + curr.qty_cut, 0);
+    return { totalOrders: cuttingLogs.length, totalCut };
+  }, [cuttingLogs]);
+
 
 
   // Export Excel
   const handleExportExcel = () => {
     let worksheet;
+    let sheetName = "";
     if (activeTab === 'produksi') {
+      sheetName = "Laporan_Produksi";
       worksheet = XLSX.utils.json_to_sheet(reports.map(r => ({
         "Tanggal": r.date, "Tipe": r.type, "Operator": r.operatorName,
         "Item": r.itemName, "Terpakai": r.qtyUsed, "Rusak": r.qtyDamage,
         "Alasan": r.reason || '-', "Stok Akhir": r.finalStock
       })));
-    } else {
+    } else if (activeTab === 'stok') {
+      sheetName = "Riwayat_Stok";
       worksheet = XLSX.utils.json_to_sheet(stockLogs.map(l => ({
         "Tanggal": new Date(l.created_at).toLocaleString('id-ID'),
         "Item": l.item?.name || '-',
@@ -194,10 +235,19 @@ export default function ReportsDashboard() {
         "Perubahan": l.change_amount, "Stok Awal": l.previous_stock,
         "Stok Akhir": l.final_stock, "Catatan": l.notes || '-'
       })));
+    } else {
+      sheetName = "Tracking_Cutting";
+      worksheet = XLSX.utils.json_to_sheet(cuttingLogs.map(l => ({
+        "Tanggal": new Date(l.created_at).toLocaleString('id-ID'),
+        "Order": l.order_name,
+        "Lembar Di-Cut": l.qty_cut,
+        "Operator": l.operator?.full_name || '-',
+        "Catatan": l.notes || '-'
+      })));
     }
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, activeTab === 'produksi' ? "Reports" : "StockLog");
-    XLSX.writeFile(workbook, `ArsyStok_${activeTab === 'produksi' ? 'Laporan' : 'StokLog'}_${Date.now()}.xlsx`);
+    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+    XLSX.writeFile(workbook, `ArsyStok_${sheetName}_${Date.now()}.xlsx`);
   };
 
   return (
@@ -227,6 +277,12 @@ export default function ReportsDashboard() {
         >
           <History className="w-4 h-4" /> Riwayat Stok
         </button>
+        <button
+          onClick={() => { setActiveTab('cutting'); setSelectedType('ALL'); }}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all border ${activeTab === 'cutting' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20 shadow-sm' : 't-muted border-transparent hover:bg-blue-500/5'}`}
+        >
+          <Scissors className="w-4 h-4" /> Tracking Cutting
+        </button>
       </div>
 
       {/* BENTO GRID */}
@@ -251,6 +307,7 @@ export default function ReportsDashboard() {
               <Filter className="w-5 h-5 text-brand-green ml-2" />
               <select value={selectedType} onChange={(e) => setSelectedType(e.target.value)}
                 className="bg-transparent border-none t-primary text-sm font-medium focus:outline-none focus:ring-0 cursor-pointer appearance-none pr-6"
+                disabled={activeTab === 'cutting'}
               >
                 {activeTab === 'produksi' ? (
                   <>
@@ -258,13 +315,15 @@ export default function ReportsDashboard() {
                     <option value="CETAK" style={{ background: 'var(--select-bg)' }}>Cetak</option>
                     <option value="CUTTING" style={{ background: 'var(--select-bg)' }}>Cutting</option>
                   </>
-                ) : (
+                ) : activeTab === 'stok' ? (
                   <>
                     <option value="ALL" style={{ background: 'var(--select-bg)' }}>Semua Pergerakan</option>
                     <option value="MASUK" style={{ background: 'var(--select-bg)' }}>Stok Masuk</option>
                     <option value="KELUAR" style={{ background: 'var(--select-bg)' }}>Stok Keluar</option>
                     <option value="AUDIT" style={{ background: 'var(--select-bg)' }}>Audit</option>
                   </>
+                ) : (
+                  <option value="ALL" style={{ background: 'var(--select-bg)' }}>Semua Order</option>
                 )}
               </select>
             </div>
@@ -546,6 +605,106 @@ export default function ReportsDashboard() {
                             </td>
                             <td className="px-6 py-4">
                               <p className="text-xs t-muted max-w-[200px] truncate">{log.notes || '-'}</p>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+        {/* ========== TAB 3: TRACKING CUTTING ========== */}
+        {activeTab === 'cutting' && (
+          <>
+            {/* 1x1 Card: Total Orders */}
+            <div className="glass-card p-6 flex flex-col justify-between group cursor-default relative overflow-hidden">
+              <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-blue-500/5 rounded-full blur-2xl pointer-events-none transition-all group-hover:bg-blue-500/10"></div>
+              <div className="flex items-start justify-between mb-4 relative z-10">
+                <div className="p-3 bg-blue-500/10 rounded-2xl text-blue-500 border border-blue-500/20 group-hover:bg-blue-500/20 transition-colors">
+                  <FileText className="w-6 h-6" />
+                </div>
+              </div>
+              <div className="relative z-10">
+                <h3 className="t-secondary text-sm font-medium mb-1 uppercase tracking-wider">Total Order Dikerjakan</h3>
+                <div className="text-4xl font-mono font-bold t-primary group-hover:text-blue-500 transition-colors">{cuttingLogStats.totalOrders}</div>
+              </div>
+            </div>
+
+            {/* 1x1 Card: Total Cut */}
+            <div className="glass-card p-6 flex flex-col justify-between group cursor-default relative overflow-hidden">
+              <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-brand-green/5 rounded-full blur-2xl pointer-events-none transition-all group-hover:bg-brand-green/10"></div>
+              <div className="flex items-start justify-between mb-4 relative z-10">
+                <div className="p-3 bg-brand-green/10 rounded-2xl text-brand-green border border-brand-green/20 group-hover:bg-brand-green/20 transition-colors">
+                  <Scissors className="w-6 h-6" />
+                </div>
+              </div>
+              <div className="relative z-10">
+                <h3 className="t-secondary text-sm font-medium mb-1 uppercase tracking-wider">Total Lembar Di-Cut</h3>
+                <div className="text-4xl font-mono font-bold t-primary group-hover:text-brand-green transition-colors">{cuttingLogStats.totalCut}</div>
+              </div>
+            </div>
+
+            {/* Cutting Log Table - Full Width */}
+            <div className="glass-card overflow-hidden flex flex-col md:col-span-2 lg:col-span-3 xl:col-span-4 min-h-[400px]">
+              <div className="p-6 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border-glass)' }}>
+                <h3 className="font-bold t-primary flex items-center gap-2">
+                  <Scissors className="w-5 h-5 text-blue-500" /> Detail Pergerakan Cutting
+                </h3>
+                <span className="text-xs t-muted font-mono">{cuttingLogs.length} entri</span>
+              </div>
+
+              <div className="flex-1 overflow-x-auto">
+                {isLoading ? (
+                  <div className="p-12 flex items-center justify-center">
+                    <div className="w-8 h-8 border-t-2 border-r-2 border-blue-500 rounded-full animate-spin"></div>
+                  </div>
+                ) : cuttingLogs.length === 0 ? (
+                  <div className="p-12 flex flex-col items-center justify-center text-center h-full border-2 border-dashed mx-2 my-2 rounded-2xl" style={{ borderColor: 'var(--border-glass)' }}>
+                    <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4 border" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}>
+                      <Scissors className="w-8 h-8 t-muted" />
+                    </div>
+                    <h3 className="text-lg font-medium t-primary mb-1">Belum Ada Data Cutting</h3>
+                    <p className="t-secondary text-sm max-w-sm">Belum ada data stiker yang masuk antrian cutting pada filter ini.</p>
+                  </div>
+                ) : (
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="text-xs font-semibold t-muted uppercase tracking-wider" style={{ background: 'var(--bg-input)', borderBottom: '1px solid var(--border-glass)' }}>
+                        <th className="px-6 py-4">Waktu</th>
+                        <th className="px-6 py-4">Nama Order</th>
+                        <th className="px-6 py-4">Operator</th>
+                        <th className="px-6 py-4 text-center">Lembar Di-Cut</th>
+                        <th className="px-6 py-4">Catatan</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {cuttingLogs.map((log, i) => {
+                        return (
+                          <tr key={log.id || i} className="hover:bg-blue-500/5 transition-colors" style={{ borderBottom: '1px solid var(--border-glass)' }}>
+                            <td className="px-6 py-4">
+                              <p className="text-sm font-medium t-secondary">{new Date(log.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })}</p>
+                              <p className="text-xs t-muted font-mono mt-0.5">{new Date(log.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</p>
+                            </td>
+                            <td className="px-6 py-4">
+                              <p className="text-sm font-semibold t-primary">
+                                {log.order_name}
+                              </p>
+                            </td>
+                            <td className="px-6 py-4">
+                              <p className="text-sm font-medium t-secondary flex items-center gap-1.5">
+                                <User className="w-3.5 h-3.5 t-muted" /> {log.operator?.full_name || '-'}
+                              </p>
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <span className="text-lg font-mono font-bold text-brand-green">
+                                {log.qty_cut}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <p className="text-xs t-muted max-w-[250px] truncate">{log.notes || '-'}</p>
                             </td>
                           </tr>
                         );

@@ -9,7 +9,11 @@ export default function InputReportDashboard({ userRole }) {
     const [toastMessage, setToastMessage] = useState(null);
 
     // Tab: 'laporan' or 'cutting' (cutting only for OP_CUTTING)
-    const [activeTab, setActiveTab] = useState('laporan');
+    const [activeTab, setActiveTab] = useState(userRole === 'OP_CUTTING' ? 'cutting' : 'laporan');
+
+    useEffect(() => {
+        setActiveTab(userRole === 'OP_CUTTING' ? 'cutting' : 'laporan');
+    }, [userRole]);
 
     // == Laporan Stok State ==
     const [items, setItems] = useState([]);
@@ -171,21 +175,7 @@ export default function InputReportDashboard({ userRole }) {
                     </p>
                 </div>
 
-                {/* Tab switcher (only for OP_CUTTING) */}
-                {userRole === 'OP_CUTTING' && (
-                    <div className="flex items-center gap-2 p-1 bg-input rounded-xl border border-theme w-fit">
-                        <button onClick={() => setActiveTab('laporan')}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'laporan'
-                                ? 'bg-slate-700 t-primary shadow-sm' : 't-secondary hover:t-primary hover:bg-white/5'}`}>
-                            Laporan Stok
-                        </button>
-                        <button onClick={() => setActiveTab('cutting')}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'cutting'
-                                ? 'bg-slate-700 t-primary shadow-sm' : 't-secondary hover:t-primary hover:bg-white/5'}`}>
-                            <Scissors className="w-4 h-4" /> Tracking Cutting
-                        </button>
-                    </div>
-                )}
+
             </div>
 
             {/* Toast */}
