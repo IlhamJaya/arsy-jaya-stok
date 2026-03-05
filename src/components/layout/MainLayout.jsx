@@ -1,5 +1,7 @@
 import React from 'react';
 import Sidebar from './Sidebar';
+import PWAInstallPrompt from '../PWAInstallPrompt';
+
 
 export default function MainLayout({ children, userRole }) {
     return (
@@ -17,6 +19,9 @@ export default function MainLayout({ children, userRole }) {
                     {children}
                 </div>
             </main>
+
+            <PWAInstallPrompt />
         </div>
+
     );
 }
