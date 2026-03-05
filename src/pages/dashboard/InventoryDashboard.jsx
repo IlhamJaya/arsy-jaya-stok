@@ -314,9 +314,10 @@ export default function InventoryDashboard({ userRole }) {
                     <button
                         onClick={() => setActiveTab('inventory')}
                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'inventory'
-                            ? 'bg-slate-700 t-primary shadow-sm'
-                            : 't-secondary hover:t-primary hover:bg-white/5'
+                            ? 't-primary shadow-sm'
+                            : 't-secondary hover:t-primary'
                             }`}
+                        style={activeTab === 'inventory' ? { background: 'var(--bg-surface)', boxShadow: '0 1px 3px rgba(0,0,0,0.1), inset 0 0 0 1px var(--border-glass)' } : {}}
                     >
                         Data Master & Stok
                     </button>
@@ -324,9 +325,10 @@ export default function InventoryDashboard({ userRole }) {
                         <button
                             onClick={() => { setActiveTab('stock_in'); setStockInSuccess(false); setFormError(null); }}
                             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'stock_in'
-                                ? 'bg-slate-700 t-primary shadow-sm'
-                                : 't-secondary hover:t-primary hover:bg-white/5'
+                                ? 't-primary shadow-sm'
+                                : 't-secondary hover:t-primary'
                                 }`}
+                            style={activeTab === 'stock_in' ? { background: 'var(--bg-surface)', boxShadow: '0 1px 3px rgba(0,0,0,0.1), inset 0 0 0 1px var(--border-glass)' } : {}}
                         >
                             Stok Masuk
                         </button>
@@ -452,13 +454,7 @@ export default function InventoryDashboard({ userRole }) {
                                         <div className="flex justify-between items-start mb-4 relative z-10">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-10 h-10 rounded-xl bg-input border border-theme flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                                                    <Package className="w-5 h-5 t-secondary group-hover:text-white transition-colors" />
-                                                </div>
-                                                <div>
-                                                    <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full uppercase tracking-widest border
-                                                        ${item.isCritical ? 'text-brand-red bg-brand-red/10 border-brand-red/20' : 'text-brand-green bg-brand-green/10 border-brand-green/20'}`}>
-                                                        {item.isCritical ? 'Kritis' : 'Aman'}
-                                                    </span>
+                                                    <Package className="w-5 h-5 t-secondary group-hover:text-brand-green transition-colors" />
                                                 </div>
                                             </div>
                                             {userRole === 'SPV' && (
@@ -485,9 +481,16 @@ export default function InventoryDashboard({ userRole }) {
                                             <h4 className="text-lg font-bold t-primary leading-tight mb-1 truncate" title={item.name}>{item.name}</h4>
                                             <p className="text-sm t-secondary truncate">{item.category || '-'} {item.brand ? `• ${item.brand}` : ''}</p>
 
-                                            <div className="flex items-end gap-2 mt-4">
+                                            <div className="mt-4 mb-1">
+                                                <span className={`inline-block text-[10px] font-mono px-2 py-0.5 rounded-full uppercase tracking-widest border
+                                                    ${item.isCritical ? 'text-brand-red bg-brand-red/10 border-brand-red/20' : 'text-brand-green bg-brand-green/10 border-brand-green/20'}`}>
+                                                    {item.isCritical ? 'Kritis' : 'Aman'}
+                                                </span>
+                                            </div>
+
+                                            <div className="flex items-end gap-2">
                                                 <span className="text-xs t-muted uppercase tracking-widest select-none">Stok Fisik:</span>
-                                                <span className={`text-3xl font-mono font-bold transition-colors ${item.isCritical ? 'text-brand-red' : 'text-white group-hover:text-brand-green'}`}>
+                                                <span className={`text-3xl font-mono font-bold transition-colors ${item.isCritical ? 'text-brand-red' : 't-primary group-hover:text-brand-green'}`}>
                                                     {item.stock}
                                                 </span>
                                                 <span className="text-sm t-muted font-normal mb-1">{item.unit}</span>
