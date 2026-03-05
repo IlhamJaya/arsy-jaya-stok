@@ -23,7 +23,7 @@ export default function InputReportDashboard({ userRole }) {
     const [formData, setFormData] = useState({ qty_used: '', used_note: '', qty_damage: '', damage_note: '' });
 
     // == Cutting Tracker State ==
-    const [cuttingForm, setCuttingForm] = useState({ order_name: '', qty_cut: '', notes: '' });
+    const [cuttingForm, setCuttingForm] = useState({ order_name: '', qty_cut: '', notes: '', item_id: '' });
     const [cuttingLogs, setCuttingLogs] = useState([]);
     const [cuttingStats, setCuttingStats] = useState({ totalOrders: 0, totalCut: 0 });
 
@@ -36,7 +36,7 @@ export default function InputReportDashboard({ userRole }) {
     const isValid = selectedItem && !isOverStock && !isNoteRequired && totalQty > 0;
 
     // Cutting form validation
-    const isCuttingValid = cuttingForm.order_name.trim() !== '' && parseInt(cuttingForm.qty_cut) > 0;
+    const isCuttingValid = cuttingForm.order_name.trim() !== '' && parseInt(cuttingForm.qty_cut) > 0 && cuttingForm.item_id !== '';
 
     const showToast = (message, isError = false) => {
         setToastMessage({ text: message, isError });
@@ -135,11 +135,12 @@ export default function InputReportDashboard({ userRole }) {
                 operator_id: session.user.id,
                 order_name: cuttingForm.order_name.trim(),
                 qty_cut: parseInt(cuttingForm.qty_cut),
-                notes: cuttingForm.notes.trim()
+                notes: cuttingForm.notes.trim(),
+                item_id: cuttingForm.item_id || null,
             }]);
             if (error) throw error;
             showToast("Cutting log berhasil disimpan!");
-            setCuttingForm({ order_name: '', qty_cut: '', notes: '' });
+            setCuttingForm({ order_name: '', qty_cut: '', notes: '', item_id: '' });
             fetchCuttingLogs();
         } catch (error) {
             showToast("Gagal menyimpan: " + error.message, true);
@@ -385,6 +386,25 @@ export default function InputReportDashboard({ userRole }) {
                                 </div>
 
                                 <div>
+                                    <label className="block text-sm font-medium t-secondary mb-2">
+                                        Jenis Bahan <span className="text-brand-red">* Wajib</span>
+                                    </label>
+                                    <select
+                                        required
+                                        value={cuttingForm.item_id}
+                                        onChange={(e) => setCuttingForm({ ...cuttingForm, item_id: e.target.value })}
+                                        className="w-full bg-input border border-brand-green/20 t-primary rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-brand-green/30 text-sm cursor-pointer"
+                                    >
+                                        <option value="" style={{ background: 'var(--select-bg)' }}>-- Pilih Jenis Bahan --</option>
+                                        {items.map(item => (
+                                            <option key={item.id} value={item.id} style={{ background: 'var(--select-bg)' }}>
+                                                {item.name} {item.category ? `(${item.category})` : ''}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div>
                                     <label className="block text-sm font-medium t-secondary mb-2">Jumlah Di-Cutting</label>
                                     <div className="relative">
                                         <input type="number" min="1" required value={cuttingForm.qty_cut}
@@ -440,6 +460,9 @@ export default function InputReportDashboard({ userRole }) {
                                             <p className="text-xs t-secondary">
                                                 Jumlah: <span className="font-mono text-brand-green font-bold">{log.qty_cut}</span> lembar
                                             </p>
+                                            {log.item_id && (
+                                                <p className="text-[10px] text-brand-amber mt-0.5">🧴 {items.find(i => i.id === log.item_id)?.name || 'Bahan tidak ditemukan'}</p>
+                                            )}
                                             {log.notes && <p className="text-[10px] t-muted mt-1">📝 {log.notes}</p>}
                                             <p className="text-[10px] t-muted mt-1">{new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                                         </div>
