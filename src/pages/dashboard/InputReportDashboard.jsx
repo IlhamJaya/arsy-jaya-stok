@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../supabaseClient';
-import {  FileEdit, Search, AlertCircle, Save, CheckCircle2, History, Scissors, Trash2  } from 'lucide-react';
+import { FileEdit, Search, AlertCircle, Save, CheckCircle2, History, Scissors, Trash2 } from 'lucide-react';
 import { capitalizeWords, handleNumberInput } from '../../utils/formatters.js';
 
 export default function InputReportDashboard({ userRole }) {
@@ -146,16 +146,6 @@ export default function InputReportDashboard({ userRole }) {
         } catch (error) {
             showToast("Gagal menyimpan: " + error.message, true);
         } finally { setIsSubmitting(false); }
-    };
-
-    const handleDeleteCutting = async (id) => {
-        if (!confirm('Hapus log cutting ini?')) return;
-        try {
-            const { error } = await supabase.from('trx_cutting_log').delete().eq('id', id);
-            if (error) throw error;
-            showToast("Log dihapus.");
-            fetchCuttingLogs();
-        } catch (error) { showToast("Gagal menghapus: " + error.message, true); }
     };
 
     const filteredItems = items.filter(item =>
@@ -450,13 +440,8 @@ export default function InputReportDashboard({ userRole }) {
                                 <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
                                     {cuttingLogs.map(log => (
                                         <div key={log.id} className="bg-input p-3 rounded-lg border border-theme group">
-                                            <div className="flex justify-between items-start mb-1">
+                                            <div className="mb-1">
                                                 <p className="text-sm font-semibold t-primary truncate pr-2">{log.order_name}</p>
-                                                <button onClick={() => handleDeleteCutting(log.id)}
-                                                    className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-brand-red/10 text-brand-red transition-all"
-                                                    title="Hapus">
-                                                    <Trash2 className="w-3.5 h-3.5" />
-                                                </button>
                                             </div>
                                             <p className="text-xs t-secondary">
                                                 Jumlah: <span className="font-mono text-accent-base font-bold">{log.qty_cut}</span> lembar
