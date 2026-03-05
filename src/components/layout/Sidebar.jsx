@@ -41,18 +41,21 @@ export default function Sidebar({ userRole }) {
     };
 
     let menuItems = [
-        { icon: CircleCheck, label: 'Approval', path: '/dashboard' },
-        { icon: Package, label: 'Inventory', path: '/inventory' },
-        { icon: Factory, label: 'Partner & Supplier', path: '/suppliers' },
-        { icon: FileText, label: 'Reports', path: '/reports' },
-        { icon: AlertTriangle, label: 'Lapor Kendala', path: '/defects' }
+        { icon: CircleCheck, label: 'Approval', path: '/dashboard' }
     ];
 
     if (userRole !== 'SPV' && userRole !== 'HRD') {
-        menuItems.splice(1, 0, { icon: FileEdit, label: 'Input Laporan', path: '/input-report' });
+        menuItems.push({ icon: FileEdit, label: 'Input Laporan', path: '/input-report' });
     }
 
-    // SALES also gets access (already covered above since SALES !== SPV && SALES !== HRD)
+    menuItems.push({ icon: Package, label: 'Inventory', path: '/inventory' });
+
+    if (userRole === 'SPV' || userRole === 'HRD') {
+        menuItems.push({ icon: Factory, label: 'Partner & Supplier', path: '/suppliers' });
+        menuItems.push({ icon: FileText, label: 'Reports', path: '/reports' });
+    }
+
+    menuItems.push({ icon: AlertTriangle, label: 'Lapor Kendala', path: '/defects' });
 
     if (userRole === 'SPV') {
         menuItems.push({ icon: Users, label: 'Profiles', path: '/profiles' });
