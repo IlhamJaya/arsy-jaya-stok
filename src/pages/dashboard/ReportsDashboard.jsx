@@ -192,10 +192,22 @@ export default function ReportsDashboard() {
       const profileMap = {};
       (profiles || []).forEach(p => { profileMap[p.id] = p.full_name; });
 
-      // Step 3: Merge operator name into logs
+      // Step 3: Fetch item names for item_id
+      const itemIds = [...new Set(logs.map(l => l.item_id).filter(Boolean))];
+      let itemMap = {};
+      if (itemIds.length > 0) {
+        const { data: items } = await supabase
+          .from('mst_items')
+          .select('id, name, category')
+          .in('id', itemIds);
+        (items || []).forEach(item => { itemMap[item.id] = item; });
+      }
+
+      // Step 4: Merge into logs
       const enriched = logs.map(l => ({
         ...l,
-        operator: { full_name: profileMap[l.operator_id] || 'Unknown' }
+        operator: { full_name: profileMap[l.operator_id] || 'Unknown' },
+        item: l.item_id ? (itemMap[l.item_id] || null) : null,
       }));
 
       setCuttingLogs(enriched);
@@ -249,6 +261,17 @@ export default function ReportsDashboard() {
     return { totalOrders: cuttingLogs.length, totalCut };
   }, [cuttingLogs]);
 
+  // === Top Bahan Di-Cut Chart Data ===
+  const topBahanData = useMemo(() => {
+    const grouped = {};
+    cuttingLogs.forEach(l => {
+      const key = l.item?.name || 'Tidak Diketahui';
+      if (!grouped[key]) grouped[key] = { name: key, totalLembar: 0 };
+      grouped[key].totalLembar += l.qty_cut;
+    });
+    return Object.values(grouped).sort((a, b) => b.totalLembar - a.totalLembar).slice(0, 6);
+  }, [cuttingLogs]);
+
 
 
   // Export Excel
@@ -276,6 +299,7 @@ export default function ReportsDashboard() {
       worksheet = XLSX.utils.json_to_sheet(cuttingLogs.map(l => ({
         "Tanggal": new Date(l.created_at).toLocaleString('id-ID'),
         "Order": l.order_name,
+        "Bahan": l.item?.name || '-',
         "Lembar Di-Cut": l.qty_cut,
         "Operator": l.operator?.full_name || '-',
         "Catatan": l.notes || '-'
@@ -750,6 +774,40 @@ export default function ReportsDashboard() {
               </div>
             </div>
 
+            {/* 2x1 Card: Top Bahan Di-Cut */}
+            <div className="glass-card p-6 md:col-span-2 relative overflow-hidden flex flex-col">
+              <h3 className="text-md font-bold t-primary mb-4 flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 text-brand-amber" /> Top Bahan Paling Banyak Di-Cut
+              </h3>
+
+              <div className="flex-1 min-h-[140px]">
+                {topBahanData.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center opacity-50">
+                    <PieChartIcon className="w-8 h-8 t-muted mb-2" />
+                    <p className="text-xs t-secondary text-center">Belum ada data bahan untuk direkap.</p>
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="auto" minHeight={140}>
+                    <BarChart data={topBahanData} layout="vertical" margin={{ top: 0, right: 30, left: 10, bottom: 0 }} barSize={16}>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(255,255,255,0.05)" />
+                      <XAxis type="number" stroke="#64748b" fontSize={11} tickFormatter={(val) => val} />
+                      <YAxis dataKey="name" type="category" width={100} stroke="#64748b" fontSize={11} tick={{ fill: '#e2e8f0' }} />
+                      <Tooltip
+                        cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                        contentStyle={{ backgroundColor: 'rgb(2 6 23)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', fontSize: '12px' }}
+                        formatter={(val) => [`${val} Lembar`, "Lembar Di-Cut"]}
+                      />
+                      <Bar dataKey="totalLembar" radius={[0, 4, 4, 0]}>
+                        {topBahanData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </div>
+
             {/* Cutting Log Table - Full Width */}
             <div className="glass-card overflow-hidden flex flex-col md:col-span-2 lg:col-span-3 xl:col-span-4 min-h-[400px]">
               <div className="p-6 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border-glass)' }}>
@@ -778,6 +836,7 @@ export default function ReportsDashboard() {
                       <tr className="text-xs font-semibold t-muted uppercase tracking-wider" style={{ background: 'var(--bg-input)', borderBottom: '1px solid var(--border-glass)' }}>
                         <th className="px-6 py-4">Waktu</th>
                         <th className="px-6 py-4">Nama Order</th>
+                        <th className="px-6 py-4">Bahan</th>
                         <th className="px-6 py-4">Operator</th>
                         <th className="px-6 py-4 text-center">Lembar Di-Cut</th>
                         <th className="px-6 py-4">Catatan</th>
@@ -795,6 +854,15 @@ export default function ReportsDashboard() {
                               <p className="text-sm font-semibold t-primary">
                                 {log.order_name}
                               </p>
+                            </td>
+                            <td className="px-6 py-4">
+                              {log.item ? (
+                                <p className="text-sm font-medium text-brand-amber flex items-center gap-1.5">
+                                  <Package className="w-3.5 h-3.5" /> {log.item.name}
+                                </p>
+                              ) : (
+                                <p className="text-xs t-muted flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-slate-600"></span> Tanpa Data Bahan</p>
+                              )}
                             </td>
                             <td className="px-6 py-4">
                               <p className="text-sm font-medium t-secondary flex items-center gap-1.5">
