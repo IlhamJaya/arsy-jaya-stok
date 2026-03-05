@@ -13,8 +13,8 @@ export default function MainLayout({ children, userRole }) {
 
             <Sidebar userRole={userRole} />
 
-            {/* Main Content — ml-64 only on lg+, pt-14 for mobile topbar */}
-            <main className="flex-1 lg:ml-64 min-h-screen h-screen overflow-y-auto w-full relative z-10 pt-14 lg:pt-0">
+            {/* Main Content — ml-64 only on lg+, pb-20 for bottom nav */}
+            <main className="flex-1 lg:ml-64 min-h-screen h-screen overflow-y-auto w-full relative z-10 pb-20 lg:pb-0">
                 <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 lg:pt-10">
                     {children}
                 </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabaseClient';
-import { AlertTriangle, Send, History, CheckCircle, FileWarning } from 'lucide-react';
+import {  AlertTriangle, Send, History, CheckCircle, FileWarning  } from 'lucide-react';
+import { capitalizeWords, handleNumberInput } from '../../utils/formatters.js';
 
 export default function DefectsDashboard() {
     const [user, setUser] = useState(null);
@@ -160,7 +161,7 @@ export default function DefectsDashboard() {
             </div>
 
             {message.text && (
-                <div className={`p-4 mb-6 rounded-xl flex items-start gap-3 border ${message.type === 'success' ? 'bg-brand-green/10 border-brand-green/20 text-brand-green' : 'bg-brand-red/10 border-brand-red/20 text-brand-red'}`}>
+                <div className={`p-4 mb-6 rounded-xl flex items-start gap-3 border ${message.type === 'success' ? 'bg-accent-base/10 border-accent-base/20 text-accent-base' : 'bg-brand-red/10 border-brand-red/20 text-brand-red'}`}>
                     {message.type === 'success' ? <CheckCircle className="w-5 h-5 mt-0.5" /> : <FileWarning className="w-5 h-5 mt-0.5" />}
                     <p className="text-sm font-medium">{message.text}</p>
                 </div>
@@ -256,10 +257,10 @@ export default function DefectsDashboard() {
                     <div className="glass-card p-6">
                         <div className="flex justify-between items-center mb-6">
                             <h3 className="text-xl font-bold t-primary flex items-center gap-2">
-                                <History className="w-5 h-5 text-brand-green" />
+                                <History className="w-5 h-5 text-accent-base" />
                                 Riwayat Laporan Kendala
                             </h3>
-                            <button onClick={fetchHistory} className="text-xs font-medium bg-brand-green/10 text-brand-green hover:bg-brand-green/20 px-3 py-1.5 rounded-lg transition-colors">
+                            <button onClick={fetchHistory} className="text-xs font-medium bg-accent-base/10 text-accent-base hover:bg-accent-base/20 px-3 py-1.5 rounded-lg transition-colors">
                                 Refresh Data
                             </button>
                         </div>

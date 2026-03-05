@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase, supabaseAdmin } from '../../supabaseClient';
-import {
+import { 
     Users, UserPlus, Shield, User, Scissors, Paintbrush, Edit3,
     Settings, CheckCircle2, AlertTriangle, AlertCircle, Trash2
-} from 'lucide-react';
+ } from 'lucide-react';
+import { capitalizeWords, handleNumberInput } from '../../utils/formatters.js';
 
 export default function ProfilesDashboard() {
     const [profiles, setProfiles] = useState([]);
@@ -168,7 +169,7 @@ export default function ProfilesDashboard() {
             case 'SPV': return 'text-brand-amber bg-brand-amber/10 border-brand-amber/20';
             case 'SALES': return 'text-blue-400 bg-blue-400/10 border-blue-400/20';
             case 'OP_CUTTING': return 'text-purple-400 bg-purple-400/10 border-purple-400/20';
-            case 'OP_CETAK': return 'text-brand-green bg-brand-green/10 border-brand-green/20';
+            case 'OP_CETAK': return 'text-accent-base bg-accent-base/10 border-accent-base/20';
             default: return 't-secondary bg-slate-400/10 border-slate-400/20';
         }
     };
@@ -255,7 +256,7 @@ export default function ProfilesDashboard() {
 
                             <div className="mt-auto border-t border-theme pt-4 flex items-center justify-between">
                                 <span className="text-xs t-muted font-mono" title={profile.id}>ID: {...profile.id.substring(0, 8)}</span>
-                                <div className="flex items-center gap-1.5 text-xs font-medium text-brand-green bg-brand-green/10 px-2 py-1 rounded">
+                                <div className="flex items-center gap-1.5 text-xs font-medium text-accent-base bg-accent-base/10 px-2 py-1 rounded">
                                     <CheckCircle2 className="w-3.5 h-3.5" /> Aktif
                                 </div>
                             </div>

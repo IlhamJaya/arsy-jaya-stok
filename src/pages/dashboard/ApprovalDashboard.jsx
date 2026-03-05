@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../supabaseClient';
-import {
+import { 
     CheckCircle2, XCircle, Package, Clock, Search, AlertTriangle, Edit3, Truck
-} from 'lucide-react';
+ } from 'lucide-react';
+import { capitalizeWords, handleNumberInput } from '../../utils/formatters.js';
 
 export default function ApprovalDashboard({ userRole }) {
     const [searchTerm, setSearchTerm] = useState('');
@@ -216,7 +217,7 @@ export default function ApprovalDashboard({ userRole }) {
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 t-muted" />
                             <input type="text" placeholder="Cari item atau operator..."
                                 value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full border rounded-xl py-2 pl-9 pr-4 focus:outline-none focus:ring-2 focus:ring-brand-green/30 text-sm t-primary transition-all"
+                                className="w-full border rounded-xl py-2 pl-9 pr-4 focus:outline-none focus:ring-2 focus:ring-accent-base/30 text-sm t-primary transition-all"
                                 style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}
                             />
                         </div>
@@ -247,8 +248,8 @@ export default function ApprovalDashboard({ userRole }) {
                     </div>
                 ) : filteredReports.length === 0 ? (
                     <div className="p-12 flex flex-col items-center justify-center text-center h-full flex-1 border-2 border-dashed rounded-2xl mx-2 my-2" style={{ borderColor: 'var(--border-glass)' }}>
-                        <div className="w-16 h-16 rounded-full bg-brand-green/10 flex items-center justify-center mb-4 border border-brand-green/20">
-                            <CheckCircle2 className="w-8 h-8 text-brand-green" />
+                        <div className="w-16 h-16 rounded-full bg-accent-base/10 flex items-center justify-center mb-4 border border-accent-base/20">
+                            <CheckCircle2 className="w-8 h-8 text-accent-base" />
                         </div>
                         <h3 className="text-lg font-medium t-primary mb-1">Papan Kosong</h3>
                         <p className="t-secondary text-sm max-w-sm">Tidak ada daftar laporan saat ini. {searchTerm && '(Atau pencarian tidak ditemukan)'}</p>
@@ -256,10 +257,10 @@ export default function ApprovalDashboard({ userRole }) {
                 ) : activeTab === 'pending' ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 items-start">
                         {filteredReports.map((report) => (
-                            <div key={report.id} className="relative rounded-2xl p-4 sm:p-5 border flex flex-col group hover:border-brand-green/30 transition-all duration-300 hover:-translate-y-1 overflow-hidden"
+                            <div key={report.id} className="relative rounded-2xl p-4 sm:p-5 border flex flex-col group hover:border-accent-base/30 transition-all duration-300 hover:-translate-y-1 overflow-hidden"
                                 style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}>
                                 <div className={`absolute -top-10 -right-10 w-24 h-24 rounded-full blur-2xl opacity-20 pointer-events-none transition-opacity group-hover:opacity-40 
-                                        ${report.type === 'Usage' ? 'bg-brand-green' : 'bg-brand-red'}
+                                        ${report.type === 'Usage' ? 'bg-accent-base' : 'bg-brand-red'}
                                     `}></div>
 
                                 <div className="flex items-start gap-3 mb-4 relative z-10 w-full">
@@ -268,7 +269,7 @@ export default function ApprovalDashboard({ userRole }) {
                                         <Package className="w-5 h-5 t-muted group-hover:t-primary transition-colors" />
                                     </div>
                                     <div className="flex flex-wrap items-center justify-end gap-1.5 flex-1 pt-0.5">
-                                        <span className={`inline-block text-[10px] font-mono px-2 py-0.5 rounded-full uppercase tracking-widest border shrink-0 ${report.type === 'Usage' ? 'text-brand-green bg-brand-green/10 border-brand-green/20' : 'text-brand-amber bg-brand-amber/10 border-brand-amber/20'}`}>
+                                        <span className={`inline-block text-[10px] font-mono px-2 py-0.5 rounded-full uppercase tracking-widest border shrink-0 ${report.type === 'Usage' ? 'text-accent-base bg-accent-base/10 border-accent-base/20' : 'text-brand-amber bg-brand-amber/10 border-brand-amber/20'}`}>
                                             {report.type === 'Usage' ? 'Pemakaian' : 'Kerusakan'}
                                         </span>
                                     </div>
@@ -279,7 +280,7 @@ export default function ApprovalDashboard({ userRole }) {
                                     <p className="text-sm t-secondary truncate">{report.operator}</p>
                                     <div className="flex items-end gap-2 mt-4">
                                         <span className="text-xs t-muted uppercase tracking-widest select-none">Qty:</span>
-                                        <span className="text-3xl font-mono font-bold transition-colors t-primary group-hover:text-brand-green">
+                                        <span className="text-3xl font-mono font-bold transition-colors t-primary group-hover:text-accent-base">
                                             {report.qty}
                                         </span>
                                         <span className="text-sm t-muted font-normal mb-1">{report.unit}</span>
@@ -300,8 +301,8 @@ export default function ApprovalDashboard({ userRole }) {
                                         <button onClick={() => handleOpenModal(report)}
                                             className={`w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 border font-semibold text-sm rounded-xl t-primary active:scale-95 transition-all
                                                 ${report.type === 'Usage'
-                                                    ? 'hover:bg-brand-green hover:text-slate-900 hover:border-brand-green focus:ring-2 focus:ring-brand-green/50'
-                                                    : 'hover:bg-brand-amber hover:text-slate-900 hover:border-brand-amber focus:ring-2 focus:ring-brand-amber/50'
+                                                    ? 'hover:bg-accent-base hover:t-on-accent hover:border-accent-base focus:ring-2 focus:ring-accent-base/50'
+                                                    : 'hover:bg-brand-amber hover:t-on-accent hover:border-brand-amber focus:ring-2 focus:ring-brand-amber/50'
                                                 }`}
                                             style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-glass)' }}>
                                             <CheckCircle2 className="w-4 h-4" /> Review
@@ -314,7 +315,7 @@ export default function ApprovalDashboard({ userRole }) {
                 ) : (
                     <div className="flex flex-col space-y-3">
                         {filteredReports.map((report) => (
-                            <div key={report.id} className="relative rounded-2xl p-4 border flex flex-col md:flex-row md:items-center justify-between gap-4 group hover:border-brand-green/30 transition-all duration-300"
+                            <div key={report.id} className="relative rounded-2xl p-4 border flex flex-col md:flex-row md:items-center justify-between gap-4 group hover:border-accent-base/30 transition-all duration-300"
                                 style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}>
                                 <div className="flex items-center gap-4 flex-1 min-w-0">
                                     <div className="w-12 h-12 rounded-xl border flex items-center justify-center shrink-0"
@@ -324,7 +325,7 @@ export default function ApprovalDashboard({ userRole }) {
                                     <div className="min-w-0 flex-1">
                                         <div className="flex items-center gap-2 mb-1">
                                             <h4 className="text-base font-bold t-primary truncate" title={report.item}>{report.item}</h4>
-                                            <span className={`inline-block text-[10px] font-mono px-2 py-0.5 rounded-full uppercase tracking-widest border shrink-0 ${report.type === 'Usage' ? 'text-brand-green bg-brand-green/10 border-brand-green/20' : 'text-brand-amber bg-brand-amber/10 border-brand-amber/20'}`}>
+                                            <span className={`inline-block text-[10px] font-mono px-2 py-0.5 rounded-full uppercase tracking-widest border shrink-0 ${report.type === 'Usage' ? 'text-accent-base bg-accent-base/10 border-accent-base/20' : 'text-brand-amber bg-brand-amber/10 border-brand-amber/20'}`}>
                                                 {report.type === 'Usage' ? 'Pemakaian' : 'Kerusakan'}
                                             </span>
                                         </div>
@@ -337,7 +338,7 @@ export default function ApprovalDashboard({ userRole }) {
                                     <div className="flex flex-col items-start md:items-end">
                                         <span className="text-[10px] t-muted uppercase tracking-widest">Status</span>
                                         <span className={`inline-block text-[11px] font-bold px-2 py-0.5 mt-0.5 rounded-lg uppercase tracking-wide border
-                                            ${report.status === 'Approved' ? 'text-brand-green bg-brand-green/10 border-brand-green/20' : 'text-brand-red bg-brand-red/10 border-brand-red/20'}`}>
+                                            ${report.status === 'Approved' ? 'text-accent-base bg-accent-base/10 border-accent-base/20' : 'text-brand-red bg-brand-red/10 border-brand-red/20'}`}>
                                             {report.status === 'Approved' ? 'Disetujui' : 'Ditolak'}
                                         </span>
                                     </div>
@@ -345,7 +346,7 @@ export default function ApprovalDashboard({ userRole }) {
                                         <span className="text-[10px] t-muted uppercase tracking-widest">Qty</span>
                                         <div className="flex items-baseline gap-1 mt-0.5">
                                             <span className={`text-xl font-mono font-bold
-                                                ${report.status === 'Approved' ? 'text-brand-green' : 'text-brand-red line-through opacity-70'}
+                                                ${report.status === 'Approved' ? 'text-accent-base' : 'text-brand-red line-through opacity-70'}
                                             `}>
                                                 {report.qty}
                                             </span>
@@ -367,7 +368,7 @@ export default function ApprovalDashboard({ userRole }) {
 
                         <div className="glass-card w-full max-w-md relative z-10 animate-in zoom-in-95 duration-200 shadow-2xl">
                             <div className="p-6 flex items-center gap-3" style={{ borderBottom: '1px solid var(--border-glass)' }}>
-                                <div className="p-2 bg-brand-green/10 text-brand-green rounded-xl border border-brand-green/20">
+                                <div className="p-2 bg-accent-base/10 text-accent-base rounded-xl border border-accent-base/20">
                                     <Edit3 className="w-5 h-5" />
                                 </div>
                                 <div>
@@ -388,7 +389,7 @@ export default function ApprovalDashboard({ userRole }) {
                                     <p className="text-sm t-secondary mb-2"><span className="t-muted inline-block w-12">Item:</span> <strong className="t-primary">{selectedReport.item}</strong></p>
                                     <p className="text-sm t-secondary mb-2"><span className="t-muted inline-block w-12">Oleh:</span> <strong className="t-primary">{selectedReport.operator}</strong></p>
                                     <div className="flex items-center gap-2 mt-4 pt-4" style={{ borderTop: '1px solid var(--border-glass)' }}>
-                                        <span className={`inline-block w-2.5 h-2.5 rounded-full ${selectedReport.type === 'Usage' ? 'bg-brand-green shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-brand-red shadow-[0_0_8px_rgba(239,68,68,0.5)]'}`}></span>
+                                        <span className={`inline-block w-2.5 h-2.5 rounded-full ${selectedReport.type === 'Usage' ? 'bg-accent-base shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-brand-red shadow-[0_0_8px_rgba(239,68,68,0.5)]'}`}></span>
                                         <p className="text-xs t-muted font-medium tracking-wide uppercase">{selectedReport.type === 'Usage' ? 'Pengajuan Pemakaian' : 'Pengajuan Kerusakan'}</p>
                                     </div>
                                 </div>
@@ -401,7 +402,7 @@ export default function ApprovalDashboard({ userRole }) {
                                         </label>
                                         <div className="relative">
                                             <input type="number" value={editQty} onChange={(e) => setEditQty(e.target.value)}
-                                                className="w-full border rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-brand-green/30 text-2xl font-mono t-primary focus:border-brand-green/50 transition-colors"
+                                                className="w-full border rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-accent-base/30 text-2xl font-mono t-primary focus:border-accent-base/50 transition-colors"
                                                 style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}
                                             />
                                             <div className="absolute right-4 top-1/2 -translate-y-1/2 t-muted text-sm font-medium">{selectedReport.unit}</div>
@@ -412,7 +413,7 @@ export default function ApprovalDashboard({ userRole }) {
                                         <label className="block text-xs font-semibold t-muted uppercase tracking-wider mb-2">Catatan Final</label>
                                         <textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)}
                                             placeholder="Tambahkan alasan menolak/revisi jumlah..."
-                                            className="w-full border rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-brand-green/30 text-sm resize-none t-primary focus:border-brand-green/50 transition-colors"
+                                            className="w-full border rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-accent-base/30 text-sm resize-none t-primary focus:border-accent-base/50 transition-colors"
                                             style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}
                                             rows={3}
                                         ></textarea>
@@ -427,7 +428,7 @@ export default function ApprovalDashboard({ userRole }) {
                                     <XCircle className="w-4 h-4 group-hover:scale-110 transition-transform" /> Tolak
                                 </button>
                                 <button onClick={handleApprove} disabled={isSubmitting || !editQty || Number(editQty) < 0}
-                                    className="flex-[2] py-3 px-4 rounded-xl font-bold text-slate-900 bg-brand-green hover:bg-emerald-400 transition-all shadow-[0_0_20px_rgba(34,197,94,0.2)] hover:shadow-[0_0_25px_rgba(34,197,94,0.4)] disabled:opacity-50 flex items-center justify-center gap-2 group">
+                                    className="flex-[2] py-3 px-4 rounded-xl font-bold t-on-accent bg-accent-base hover:bg-emerald-400 transition-all shadow-[0_0_20px_rgba(34,197,94,0.2)] hover:shadow-[0_0_25px_rgba(34,197,94,0.4)] disabled:opacity-50 flex items-center justify-center gap-2 group">
                                     {isSubmitting ? (
                                         <span className="animate-pulse flex items-center gap-2">
                                             <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" fill="none" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
