@@ -199,13 +199,15 @@ export default function ApprovalDashboard({ userRole }) {
                         <div className="flex items-center p-1 bg-input border border-theme rounded-xl">
                             <button
                                 onClick={() => setActiveTab('pending')}
-                                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'pending' ? 'bg-slate-700 t-primary shadow-sm' : 't-secondary hover:t-primary hover:bg-white/5'}`}
+                                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'pending' ? 't-primary shadow-sm' : 't-secondary hover:t-primary'}`}
+                                style={activeTab === 'pending' ? { background: 'var(--bg-surface)', boxShadow: '0 1px 3px rgba(0,0,0,0.1), inset 0 0 0 1px var(--border-glass)' } : {}}
                             >
                                 Menunggu ({pendingReports.length})
                             </button>
                             <button
                                 onClick={() => setActiveTab('history')}
-                                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'history' ? 'bg-slate-700 t-primary shadow-sm' : 't-secondary hover:t-primary hover:bg-white/5'}`}
+                                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'history' ? 't-primary shadow-sm' : 't-secondary hover:t-primary'}`}
+                                style={activeTab === 'history' ? { background: 'var(--bg-surface)', boxShadow: '0 1px 3px rgba(0,0,0,0.1), inset 0 0 0 1px var(--border-glass)' } : {}}
                             >
                                 Riwayat Selesai
                             </button>
@@ -251,34 +253,25 @@ export default function ApprovalDashboard({ userRole }) {
                         <h3 className="text-lg font-medium t-primary mb-1">Papan Kosong</h3>
                         <p className="t-secondary text-sm max-w-sm">Tidak ada daftar laporan saat ini. {searchTerm && '(Atau pencarian tidak ditemukan)'}</p>
                     </div>
-                ) : (
+                ) : activeTab === 'pending' ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 items-start">
                         {filteredReports.map((report) => (
                             <div key={report.id} className="relative rounded-2xl p-4 sm:p-5 border flex flex-col group hover:border-brand-green/30 transition-all duration-300 hover:-translate-y-1 overflow-hidden"
                                 style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}>
                                 <div className={`absolute -top-10 -right-10 w-24 h-24 rounded-full blur-2xl opacity-20 pointer-events-none transition-opacity group-hover:opacity-40 
-                                        ${activeTab === 'history' ? (report.status === 'Approved' ? 'bg-brand-green' : 'bg-brand-red') : (report.type === 'Usage' ? 'bg-brand-green' : 'bg-brand-red')}
+                                        ${report.type === 'Usage' ? 'bg-brand-green' : 'bg-brand-red'}
                                     `}></div>
 
-                                <div className="flex justify-between items-start mb-4 relative z-10">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform"
-                                            style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-glass)' }}>
-                                            <Package className="w-5 h-5 t-muted group-hover:t-primary transition-colors" />
-                                        </div>
-                                        <div className="flex flex-col items-start">
-                                            <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full uppercase tracking-widest border ${report.type === 'Usage' ? 'text-brand-green bg-brand-green/10 border-brand-green/20' : 'text-brand-amber bg-brand-amber/10 border-brand-amber/20'}`}>
-                                                {report.type === 'Usage' ? 'Pemakaian' : 'Kerusakan'}
-                                            </span>
-                                        </div>
+                                <div className="flex items-start gap-3 mb-4 relative z-10 w-full">
+                                    <div className="w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform"
+                                        style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-glass)' }}>
+                                        <Package className="w-5 h-5 t-muted group-hover:t-primary transition-colors" />
                                     </div>
-
-                                    {activeTab === 'history' && (
-                                        <span className={`text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wide border 
-                                                ${report.status === 'Approved' ? 'text-brand-green bg-brand-green/10 border-brand-green/20' : 'text-brand-red bg-brand-red/10 border-brand-red/20'}`}>
-                                            {report.status === 'Approved' ? 'Disetujui' : 'Ditolak'}
+                                    <div className="flex flex-wrap items-center justify-end gap-1.5 flex-1 pt-0.5">
+                                        <span className={`inline-block text-[10px] font-mono px-2 py-0.5 rounded-full uppercase tracking-widest border shrink-0 ${report.type === 'Usage' ? 'text-brand-green bg-brand-green/10 border-brand-green/20' : 'text-brand-amber bg-brand-amber/10 border-brand-amber/20'}`}>
+                                            {report.type === 'Usage' ? 'Pemakaian' : 'Kerusakan'}
                                         </span>
-                                    )}
+                                    </div>
                                 </div>
 
                                 <div className="mb-4 relative z-10">
@@ -286,18 +279,13 @@ export default function ApprovalDashboard({ userRole }) {
                                     <p className="text-sm t-secondary truncate">{report.operator}</p>
                                     <div className="flex items-end gap-2 mt-4">
                                         <span className="text-xs t-muted uppercase tracking-widest select-none">Qty:</span>
-                                        <span className={`text-3xl font-mono font-bold transition-colors 
-                                                ${activeTab === 'history' ? (report.status === 'Approved' ? 'text-brand-green' : 'text-brand-red line-through opacity-70') : 't-primary group-hover:text-brand-green'}
-                                            `}>
+                                        <span className="text-3xl font-mono font-bold transition-colors t-primary group-hover:text-brand-green">
                                             {report.qty}
                                         </span>
                                         <span className="text-sm t-muted font-normal mb-1">{report.unit}</span>
                                     </div>
                                     <div className="mt-3 flex items-center justify-between">
                                         <span className="text-[10px] t-muted font-mono tracking-wider">{report.date}</span>
-                                        {activeTab === 'history' && (
-                                            <span className="text-[9px] t-muted uppercase tracking-widest">By: {report.reviewer}</span>
-                                        )}
                                     </div>
                                     {report.notes && (
                                         <div className="inline-flex items-start gap-1.5 bg-input border border-theme rounded-lg p-2.5 mt-3 w-full">
@@ -307,15 +295,64 @@ export default function ApprovalDashboard({ userRole }) {
                                     )}
                                 </div>
 
-                                {userRole === 'SPV' && activeTab === 'pending' && (
+                                {userRole === 'SPV' && (
                                     <div className="mt-2 relative z-10">
                                         <button onClick={() => handleOpenModal(report)}
-                                            className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 border font-semibold text-sm rounded-xl hover:bg-brand-green hover:text-slate-900 hover:border-brand-green active:scale-95 transition-all focus:ring-2 focus:ring-brand-green/50 t-primary"
+                                            className={`w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 border font-semibold text-sm rounded-xl t-primary active:scale-95 transition-all
+                                                ${report.type === 'Usage'
+                                                    ? 'hover:bg-brand-green hover:text-slate-900 hover:border-brand-green focus:ring-2 focus:ring-brand-green/50'
+                                                    : 'hover:bg-brand-amber hover:text-slate-900 hover:border-brand-amber focus:ring-2 focus:ring-brand-amber/50'
+                                                }`}
                                             style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-glass)' }}>
                                             <CheckCircle2 className="w-4 h-4" /> Review
                                         </button>
                                     </div>
                                 )}
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="flex flex-col space-y-3">
+                        {filteredReports.map((report) => (
+                            <div key={report.id} className="relative rounded-2xl p-4 border flex flex-col md:flex-row md:items-center justify-between gap-4 group hover:border-brand-green/30 transition-all duration-300"
+                                style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}>
+                                <div className="flex items-center gap-4 flex-1 min-w-0">
+                                    <div className="w-12 h-12 rounded-xl border flex items-center justify-center shrink-0"
+                                        style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-glass)' }}>
+                                        <Package className="w-6 h-6 t-muted group-hover:t-primary transition-colors" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <h4 className="text-base font-bold t-primary truncate" title={report.item}>{report.item}</h4>
+                                            <span className={`inline-block text-[10px] font-mono px-2 py-0.5 rounded-full uppercase tracking-widest border shrink-0 ${report.type === 'Usage' ? 'text-brand-green bg-brand-green/10 border-brand-green/20' : 'text-brand-amber bg-brand-amber/10 border-brand-amber/20'}`}>
+                                                {report.type === 'Usage' ? 'Pemakaian' : 'Kerusakan'}
+                                            </span>
+                                        </div>
+                                        <p className="text-sm t-secondary truncate">{report.operator}</p>
+                                        <p className="text-[10px] t-muted font-mono tracking-wider mt-1">{report.date} <span className="ml-2 uppercase">By: {report.reviewer}</span></p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-6 justify-between md:justify-end border-t md:border-t-0 pt-3 md:pt-0" style={{ borderColor: 'var(--border-glass)' }}>
+                                    <div className="flex flex-col items-start md:items-end">
+                                        <span className="text-[10px] t-muted uppercase tracking-widest">Status</span>
+                                        <span className={`inline-block text-[11px] font-bold px-2 py-0.5 mt-0.5 rounded-lg uppercase tracking-wide border
+                                            ${report.status === 'Approved' ? 'text-brand-green bg-brand-green/10 border-brand-green/20' : 'text-brand-red bg-brand-red/10 border-brand-red/20'}`}>
+                                            {report.status === 'Approved' ? 'Disetujui' : 'Ditolak'}
+                                        </span>
+                                    </div>
+                                    <div className="flex flex-col items-end text-right">
+                                        <span className="text-[10px] t-muted uppercase tracking-widest">Qty</span>
+                                        <div className="flex items-baseline gap-1 mt-0.5">
+                                            <span className={`text-xl font-mono font-bold
+                                                ${report.status === 'Approved' ? 'text-brand-green' : 'text-brand-red line-through opacity-70'}
+                                            `}>
+                                                {report.qty}
+                                            </span>
+                                            <span className="text-xs t-muted">{report.unit}</span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         ))}
                     </div>
