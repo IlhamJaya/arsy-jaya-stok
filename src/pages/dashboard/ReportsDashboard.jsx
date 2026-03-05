@@ -1,11 +1,11 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../../supabaseClient';
-import { 
+import {
   FileText, Calendar, Filter, Download,
   BarChart3, PieChart as PieChartIcon, CheckCircle2, Factory, User, Package, AlertTriangle,
-  ArrowUpCircle, ArrowDownCircle, Settings2, History, Scissors
- } from 'lucide-react';
+  ArrowUpCircle, ArrowDownCircle, Settings2, History, Scissors, Trash2
+} from 'lucide-react';
 import { capitalizeWords, handleNumberInput } from '../../utils/formatters.js';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -24,7 +24,7 @@ const SOURCE_LABELS = {
   AUDIT: { label: 'Audit Opname', color: 'text-brand-amber', bg: 'bg-brand-amber/10 border-brand-amber/20', icon: Settings2 }
 };
 
-export default function ReportsDashboard() {
+export default function ReportsDashboard({ userRole }) {
   const [activeTab, setActiveTab] = useState('produksi'); // 'produksi' | 'stok'
   const [reports, setReports] = useState([]);
   const [stockLogs, setStockLogs] = useState([]);
@@ -168,7 +168,7 @@ export default function ReportsDashboard() {
       // Step 1: Fetch cutting logs (no join — operator_id FK is to auth.users, not profiles)
       let query = supabase
         .from('trx_cutting_log')
-        .select('id, order_name, qty_cut, notes, created_at, operator_id')
+        .select('id, order_name, qty_cut, notes, created_at, operator_id, item_id')
         .order('created_at', { ascending: false })
         .limit(200);
 
@@ -309,6 +309,24 @@ export default function ReportsDashboard() {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
     XLSX.writeFile(workbook, `ArsyStok_${sheetName}_${Date.now()}.xlsx`);
+  };
+
+  // Hapus Cutting Log (Hanya SPV)
+  const handleDeleteCutting = async (id) => {
+    if (userRole !== 'SPV') return;
+    if (!window.confirm('Yakin ingin menghapus riwayat log cutting ini?')) return;
+
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.from('trx_cutting_log').delete().eq('id', id);
+      if (error) throw error;
+      fetchCuttingLogs();
+    } catch (err) {
+      console.error("Gagal menghapus log:", err);
+      alert("Gagal menghapus log: " + err.message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -841,6 +859,7 @@ export default function ReportsDashboard() {
                         <th className="px-6 py-4">Operator</th>
                         <th className="px-6 py-4 text-center">Lembar Di-Cut</th>
                         <th className="px-6 py-4">Catatan</th>
+                        {userRole === 'SPV' && <th className="px-6 py-4 text-center">Aksi</th>}
                       </tr>
                     </thead>
                     <tbody>
@@ -878,6 +897,17 @@ export default function ReportsDashboard() {
                             <td className="px-6 py-4">
                               <p className="text-xs t-muted max-w-[250px] truncate">{log.notes || '-'}</p>
                             </td>
+                            {userRole === 'SPV' && (
+                              <td className="px-6 py-4 text-center">
+                                <button
+                                  onClick={() => handleDeleteCutting(log.id)}
+                                  className="p-1.5 rounded-lg text-brand-red bg-brand-red/10 border border-brand-red/20 hover:bg-brand-red hover:text-white transition-colors"
+                                  title="Hapus Log"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </td>
+                            )}
                           </tr>
                         );
                       })}
