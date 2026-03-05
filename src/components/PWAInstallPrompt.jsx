@@ -45,7 +45,7 @@ export default function PWAInstallPrompt() {
                 style={{ borderColor: 'var(--border-glass)' }}
             >
                 {/* Icon */}
-                <div className="p-2.5 bg-brand-green/10 text-brand-green rounded-xl border border-brand-green/20 shrink-0">
+                <div className="p-2.5 bg-accent-base/10 text-accent-base rounded-xl border border-accent-base/20 shrink-0">
                     <Smartphone className="w-5 h-5" />
                 </div>
 
@@ -59,7 +59,7 @@ export default function PWAInstallPrompt() {
                 <div className="flex items-center gap-2 shrink-0">
                     <button
                         onClick={handleInstall}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-green text-slate-900 text-xs font-bold rounded-lg hover:brightness-110 transition-all"
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-accent-base t-on-accent text-xs font-bold rounded-lg hover:brightness-110 transition-all"
                     >
                         <Download className="w-3.5 h-3.5" />
                         Pasang

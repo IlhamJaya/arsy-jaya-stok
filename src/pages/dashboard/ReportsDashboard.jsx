@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../../supabaseClient';
-import {
+import { 
   FileText, Calendar, Filter, Download,
   BarChart3, PieChart as PieChartIcon, CheckCircle2, Factory, User, Package, AlertTriangle,
   ArrowUpCircle, ArrowDownCircle, Settings2, History, Scissors
-} from 'lucide-react';
+ } from 'lucide-react';
+import { capitalizeWords, handleNumberInput } from '../../utils/formatters.js';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell
@@ -19,7 +20,7 @@ const COLORS = ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'
 const SOURCE_LABELS = {
   REPORT_USAGE: { label: 'Pemakaian', color: 'text-blue-400', bg: 'bg-blue-400/10 border-blue-400/20', icon: ArrowDownCircle },
   REPORT_DAMAGE: { label: 'Kerusakan', color: 'text-brand-red', bg: 'bg-brand-red/10 border-brand-red/20', icon: AlertTriangle },
-  STOCK_IN: { label: 'Stok Masuk', color: 'text-brand-green', bg: 'bg-brand-green/10 border-brand-green/20', icon: ArrowUpCircle },
+  STOCK_IN: { label: 'Stok Masuk', color: 'text-accent-base', bg: 'bg-accent-base/10 border-accent-base/20', icon: ArrowUpCircle },
   AUDIT: { label: 'Audit Opname', color: 'text-brand-amber', bg: 'bg-brand-amber/10 border-brand-amber/20', icon: Settings2 }
 };
 
@@ -327,7 +328,7 @@ export default function ReportsDashboard() {
       <div className="flex gap-2 mb-6">
         <button
           onClick={() => { setActiveTab('produksi'); setSelectedType('ALL'); }}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all border ${activeTab === 'produksi' ? 'bg-brand-green/10 text-brand-green border-brand-green/20 shadow-sm' : 't-muted border-transparent hover:bg-brand-green/5'}`}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all border ${activeTab === 'produksi' ? 'bg-accent-base/10 text-accent-base border-accent-base/20 shadow-sm' : 't-muted border-transparent hover:bg-accent-base/5'}`}
         >
           <FileText className="w-4 h-4" /> Laporan Produksi
         </button>
@@ -431,7 +432,7 @@ export default function ReportsDashboard() {
 
 
             <div className="flex items-center gap-3 p-2 rounded-xl border" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}>
-              <Filter className="w-5 h-5 text-brand-green ml-2" />
+              <Filter className="w-5 h-5 text-accent-base ml-2" />
               <select value={selectedType} onChange={(e) => setSelectedType(e.target.value)}
                 className="bg-transparent border-none t-primary text-sm font-medium focus:outline-none focus:ring-0 cursor-pointer appearance-none pr-6"
                 disabled={activeTab === 'cutting'}
@@ -458,7 +459,7 @@ export default function ReportsDashboard() {
 
           <div className="flex items-center gap-3 w-full md:w-auto">
             <button onClick={handleExportExcel}
-              className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-brand-green/10 text-brand-green font-medium border border-brand-green/20 rounded-xl hover:bg-brand-green hover:text-slate-900 transition-colors">
+              className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-accent-base/10 text-accent-base font-medium border border-accent-base/20 rounded-xl hover:bg-accent-base hover:t-on-accent transition-colors">
               <Download className="w-4 h-4" /> Excel
             </button>
 
@@ -470,15 +471,15 @@ export default function ReportsDashboard() {
           <>
             {/* 1x1 Card: Total Terpakai */}
             <div className="glass-card p-6 flex flex-col justify-between group cursor-default relative overflow-hidden">
-              <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-brand-green/5 rounded-full blur-2xl pointer-events-none transition-all group-hover:bg-brand-green/10"></div>
+              <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-accent-base/5 rounded-full blur-2xl pointer-events-none transition-all group-hover:bg-accent-base/10"></div>
               <div className="flex items-start justify-between mb-4 relative z-10">
-                <div className="p-3 bg-brand-green/10 rounded-2xl text-brand-green border border-brand-green/20 group-hover:bg-brand-green/20 transition-colors">
+                <div className="p-3 bg-accent-base/10 rounded-2xl text-accent-base border border-accent-base/20 group-hover:bg-accent-base/20 transition-colors">
                   <Package className="w-6 h-6" />
                 </div>
               </div>
               <div className="relative z-10">
                 <h3 className="t-secondary text-sm font-medium mb-1 uppercase tracking-wider">Total Item Dipakai</h3>
-                <div className="text-4xl font-mono font-bold t-primary group-hover:text-brand-green transition-colors">{totalUsed}</div>
+                <div className="text-4xl font-mono font-bold t-primary group-hover:text-accent-base transition-colors">{totalUsed}</div>
               </div>
             </div>
 
@@ -504,10 +505,10 @@ export default function ReportsDashboard() {
                 </h3>
                 <div className="flex rounded-xl p-1 border" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}>
                   <button onClick={() => setChartType('operator')}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${chartType === 'operator' ? 'bg-brand-green/20 t-primary shadow-sm' : 't-muted hover:t-secondary'}`}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${chartType === 'operator' ? 'bg-accent-base/20 t-primary shadow-sm' : 't-muted hover:t-secondary'}`}
                   >Operator</button>
                   <button onClick={() => setChartType('item')}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${chartType === 'item' ? 'bg-brand-green/20 t-primary shadow-sm' : 't-muted hover:t-secondary'}`}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${chartType === 'item' ? 'bg-accent-base/20 t-primary shadow-sm' : 't-muted hover:t-secondary'}`}
                   >Item</button>
                 </div>
               </div>
@@ -547,7 +548,7 @@ export default function ReportsDashboard() {
             <div className="glass-card overflow-hidden flex flex-col md:col-span-2 lg:col-span-3 xl:col-span-4 min-h-[400px]">
               <div className="p-6 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border-glass)' }}>
                 <h3 className="font-bold t-primary flex items-center gap-2">
-                  <BarChart3 className="w-5 h-5 text-brand-green" /> Detail Riwayat Laporan (Approved)
+                  <BarChart3 className="w-5 h-5 text-accent-base" /> Detail Riwayat Laporan (Approved)
                 </h3>
                 <span className="text-xs t-muted font-mono">
                   {reports.length} data
@@ -557,7 +558,7 @@ export default function ReportsDashboard() {
               <div className="flex-1 overflow-x-auto">
                 {isLoading ? (
                   <div className="p-12 flex items-center justify-center">
-                    <div className="w-8 h-8 border-t-2 border-r-2 border-brand-green rounded-full animate-spin"></div>
+                    <div className="w-8 h-8 border-t-2 border-r-2 border-accent-base rounded-full animate-spin"></div>
                   </div>
                 ) : reports.length === 0 ? (
                   <div className="p-12 flex flex-col items-center justify-center text-center h-full border-2 border-dashed mx-2 my-2 rounded-2xl" style={{ borderColor: 'var(--border-glass)' }}>
@@ -580,17 +581,17 @@ export default function ReportsDashboard() {
                     </thead>
                     <tbody>
                       {reports.map((r, i) => (
-                        <tr key={r.id || i} className="hover:bg-brand-green/5 transition-colors group" style={{ borderBottom: '1px solid var(--border-glass)' }}>
+                        <tr key={r.id || i} className="hover:bg-accent-base/5 transition-colors group" style={{ borderBottom: '1px solid var(--border-glass)' }}>
                           <td className="px-6 py-4">
                             <p className="text-sm font-medium t-secondary">{r.date.split(',')[0]}</p>
                             <p className="text-xs t-muted font-mono mt-0.5">{r.date.split(',')[1]}</p>
                           </td>
                           <td className="px-6 py-4">
                             <p className="text-sm font-semibold t-primary flex items-center gap-1.5"><User className="w-3.5 h-3.5 t-muted" /> {r.operatorName} <span className="text-[10px] border px-1.5 py-0.5 rounded-md font-mono ml-2 tracking-widest t-muted" style={{ borderColor: 'var(--border-glass)', background: 'var(--bg-input)' }}>{r.type}</span></p>
-                            <p className="text-xs text-brand-green mt-1 flex items-center gap-1.5"><Package className="w-3.5 h-3.5" /> {r.itemName}</p>
+                            <p className="text-xs text-accent-base mt-1 flex items-center gap-1.5"><Package className="w-3.5 h-3.5" /> {r.itemName}</p>
                           </td>
                           <td className="px-6 py-4 text-center">
-                            <span className="text-lg font-mono font-bold t-primary group-hover:text-brand-green transition-colors">{r.qtyUsed}</span>
+                            <span className="text-lg font-mono font-bold t-primary group-hover:text-accent-base transition-colors">{r.qtyUsed}</span>
                           </td>
                           <td className="px-6 py-4 text-center">
                             {r.qtyDamage > 0 ? (
@@ -602,7 +603,7 @@ export default function ReportsDashboard() {
                           <td className="px-6 py-4 text-right">
                             {r.finalStock != null ? (
                               <div className="flex items-center justify-end gap-2">
-                                <CheckCircle2 className="w-4 h-4 text-brand-green/70" />
+                                <CheckCircle2 className="w-4 h-4 text-accent-base/70" />
                                 <span className="text-lg font-bold t-primary font-mono">{r.finalStock}</span>
                               </div>
                             ) : (
@@ -624,15 +625,15 @@ export default function ReportsDashboard() {
           <>
             {/* 1x1 Card: Total Stok Masuk */}
             <div className="glass-card p-6 flex flex-col justify-between group cursor-default relative overflow-hidden">
-              <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-brand-green/5 rounded-full blur-2xl pointer-events-none transition-all group-hover:bg-brand-green/10"></div>
+              <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-accent-base/5 rounded-full blur-2xl pointer-events-none transition-all group-hover:bg-accent-base/10"></div>
               <div className="flex items-start justify-between mb-4 relative z-10">
-                <div className="p-3 bg-brand-green/10 rounded-2xl text-brand-green border border-brand-green/20 group-hover:bg-brand-green/20 transition-colors">
+                <div className="p-3 bg-accent-base/10 rounded-2xl text-accent-base border border-accent-base/20 group-hover:bg-accent-base/20 transition-colors">
                   <ArrowUpCircle className="w-6 h-6" />
                 </div>
               </div>
               <div className="relative z-10">
                 <h3 className="t-secondary text-sm font-medium mb-1 uppercase tracking-wider">Total Stok Masuk</h3>
-                <div className="text-4xl font-mono font-bold t-primary group-hover:text-brand-green transition-colors">+{stockLogStats.totalIn}</div>
+                <div className="text-4xl font-mono font-bold t-primary group-hover:text-accent-base transition-colors">+{stockLogStats.totalIn}</div>
               </div>
             </div>
 
@@ -720,7 +721,7 @@ export default function ReportsDashboard() {
                               </span>
                             </td>
                             <td className="px-6 py-4 text-center">
-                              <span className={`text-lg font-mono font-bold ${log.change_amount > 0 ? 'text-brand-green' : 'text-brand-red'}`}>
+                              <span className={`text-lg font-mono font-bold ${log.change_amount > 0 ? 'text-accent-base' : 'text-brand-red'}`}>
                                 {log.change_amount > 0 ? `+${log.change_amount}` : log.change_amount}
                               </span>
                             </td>
@@ -762,15 +763,15 @@ export default function ReportsDashboard() {
 
             {/* 1x1 Card: Total Cut */}
             <div className="glass-card p-6 flex flex-col justify-between group cursor-default relative overflow-hidden">
-              <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-brand-green/5 rounded-full blur-2xl pointer-events-none transition-all group-hover:bg-brand-green/10"></div>
+              <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-accent-base/5 rounded-full blur-2xl pointer-events-none transition-all group-hover:bg-accent-base/10"></div>
               <div className="flex items-start justify-between mb-4 relative z-10">
-                <div className="p-3 bg-brand-green/10 rounded-2xl text-brand-green border border-brand-green/20 group-hover:bg-brand-green/20 transition-colors">
+                <div className="p-3 bg-accent-base/10 rounded-2xl text-accent-base border border-accent-base/20 group-hover:bg-accent-base/20 transition-colors">
                   <Scissors className="w-6 h-6" />
                 </div>
               </div>
               <div className="relative z-10">
                 <h3 className="t-secondary text-sm font-medium mb-1 uppercase tracking-wider">Total Lembar Di-Cut</h3>
-                <div className="text-4xl font-mono font-bold t-primary group-hover:text-brand-green transition-colors">{cuttingLogStats.totalCut}</div>
+                <div className="text-4xl font-mono font-bold t-primary group-hover:text-accent-base transition-colors">{cuttingLogStats.totalCut}</div>
               </div>
             </div>
 
@@ -870,7 +871,7 @@ export default function ReportsDashboard() {
                               </p>
                             </td>
                             <td className="px-6 py-4 text-center">
-                              <span className="text-lg font-mono font-bold text-brand-green">
+                              <span className="text-lg font-mono font-bold text-accent-base">
                                 {log.qty_cut}
                               </span>
                             </td>

@@ -20,7 +20,7 @@ function ProtectedRoute({ session, userRole, isLoading }) {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <div className="w-10 h-10 border-t-2 border-r-2 border-brand-green rounded-full animate-spin"></div>
+        <div className="w-10 h-10 border-t-2 border-r-2 border-accent-base rounded-full animate-spin"></div>
       </div>
     );
   }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../supabaseClient';
-import { Factory, Search, Plus, Phone, MessageCircle, Edit3 } from 'lucide-react';
+import {  Factory, Search, Plus, Phone, MessageCircle, Edit3  } from 'lucide-react';
+import { capitalizeWords, handleNumberInput } from '../../utils/formatters.js';
 
 export default function SuppliersDashboard({ userRole }) {
     const [searchTerm, setSearchTerm] = useState('');
@@ -93,7 +94,7 @@ export default function SuppliersDashboard({ userRole }) {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h2 className="text-2xl lg:text-3xl font-bold tracking-tight t-primary flex items-center gap-3">
-                        <Factory className="w-8 h-8 text-brand-green" /> Partner & Supplier
+                        <Factory className="w-8 h-8 text-accent-base" /> Partner & Supplier
                     </h2>
                     <p className="t-secondary mt-1">Kelola data partner dan supplier bahan baku Anda.</p>
                 </div>
@@ -107,13 +108,13 @@ export default function SuppliersDashboard({ userRole }) {
                         placeholder="Cari nama supplier..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full bg-input border border-theme t-primary rounded-xl py-2 pl-9 pr-4 focus:outline-none focus:ring-2 focus:ring-brand-green/30 text-sm placeholder:t-muted"
+                        className="w-full bg-input border border-theme t-primary rounded-xl py-2 pl-9 pr-4 focus:outline-none focus:ring-2 focus:ring-accent-base/30 text-sm placeholder:t-muted"
                     />
                 </div>
 
                 {userRole === 'SPV' && (
                     <div className="flex gap-2">
-                        <button onClick={() => openSupplierModal()} className="flex items-center gap-2 px-4 py-2 bg-brand-green text-slate-900 font-medium rounded-xl hover:bg-emerald-400 transition shadow-[0_0_15px_rgba(34,197,94,0.15)]">
+                        <button onClick={() => openSupplierModal()} className="flex items-center gap-2 px-4 py-2 bg-accent-base t-on-accent font-medium rounded-xl hover:bg-emerald-400 transition shadow-[0_0_15px_rgba(34,197,94,0.15)]">
                             <Plus className="w-4 h-4" /> <span className="text-sm">Supplier Baru</span>
                         </button>
                     </div>
@@ -123,7 +124,7 @@ export default function SuppliersDashboard({ userRole }) {
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 {isLoading ? (
                     <div className="col-span-full py-12 text-center text-sm t-muted flex items-center justify-center gap-2">
-                        <div className="w-4 h-4 border-2 border-brand-green border-t-transparent rounded-full animate-spin" /> Memuat data...
+                        <div className="w-4 h-4 border-2 border-accent-base border-t-transparent rounded-full animate-spin" /> Memuat data...
                     </div>
                 ) : filteredSuppliers.length === 0 ? (
                     <div className="col-span-full py-12 text-center text-sm t-muted">
@@ -171,7 +172,7 @@ export default function SuppliersDashboard({ userRole }) {
                     <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm" onClick={() => !isSaving && setSupplierModal({ isOpen: false })}></div>
                     <div className="glass-card w-full max-w-lg p-6 relative z-10 animate-in zoom-in-95 duration-200">
                         <h3 className="text-xl font-bold t-primary mb-6 flex items-center gap-2">
-                            <Factory className="w-5 h-5 text-brand-green" />
+                            <Factory className="w-5 h-5 text-accent-base" />
                             {supplierModal.isEdit ? 'Update Supplier' : 'Tambah Supplier Baru'}
                         </h3>
 
@@ -181,7 +182,7 @@ export default function SuppliersDashboard({ userRole }) {
                                 <input
                                     type="text" required
                                     value={supplierForm.name} onChange={(e) => setSupplierForm({ ...supplierForm, name: e.target.value })}
-                                    className="w-full bg-input border border-theme t-primary rounded-xl px-4 py-2.5 focus:border-brand-green focus:ring-1 focus:ring-brand-green/30"
+                                    className="w-full bg-input border border-theme t-primary rounded-xl px-4 py-2.5 focus:border-accent-base focus:ring-1 focus:ring-accent-base/30"
                                     placeholder="PT Maju Mundur"
                                 />
                             </div>
@@ -190,7 +191,7 @@ export default function SuppliersDashboard({ userRole }) {
                                 <input
                                     type="text"
                                     value={supplierForm.contact_number} onChange={(e) => setSupplierForm({ ...supplierForm, contact_number: e.target.value })}
-                                    className="w-full bg-input border border-theme t-primary rounded-xl px-4 py-2.5 focus:border-brand-green focus:ring-1 focus:ring-brand-green/30"
+                                    className="w-full bg-input border border-theme t-primary rounded-xl px-4 py-2.5 focus:border-accent-base focus:ring-1 focus:ring-accent-base/30"
                                     placeholder="Contoh: 0812345678"
                                 />
                             </div>
@@ -198,7 +199,7 @@ export default function SuppliersDashboard({ userRole }) {
                                 <label className="block text-xs font-semibold t-secondary uppercase tracking-wider mb-2">Alamat (Opsional)</label>
                                 <textarea
                                     value={supplierForm.address} onChange={(e) => setSupplierForm({ ...supplierForm, address: e.target.value })}
-                                    className="w-full bg-input border border-theme t-primary rounded-xl px-4 py-2.5 focus:border-brand-green focus:ring-1 focus:ring-brand-green/30 min-h-[80px]"
+                                    className="w-full bg-input border border-theme t-primary rounded-xl px-4 py-2.5 focus:border-accent-base focus:ring-1 focus:ring-accent-base/30 min-h-[80px]"
                                     placeholder="Alamat lengkap supplier..."
                                 />
                             </div>
@@ -207,7 +208,7 @@ export default function SuppliersDashboard({ userRole }) {
                                 <textarea
                                     required
                                     value={supplierForm.wa_template} onChange={(e) => setSupplierForm({ ...supplierForm, wa_template: e.target.value })}
-                                    className="w-full bg-input border border-theme t-primary rounded-xl px-4 py-2.5 focus:border-brand-green focus:ring-1 focus:ring-brand-green/30 min-h-[120px] font-mono text-sm leading-relaxed"
+                                    className="w-full bg-input border border-theme t-primary rounded-xl px-4 py-2.5 focus:border-accent-base focus:ring-1 focus:ring-accent-base/30 min-h-[120px] font-mono text-sm leading-relaxed"
                                 />
                                 <p className="text-[10px] t-muted mt-2 leading-relaxed">Pesan ini akan dikirim saat Anda klik tombol 'Order via WhatsApp'.</p>
                             </div>
@@ -218,7 +219,7 @@ export default function SuppliersDashboard({ userRole }) {
 
                             <div className="flex justify-end gap-3 pt-4 border-t border-theme mt-6">
                                 <button type="button" onClick={() => setSupplierModal({ isOpen: false })} disabled={isSaving} className="px-4 py-2 text-sm font-medium t-secondary hover:text-white transition-colors">Batal</button>
-                                <button type="submit" disabled={isSaving} className="px-6 py-2 bg-brand-green text-slate-900 font-bold rounded-xl hover:bg-emerald-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                                <button type="submit" disabled={isSaving} className="px-6 py-2 bg-accent-base t-on-accent font-bold rounded-xl hover:bg-emerald-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                                     {isSaving ? 'Menyimpan...' : 'Simpan Supplier'}
                                 </button>
                             </div>

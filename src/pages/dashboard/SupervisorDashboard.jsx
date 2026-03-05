@@ -19,8 +19,8 @@ export default function SupervisorDashboard() {
             trend: "+12.5%",
             trendUp: true,
             icon: Package,
-            color: "text-brand-green",
-            bg: "bg-brand-green/10"
+            color: "text-accent-base",
+            bg: "bg-accent-base/10"
         },
         {
             title: "Pending Reports",
@@ -51,7 +51,7 @@ export default function SupervisorDashboard() {
                     <p className="text-slate-400">Welcome back, Supervisor. Here's what's happening today.</p>
                 </div>
                 <div className="flex gap-3">
-                    <button className="flex items-center gap-2 px-4 py-2 bg-slate-800/80 hover:bg-slate-700/80 text-white rounded-xl border border-white/10 backdrop-blur shadow-sm transition-all focus:ring-2 focus:ring-brand-green/20">
+                    <button className="flex items-center gap-2 px-4 py-2 bg-slate-800/80 hover:bg-slate-700/80 text-white rounded-xl border border-white/10 backdrop-blur shadow-sm transition-all focus:ring-2 focus:ring-accent-base/20">
                         <FileText className="w-4 h-4" />
                         <span className="font-medium text-sm">Download Report</span>
                     </button>
@@ -70,11 +70,11 @@ export default function SupervisorDashboard() {
                             </div>
                             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-800/50 border border-white/5">
                                 {kpi.trendUp ? (
-                                    <TrendingUp className="w-3.5 h-3.5 text-brand-green" />
+                                    <TrendingUp className="w-3.5 h-3.5 text-accent-base" />
                                 ) : (
                                     <TrendingDown className={`w-3.5 h-3.5 ${kpi.color}`} />
                                 )}
-                                <span className={`text-[11px] font-mono font-medium ${kpi.trendUp ? 'text-brand-green' : kpi.color}`}>
+                                <span className={`text-[11px] font-mono font-medium ${kpi.trendUp ? 'text-accent-base' : kpi.color}`}>
                                     {kpi.trend}
                                 </span>
                             </div>
@@ -89,16 +89,16 @@ export default function SupervisorDashboard() {
                 {/* Feature: Quick Actions (Spans 1 col, 2 rows) */}
                 <div className="glass-card p-6 xl:row-span-2 flex flex-col hidden xl:flex">
                     <h3 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
-                        <span className="w-1 h-4 rounded-full bg-brand-green inline-block"></span>
+                        <span className="w-1 h-4 rounded-full bg-accent-base inline-block"></span>
                         Quick Actions
                     </h3>
                     <div className="flex flex-col gap-3 flex-1">
-                        <button className="flex items-center justify-between p-4 rounded-xl bg-slate-800/40 border border-white/5 hover:bg-brand-green/10 hover:border-brand-green/20 transition-all text-left group">
+                        <button className="flex items-center justify-between p-4 rounded-xl bg-slate-800/40 border border-white/5 hover:bg-accent-base/10 hover:border-accent-base/20 transition-all text-left group">
                             <div>
-                                <strong className="block text-sm font-medium text-slate-200 group-hover:text-brand-green">Add New Item</strong>
+                                <strong className="block text-sm font-medium text-slate-200 group-hover:text-accent-base">Add New Item</strong>
                                 <span className="text-xs text-slate-400 mt-0.5 block">Record new stock to inventory</span>
                             </div>
-                            <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-brand-green" />
+                            <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-accent-base" />
                         </button>
                         <button className="flex items-center justify-between p-4 rounded-xl bg-slate-800/40 border border-white/5 hover:bg-brand-amber/10 hover:border-brand-amber/20 transition-all text-left group">
                             <div>
@@ -124,7 +124,7 @@ export default function SupervisorDashboard() {
                             <span className="w-1 h-4 rounded-full bg-brand-amber inline-block"></span>
                             Pending Moderation
                         </h3>
-                        <button className="text-xs font-medium text-brand-green hover:underline flex items-center gap-1">
+                        <button className="text-xs font-medium text-accent-base hover:underline flex items-center gap-1">
                             View All <ArrowRight className="w-3 h-3" />
                         </button>
                     </div>
@@ -161,14 +161,14 @@ export default function SupervisorDashboard() {
                                         <td className="px-6 py-4 text-sm text-slate-300">{row.op}</td>
                                         <td className="px-6 py-4">
                                             <span className={`inline-flex items-center px-2 py-1 rounded border text-[11px] font-medium tracking-wide w-fit
-                        ${row.type === 'Usage' ? 'bg-brand-green/10 text-brand-green border-brand-green/20' : 'bg-brand-red/10 text-brand-red border-brand-red/20'}`}>
+                        ${row.type === 'Usage' ? 'bg-accent-base/10 text-accent-base border-accent-base/20' : 'bg-brand-red/10 text-brand-red border-brand-red/20'}`}>
                                                 {row.type}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-sm font-mono text-right text-slate-200">{row.qty}</td>
                                         <td className="px-6 py-4">
                                             <div className="flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <button className="p-1.5 rounded-lg text-brand-green hover:bg-brand-green/20 transition-colors" title="Approve">
+                                                <button className="p-1.5 rounded-lg text-accent-base hover:bg-accent-base/20 transition-colors" title="Approve">
                                                     <CheckCircle2 className="w-5 h-5" />
                                                 </button>
                                                 <button className="p-1.5 rounded-lg text-brand-red hover:bg-brand-red/20 transition-colors" title="Reject">

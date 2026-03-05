@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Save, Smartphone, BellRing, Database, Moon, Sun, AppWindow, MessageSquare, AlertTriangle } from 'lucide-react';
+import {  Settings, Save, Smartphone, BellRing, Database, Moon, Sun, AppWindow, MessageSquare, AlertTriangle  } from 'lucide-react';
+import { capitalizeWords, handleNumberInput } from '../../utils/formatters.js';
 import { supabase } from '../../supabaseClient';
 import useAppStore from '../../store/useAppStore';
 
@@ -140,7 +141,7 @@ export default function SettingsDashboard() {
     if (isLoading) {
         return (
             <div className="w-full h-96 flex items-center justify-center">
-                <div className="w-10 h-10 border-t-2 border-r-2 border-brand-green rounded-full animate-spin"></div>
+                <div className="w-10 h-10 border-t-2 border-r-2 border-accent-base rounded-full animate-spin"></div>
             </div>
         );
     }
@@ -157,7 +158,7 @@ export default function SettingsDashboard() {
 
             {message.text && (
                 <div className={`p-4 mb-6 rounded-xl flex items-start gap-3 border ${message.type === 'success'
-                    ? 'bg-brand-green/10 border-brand-green/20 text-brand-green'
+                    ? 'bg-accent-base/10 border-accent-base/20 text-accent-base'
                     : 'bg-brand-red/10 border-brand-red/20 text-brand-red'
                     }`}>
                     <BellRing className="w-5 h-5 shrink-0 mt-0.5" />
@@ -174,7 +175,7 @@ export default function SettingsDashboard() {
                         {/* WhatsApp Section */}
                         <div>
                             <h3 className="text-xl font-bold t-primary mb-6 flex items-center gap-2">
-                                <Smartphone className="w-5 h-5 text-brand-green" />
+                                <Smartphone className="w-5 h-5 text-accent-base" />
                                 Konfigurasi WhatsApp API
                             </h3>
                             <div className="space-y-6">
@@ -184,7 +185,7 @@ export default function SettingsDashboard() {
                                     <input type="number" min="1" required
                                         value={settings.wa_threshold}
                                         onChange={(e) => setSettings({ ...settings, wa_threshold: parseInt(e.target.value) })}
-                                        className="w-full max-w-xs border rounded-xl px-4 py-3 focus:outline-none focus:border-brand-green focus:ring-1 focus:ring-brand-green/50 transition-all font-mono t-primary"
+                                        className="w-full max-w-xs border rounded-xl px-4 py-3 focus:outline-none focus:border-accent-base focus:ring-1 focus:ring-accent-base/50 transition-all font-mono t-primary"
                                         style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}
                                     />
                                 </div>
@@ -195,7 +196,7 @@ export default function SettingsDashboard() {
                                         <input type="text"
                                             value={settings.spv_wa_number}
                                             onChange={(e) => setSettings({ ...settings, spv_wa_number: e.target.value })}
-                                            className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:border-brand-green focus:ring-1 focus:ring-brand-green/50 transition-all font-mono t-primary"
+                                            className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:border-accent-base focus:ring-1 focus:ring-accent-base/50 transition-all font-mono t-primary"
                                             style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}
                                             placeholder="6281..."
                                         />
@@ -206,13 +207,13 @@ export default function SettingsDashboard() {
                                         <input type="text"
                                             value={settings.spv_wa_group}
                                             onChange={(e) => setSettings({ ...settings, spv_wa_group: e.target.value })}
-                                            className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:border-brand-green focus:ring-1 focus:ring-brand-green/50 transition-all font-mono t-primary"
+                                            className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:border-accent-base focus:ring-1 focus:ring-accent-base/50 transition-all font-mono t-primary"
                                             style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}
                                             placeholder="Kosongkan jika tidak ada"
                                         />
                                     </div>
                                 </div>
-                                <p className="text-xs t-muted border-l-2 border-brand-green pl-3 mt-4">
+                                <p className="text-xs t-muted border-l-2 border-accent-base pl-3 mt-4">
                                     Notifikasi akan dikirimkan ke <b>Nomor SPV</b> dan <b>Grup WhatsApp</b> secara bersamaan jika keduanya diisi.
                                 </p>
                             </div>
@@ -288,7 +289,7 @@ export default function SettingsDashboard() {
                         {/* Save Button */}
                         <div className="pt-4" style={{ borderTop: '1px solid var(--border-glass)' }}>
                             <button type="submit" disabled={isSaving}
-                                className="flex items-center gap-2 px-6 py-2.5 bg-brand-green hover:bg-cyan-500 text-slate-950 font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_15px_rgba(34,197,94,0.2)]">
+                                className="flex items-center gap-2 px-6 py-2.5 bg-accent-base hover:bg-cyan-500 t-on-accent font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_15px_rgba(34,197,94,0.2)]">
                                 {isSaving ? (
                                     <><div className="w-4 h-4 border-t-2 border-slate-950 rounded-full animate-spin"></div> Menyimpan...</>
                                 ) : (
@@ -305,7 +306,7 @@ export default function SettingsDashboard() {
                     {/* Notification Templates */}
                     < div className="glass-card p-6 md:p-8" >
                         <h3 className="text-xl font-bold t-primary mb-2 flex items-center gap-2">
-                            <MessageSquare className="w-5 h-5 text-brand-green" />
+                            <MessageSquare className="w-5 h-5 text-accent-base" />
                             Template Pesan WhatsApp
                         </h3>
                         <p className="text-sm t-secondary mb-4">Gunakan variabel dalam tanda kurung kurawal. Contoh: {'{operator}'}, {'{item}'}, {'{qty}'}, {'{unit}'}, {'{notes}'}, {'{final_stock}'}, {'{order}'}</p>
@@ -325,8 +326,8 @@ export default function SettingsDashboard() {
                             </div>
 
                             <div>
-                                <label className="block text-xs font-semibold text-brand-green uppercase tracking-wider mb-2">Template Laporan Pemakaian</label>
-                                <textarea rows="4" value={settings.wa_template_usage} onChange={(e) => setSettings({ ...settings, wa_template_usage: e.target.value })} disabled={!hasTemplateCols} className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:border-brand-green focus:ring-1 focus:ring-brand-green/50 transition-all font-mono text-xs t-primary resize-none disabled:opacity-50" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }} />
+                                <label className="block text-xs font-semibold text-accent-base uppercase tracking-wider mb-2">Template Laporan Pemakaian</label>
+                                <textarea rows="4" value={settings.wa_template_usage} onChange={(e) => setSettings({ ...settings, wa_template_usage: e.target.value })} disabled={!hasTemplateCols} className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:border-accent-base focus:ring-1 focus:ring-accent-base/50 transition-all font-mono text-xs t-primary resize-none disabled:opacity-50" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }} />
                             </div>
 
                             <div>
