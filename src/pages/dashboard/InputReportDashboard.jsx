@@ -16,7 +16,7 @@ export default function InputReportDashboard({ userRole }) {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedItem, setSelectedItem] = useState(null);
     const [recentReports, setRecentReports] = useState([]);
-    const [formData, setFormData] = useState({ qty_used: '', qty_damage: '', damage_note: '' });
+    const [formData, setFormData] = useState({ qty_used: '', used_note: '', qty_damage: '', damage_note: '' });
 
     // == Cutting Tracker State ==
     const [cuttingForm, setCuttingForm] = useState({ order_name: '', qty_cut: '', notes: '' });
@@ -101,7 +101,7 @@ export default function InputReportDashboard({ userRole }) {
             if (qtyUsed > 0) {
                 const { error } = await supabase.from('trx_reports').insert([{
                     item_id: selectedItem.id, operator_id: session.user.id,
-                    type: 'Usage', quantity: qtyUsed, notes: 'Pemakaian normal produksi', status: 'Pending'
+                    type: 'Usage', quantity: qtyUsed, notes: formData.used_note.trim() || 'Pemakaian normal produksi', status: 'Pending'
                 }]);
                 if (error) throw error;
             }
@@ -113,7 +113,7 @@ export default function InputReportDashboard({ userRole }) {
                 if (error) throw error;
             }
             showToast("Laporan Berhasil Disimpan!");
-            setFormData({ qty_used: '', qty_damage: '', damage_note: '' });
+            setFormData({ qty_used: '', used_note: '', qty_damage: '', damage_note: '' });
             setSelectedItem(null); setSearchTerm('');
             fetchRecentReports();
         } catch (error) {
@@ -164,7 +164,7 @@ export default function InputReportDashboard({ userRole }) {
                 <div>
                     <h2 className="text-3xl font-bold tracking-tight t-primary mb-2 flex items-center gap-3">
                         <FileEdit className="w-8 h-8 text-brand-green" />
-                        Input Laporan {userRole === 'OP_CUTTING' ? 'Cutting' : 'Cetak'}
+                        Input Laporan {userRole === 'OP_CUTTING' ? 'Cutting' : 'Penggunaan Bahan'}
                     </h2>
                     <p className="t-secondary">
                         Laporkan pemakaian material dan kerusakan. Stok belum terpotong sampai di-Approve SPV.
@@ -279,12 +279,24 @@ export default function InputReportDashboard({ userRole }) {
                                 </div>
 
                                 {isOverStock && (
-                                    <div className="p-3 bg-brand-red/10 border border-brand-red/20 rounded-lg flex items-start gap-2">
+                                    <div className="p-3 bg-brand-red/10 border border-brand-red/20 rounded-lg flex items-start gap-2 mt-6">
                                         <AlertCircle className="w-5 h-5 text-brand-red shrink-0 mt-0.5" />
                                         <div>
                                             <p className="text-sm font-bold text-brand-red">Total Melebihi Stok!</p>
                                             <p className="text-xs text-brand-red/80">Total: {totalQty}. Stok: {selectedItem.stock}.</p>
                                         </div>
+                                    </div>
+                                )}
+
+                                {qtyUsed > 0 && (
+                                    <div className="mt-6">
+                                        <label className="block text-sm font-medium t-secondary mb-2">
+                                            Keterangan Pemakaian Normal <span className="text-brand-green/80">* Opsional</span>
+                                        </label>
+                                        <textarea value={formData.used_note}
+                                            onChange={(e) => setFormData({ ...formData, used_note: e.target.value })}
+                                            className="w-full bg-input border border-theme t-primary rounded-xl py-3 px-4 min-h-[80px] resize-none focus:outline-none focus:ring-2 focus:ring-brand-green/30 transition-all"
+                                            placeholder="Contoh: Pemakaian untuk cetak nota pelanggan ABC" />
                                     </div>
                                 )}
 
