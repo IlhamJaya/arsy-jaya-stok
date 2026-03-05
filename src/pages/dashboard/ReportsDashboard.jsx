@@ -813,7 +813,8 @@ export default function ReportsDashboard({ userRole }) {
                       <YAxis dataKey="name" type="category" width={100} stroke="#64748b" fontSize={11} tick={{ fill: '#e2e8f0' }} />
                       <Tooltip
                         cursor={{ fill: 'rgba(255,255,255,0.05)' }}
-                        contentStyle={{ backgroundColor: 'rgb(2 6 23)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', fontSize: '12px' }}
+                        contentStyle={{ backgroundColor: 'rgb(2 6 23)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', fontSize: '12px', color: '#f8fafc' }}
+                        itemStyle={{ color: '#f8fafc' }}
                         formatter={(val) => [`${val} Lembar`, "Lembar Di-Cut"]}
                       />
                       <Bar dataKey="totalLembar" radius={[0, 4, 4, 0]}>
