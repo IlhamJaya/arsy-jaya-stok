@@ -33,6 +33,14 @@ export default function ReportsDashboard() {
   // Filters
   const [dateRange, setDateRange] = useState('month');
   const [selectedType, setSelectedType] = useState('ALL');
+  // Custom date range
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
+  // Specific month (YYYY-MM)
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
 
   // Analytics View Type
   const [chartType, setChartType] = useState('operator');
@@ -40,22 +48,33 @@ export default function ReportsDashboard() {
   const getTimeFilter = useCallback(() => {
     const now = new Date();
     if (dateRange === 'today') {
-      return new Date(now.setHours(0, 0, 0, 0)).toISOString();
+      return { start: new Date(now.setHours(0, 0, 0, 0)).toISOString(), end: null };
     } else if (dateRange === 'week') {
-      now.setDate(now.getDate() - 7);
-      return now.toISOString();
+      const s = new Date(); s.setDate(s.getDate() - 7);
+      return { start: s.toISOString(), end: null };
     } else if (dateRange === 'month') {
-      now.setMonth(now.getMonth() - 1);
-      return now.toISOString();
+      const s = new Date(); s.setDate(s.getDate() - 30);
+      return { start: s.toISOString(), end: null };
+    } else if (dateRange === 'custom') {
+      if (!customStart) return { start: null, end: null };
+      const start = new Date(customStart); start.setHours(0, 0, 0, 0);
+      const end = customEnd ? new Date(customEnd) : new Date();
+      end.setHours(23, 59, 59, 999);
+      return { start: start.toISOString(), end: end.toISOString() };
+    } else if (dateRange === 'bulan') {
+      const [y, m] = selectedMonth.split('-').map(Number);
+      const start = new Date(y, m - 1, 1);
+      const end = new Date(y, m, 0, 23, 59, 59, 999);
+      return { start: start.toISOString(), end: end.toISOString() };
     }
-    return null;
-  }, [dateRange]);
+    return { start: null, end: null };
+  }, [dateRange, customStart, customEnd, selectedMonth]);
 
   // === TAB 1: Fetch Approved Reports from trx_reports ===
   const fetchReports = useCallback(async () => {
     setIsLoading(true);
     try {
-      const timeFilter = getTimeFilter();
+      const { start, end } = getTimeFilter();
       let query = supabase
         .from('trx_reports')
         .select(`
@@ -66,9 +85,8 @@ export default function ReportsDashboard() {
         .eq('status', 'Approved')
         .order('created_at', { ascending: false });
 
-      if (timeFilter) {
-        query = query.gte('created_at', timeFilter);
-      }
+      if (start) query = query.gte('created_at', start);
+      if (end) query = query.lte('created_at', end);
 
       const { data, error } = await query;
       if (error) throw error;
@@ -102,7 +120,7 @@ export default function ReportsDashboard() {
   const fetchStockLogs = useCallback(async () => {
     setIsLoading(true);
     try {
-      const timeFilter = getTimeFilter();
+      const { start, end } = getTimeFilter();
       let query = supabase
         .from('trx_stock_log')
         .select(`
@@ -112,9 +130,8 @@ export default function ReportsDashboard() {
         .order('created_at', { ascending: false })
         .limit(100);
 
-      if (timeFilter) {
-        query = query.gte('created_at', timeFilter);
-      }
+      if (start) query = query.gte('created_at', start);
+      if (end) query = query.lte('created_at', end);
 
       if (selectedType !== 'ALL') {
         const sourceFilter = selectedType === 'MASUK' ? 'STOCK_IN'
@@ -146,7 +163,7 @@ export default function ReportsDashboard() {
   const fetchCuttingLogs = useCallback(async () => {
     setIsLoading(true);
     try {
-      const timeFilter = getTimeFilter();
+      const { start, end } = getTimeFilter();
       let query = supabase
         .from('trx_cutting_log')
         .select(`
@@ -156,9 +173,8 @@ export default function ReportsDashboard() {
         .order('created_at', { ascending: false })
         .limit(200);
 
-      if (timeFilter) {
-        query = query.gte('created_at', timeFilter);
-      }
+      if (start) query = query.gte('created_at', start);
+      if (end) query = query.lte('created_at', end);
 
       const { data, error } = await query;
       if (error) throw error;
@@ -291,17 +307,84 @@ export default function ReportsDashboard() {
         {/* Filters & Actions - Full Width */}
         <div className="glass-card p-5 flex flex-col md:flex-row gap-4 items-center justify-between md:col-span-2 lg:col-span-full xl:col-span-full">
           <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
-            <div className="flex items-center gap-3 p-2 rounded-xl border" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}>
-              <Calendar className="w-5 h-5 text-brand-amber ml-2" />
-              <select value={dateRange} onChange={(e) => setDateRange(e.target.value)}
-                className="bg-transparent border-none t-primary text-sm font-medium focus:outline-none focus:ring-0 cursor-pointer appearance-none pr-6"
-              >
-                <option value="today" style={{ background: 'var(--select-bg)' }}>Hari Ini</option>
-                <option value="week" style={{ background: 'var(--select-bg)' }}>7 Hari Terakhir</option>
-                <option value="month" style={{ background: 'var(--select-bg)' }}>30 Hari Terakhir</option>
-                <option value="all" style={{ background: 'var(--select-bg)' }}>Semua Waktu</option>
-              </select>
+            <div className="flex flex-col gap-2">
+              {/* Mode selector */}
+              <div className="flex items-center gap-3 p-2 rounded-xl border" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}>
+                <Calendar className="w-5 h-5 text-brand-amber ml-2 shrink-0" />
+                <select value={dateRange} onChange={(e) => setDateRange(e.target.value)}
+                  className="bg-transparent border-none t-primary text-sm font-medium focus:outline-none focus:ring-0 cursor-pointer appearance-none pr-6"
+                >
+                  <option value="today" style={{ background: 'var(--select-bg)' }}>Hari Ini</option>
+                  <option value="week" style={{ background: 'var(--select-bg)' }}>7 Hari Terakhir</option>
+                  <option value="month" style={{ background: 'var(--select-bg)' }}>30 Hari Terakhir</option>
+                  <option value="bulan" style={{ background: 'var(--select-bg)' }}>Bulan Tertentu</option>
+                  <option value="custom" style={{ background: 'var(--select-bg)' }}>Rentang Custom</option>
+                  <option value="all" style={{ background: 'var(--select-bg)' }}>Semua Waktu</option>
+                </select>
+              </div>
+
+              {/* Month picker */}
+              {dateRange === 'bulan' && (
+                <div className="flex items-center gap-2 p-2 rounded-xl border animate-in fade-in slide-in-from-top-1 duration-200" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}>
+                  <input
+                    type="month"
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(e.target.value)}
+                    className="bg-transparent border-none t-primary text-sm font-medium focus:outline-none focus:ring-0 cursor-pointer w-full"
+                  />
+                </div>
+              )}
+
+              {/* Custom date range picker */}
+              {dateRange === 'custom' && (
+                <div className="flex flex-col gap-1.5 p-2.5 rounded-xl border animate-in fade-in slide-in-from-top-1 duration-200" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] t-muted uppercase tracking-wider w-10 shrink-0">Dari</span>
+                    <input
+                      type="date"
+                      value={customStart}
+                      onChange={(e) => setCustomStart(e.target.value)}
+                      className="bg-transparent border-none t-primary text-sm font-medium focus:outline-none focus:ring-0 cursor-pointer flex-1"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] t-muted uppercase tracking-wider w-10 shrink-0">Sampai</span>
+                    <input
+                      type="date"
+                      value={customEnd}
+                      min={customStart}
+                      onChange={(e) => setCustomEnd(e.target.value)}
+                      className="bg-transparent border-none t-primary text-sm font-medium focus:outline-none focus:ring-0 cursor-pointer flex-1"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Informative label */}
+              <p className="text-[10px] t-muted font-mono px-1">
+                {(() => {
+                  const fmt = (d) => d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+                  const now = new Date();
+                  if (dateRange === 'today') return `📅 ${fmt(now)}`;
+                  if (dateRange === 'week') { const s = new Date(); s.setDate(s.getDate() - 7); return `📅 ${fmt(s)} – ${fmt(now)}`; }
+                  if (dateRange === 'month') { const s = new Date(); s.setDate(s.getDate() - 30); return `📅 ${fmt(s)} – ${fmt(now)}`; }
+                  if (dateRange === 'bulan' && selectedMonth) {
+                    const [y, m] = selectedMonth.split('-').map(Number);
+                    const start = new Date(y, m - 1, 1);
+                    const end = new Date(y, m, 0);
+                    return `📅 ${fmt(start)} – ${fmt(end)}`;
+                  }
+                  if (dateRange === 'custom') {
+                    if (customStart && customEnd) return `📅 ${fmt(new Date(customStart))} – ${fmt(new Date(customEnd))}`;
+                    if (customStart) return `📅 Mulai ${fmt(new Date(customStart))}`;
+                    return '📅 Pilih tanggal mulai';
+                  }
+                  return '📅 Semua data yang tersedia';
+                })()}
+              </p>
             </div>
+
+
 
             <div className="flex items-center gap-3 p-2 rounded-xl border" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}>
               <Filter className="w-5 h-5 text-brand-green ml-2" />
