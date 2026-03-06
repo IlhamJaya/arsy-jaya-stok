@@ -23,6 +23,8 @@ export default function DefectsDashboard() {
     const [categoriesOptions, setCategoriesOptions] = useState([]);
 
     // History Data
+    const [defectsHistory, setDefectsHistory] = useState([]);
+
     // Edit Defect State (Khusus SPV)
     const [editingDefect, setEditingDefect] = useState(null);
     const [isSavingEdit, setIsSavingEdit] = useState(false);
