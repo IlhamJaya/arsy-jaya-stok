@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabaseClient';
-import {  AlertTriangle, Send, History, CheckCircle, FileWarning  } from 'lucide-react';
+import { AlertTriangle, Send, History, CheckCircle, FileWarning, Edit2 } from 'lucide-react';
 import { capitalizeWords, handleNumberInput } from '../../utils/formatters.js';
 
 export default function DefectsDashboard() {
@@ -23,7 +23,9 @@ export default function DefectsDashboard() {
     const [categoriesOptions, setCategoriesOptions] = useState([]);
 
     // History Data
-    const [defectsHistory, setDefectsHistory] = useState([]);
+    // Edit Defect State (Khusus SPV)
+    const [editingDefect, setEditingDefect] = useState(null);
+    const [isSavingEdit, setIsSavingEdit] = useState(false);
 
     useEffect(() => {
         fetchInitialData();
@@ -137,6 +139,49 @@ export default function DefectsDashboard() {
             fetchHistory();
         } catch (error) {
             alert("Gagal menghapus: " + error.message);
+        }
+    };
+
+    const handleEdit = (defect) => {
+        setEditingDefect({
+            id: defect.id,
+            order_name: defect.order_name,
+            error_source: defect.error_source,
+            error_category: defect.error_category,
+            quantity: defect.quantity,
+            notes: defect.notes || ''
+        });
+    };
+
+    const handleSaveEdit = async (e) => {
+        e.preventDefault();
+        if (!editingDefect) return;
+
+        setIsSavingEdit(true);
+        try {
+            const { error } = await supabase
+                .from('trx_defects')
+                .update({
+                    order_name: editingDefect.order_name,
+                    error_source: editingDefect.error_source,
+                    error_category: editingDefect.error_category,
+                    quantity: parseFloat(editingDefect.quantity) || 0,
+                    notes: editingDefect.notes
+                })
+                .eq('id', editingDefect.id);
+
+            if (error) throw error;
+
+            setMessage({ type: 'success', text: 'Perubahan Laporan Kendala berhasil disimpan!' });
+            setEditingDefect(null);
+            fetchHistory();
+
+            setTimeout(() => setMessage({ type: '', text: '' }), 4000);
+        } catch (err) {
+            console.error("Update Defect Error:", err.message);
+            alert("Gagal menyimpan perubahan: " + err.message);
+        } finally {
+            setIsSavingEdit(false);
         }
     };
 
@@ -307,9 +352,14 @@ export default function DefectsDashboard() {
                                                 </td>
                                                 {canManageDefects && (
                                                     <td className="py-3 px-4 text-right">
-                                                        <button onClick={() => handleDelete(defect.id)} className="text-[10px] font-bold uppercase tracking-wider text-brand-red hover:underline px-2 py-1 rounded hover:bg-brand-red/10 transition-colors">
-                                                            Hapus
-                                                        </button>
+                                                        <div className="flex items-center justify-end gap-2">
+                                                            <button onClick={() => handleEdit(defect)} className="text-[10px] font-bold uppercase tracking-wider text-emerald-500 hover:underline px-2 py-1 rounded hover:bg-emerald-500/10 transition-colors" title="Edit Laporan">
+                                                                Edit
+                                                            </button>
+                                                            <button onClick={() => handleDelete(defect.id)} className="text-[10px] font-bold uppercase tracking-wider text-brand-red hover:underline px-2 py-1 rounded hover:bg-brand-red/10 transition-colors" title="Hapus Laporan">
+                                                                Hapus
+                                                            </button>
+                                                        </div>
                                                     </td>
                                                 )}
                                             </tr>
@@ -321,6 +371,116 @@ export default function DefectsDashboard() {
                     </div>
                 </div>
             </div>
+
+            {/* Edit Defect Modal (Khusus SPV) */}
+            {editingDefect && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm" onClick={() => !isSavingEdit && setEditingDefect(null)}></div>
+                    <div className="glass-card w-full max-w-lg p-6 relative z-10 animate-in zoom-in-95 duration-200" style={{ border: '1px solid var(--border-glass)' }}>
+                        <h3 className="text-xl font-bold t-primary mb-6 flex items-center gap-2">
+                            <Edit2 className="w-5 h-5 text-emerald-500" />
+                            Edit Laporan Kendala
+                        </h3>
+
+                        <form onSubmit={handleSaveEdit} className="space-y-4">
+                            <p className="text-sm t-secondary mb-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl">
+                                Mode Edit SPV. Anda dapat merevisi detail laporan kendala ini.
+                            </p>
+
+                            <div>
+                                <label className="block text-sm font-medium t-secondary mb-1">Nama Order / Project *</label>
+                                <input
+                                    type="text"
+                                    required
+                                    className="w-full px-4 py-2.5 rounded-xl border"
+                                    style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)', color: 'var(--text-primary)' }}
+                                    value={editingDefect.order_name}
+                                    onChange={(e) => setEditingDefect({ ...editingDefect, order_name: e.target.value })}
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium t-secondary mb-1">Pihak Terlapor *</label>
+                                    <select
+                                        required
+                                        className="w-full px-4 py-2.5 rounded-xl border focus:outline-none"
+                                        style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)', color: 'var(--text-primary)' }}
+                                        value={editingDefect.error_source}
+                                        onChange={(e) => setEditingDefect({ ...editingDefect, error_source: e.target.value })}
+                                    >
+                                        <option value="" disabled>Pilih Pihak</option>
+                                        {sourcesOptions.map((opt, i) => (
+                                            <option key={`edit-src-${i}`} value={opt}>{opt}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium t-secondary mb-1">Jenis Kendala *</label>
+                                    <select
+                                        required
+                                        className="w-full px-4 py-2.5 rounded-xl border focus:outline-none"
+                                        style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)', color: 'var(--text-primary)' }}
+                                        value={editingDefect.error_category}
+                                        onChange={(e) => setEditingDefect({ ...editingDefect, error_category: e.target.value })}
+                                    >
+                                        <option value="" disabled>Pilih Kendala</option>
+                                        {categoriesOptions.map((opt, i) => (
+                                            <option key={`edit-cat-${i}`} value={opt}>{opt}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium t-secondary mb-1">Jumlah/Estimasi Gagal *</label>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    required
+                                    className="w-full px-4 py-2.5 rounded-xl border"
+                                    style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)', color: 'var(--text-primary)' }}
+                                    value={editingDefect.quantity}
+                                    onChange={(e) => setEditingDefect({ ...editingDefect, quantity: e.target.value })}
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium t-secondary mb-1">Keterangan / Kronologi Singkat</label>
+                                <textarea
+                                    className="w-full px-4 py-2.5 rounded-xl border resize-none"
+                                    style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)', color: 'var(--text-primary)' }}
+                                    rows="3"
+                                    value={editingDefect.notes}
+                                    onChange={(e) => setEditingDefect({ ...editingDefect, notes: e.target.value })}
+                                ></textarea>
+                            </div>
+
+                            <div className="flex gap-3 justify-end pt-4 mt-6" style={{ borderTop: '1px solid var(--border-glass)' }}>
+                                <button
+                                    type="button"
+                                    onClick={() => setEditingDefect(null)}
+                                    className="px-4 py-2 text-sm font-medium rounded-xl t-secondary hover:bg-white/5 transition-colors"
+                                    disabled={isSavingEdit}
+                                >
+                                    Batal
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isSavingEdit}
+                                    className="px-5 py-2 text-sm font-bold text-white bg-blue-500 rounded-xl hover:bg-blue-600 transition-colors shadow-lg shadow-blue-500/25 flex items-center justify-center min-w-[120px]"
+                                >
+                                    {isSavingEdit ? (
+                                        <div className="w-5 h-5 border-t-2 border-r-2 border-white rounded-full animate-spin"></div>
+                                    ) : 'Simpan Perubahan'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
