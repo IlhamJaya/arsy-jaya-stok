@@ -4,12 +4,12 @@ import { supabase } from '../../supabaseClient';
 import {
   FileText, Calendar, Filter, Download,
   BarChart3, PieChart as PieChartIcon, CheckCircle2, Factory, User, Package, AlertTriangle,
-  ArrowUpCircle, ArrowDownCircle, Settings2, History, Scissors, Trash2
+  ArrowUpCircle, ArrowDownCircle, Settings2, History, Scissors, Trash2, Plus, Database, Truck, RefreshCw, Edit2
 } from 'lucide-react';
 import { capitalizeWords, handleNumberInput } from '../../utils/formatters.js';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  PieChart, Pie, Cell
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell,
+  PieChart, Pie, AreaChart, Area
 } from 'recharts';
 
 import * as XLSX from 'xlsx';
@@ -26,8 +26,14 @@ const SOURCE_LABELS = {
 
 export default function ReportsDashboard({ userRole }) {
   const [activeTab, setActiveTab] = useState('produksi'); // 'produksi' | 'stok'
+  const [materialOptions, setMaterialOptions] = useState([]);
+  const [operatorOptions, setOperatorOptions] = useState([]);
   const [reports, setReports] = useState([]);
   const [stockLogs, setStockLogs] = useState([]);
+
+  // State untuk Edit Cutting Log (Khusus SPV)
+  const [editingCuttingLog, setEditingCuttingLog] = useState(null);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [cuttingLogs, setCuttingLogs] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -320,12 +326,51 @@ export default function ReportsDashboard({ userRole }) {
     try {
       const { error } = await supabase.from('trx_cutting_log').delete().eq('id', id);
       if (error) throw error;
-      fetchCuttingLogs();
+      await fetchCuttingLogs();
     } catch (err) {
-      console.error("Gagal menghapus log:", err);
-      alert("Gagal menghapus log: " + err.message);
+      console.error('Error in delete cutting log:', err);
+      alert(`Gagal menghapus log cutting: ${err.message}`);
+    }
+  };
+
+  const handleEditCutting = (log) => {
+    setEditingCuttingLog({
+      id: log.id,
+      order_name: log.order_name,
+      item_id: log.item_id || '',
+      qty_cut: log.qty_cut,
+      notes: log.notes || ''
+    });
+  };
+
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    if (!editingCuttingLog) return;
+
+    setIsSavingEdit(true);
+    try {
+      const { error } = await supabase
+        .from('trx_cutting_log')
+        .update({
+          order_name: editingCuttingLog.order_name,
+          item_id: editingCuttingLog.item_id || null, // Handle empty string as null
+          qty_cut: parseInt(editingCuttingLog.qty_cut, 10),
+          notes: editingCuttingLog.notes
+        })
+        .eq('id', editingCuttingLog.id);
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      alert('Berhasil: Log Cutting telah diperbarui!');
+      setEditingCuttingLog(null);
+      await fetchCuttingLogs(); // Refresh the table
+    } catch (err) {
+      console.error('Error updating cutting log:', err);
+      alert(`Gagal menyimpan perubahan log: ${err.message}`);
     } finally {
-      setIsLoading(false);
+      setIsSavingEdit(false);
     }
   };
 
@@ -860,7 +905,7 @@ export default function ReportsDashboard({ userRole }) {
                         <th className="px-6 py-4">Operator</th>
                         <th className="px-6 py-4 text-center">Lembar Di-Cut</th>
                         <th className="px-6 py-4">Catatan</th>
-                        {userRole === 'SPV' && <th className="px-6 py-4 text-center">Aksi</th>}
+                        {userRole === 'SPV' && <th className="px-6 py-4 text-center">Aksi (SPV)</th>}
                       </tr>
                     </thead>
                     <tbody>
@@ -900,13 +945,22 @@ export default function ReportsDashboard({ userRole }) {
                             </td>
                             {userRole === 'SPV' && (
                               <td className="px-6 py-4 text-center">
-                                <button
-                                  onClick={() => handleDeleteCutting(log.id)}
-                                  className="p-1.5 rounded-lg text-brand-red bg-brand-red/10 border border-brand-red/20 hover:bg-brand-red hover:text-white transition-colors"
-                                  title="Hapus Log"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
+                                <div className="flex items-center justify-center gap-2">
+                                  <button
+                                    onClick={() => handleEditCutting(log)}
+                                    className="p-1.5 rounded-lg text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500 hover:text-white transition-colors"
+                                    title="Edit Log"
+                                  >
+                                    <Edit2 className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteCutting(log.id)}
+                                    className="p-1.5 rounded-lg text-brand-red bg-brand-red/10 border border-brand-red/20 hover:bg-brand-red hover:text-white transition-colors"
+                                    title="Hapus Log"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
                               </td>
                             )}
                           </tr>
@@ -920,6 +974,99 @@ export default function ReportsDashboard({ userRole }) {
           </>
         )}
       </div>
+
+      {/* Edit Cutting Log Modal (Khusus SPV) */}
+      {editingCuttingLog && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm" onClick={() => !isSavingEdit && setEditingCuttingLog(null)}></div>
+          <div className="glass-card w-full max-w-lg p-6 relative z-10 animate-in zoom-in-95 duration-200">
+            <h3 className="text-xl font-bold t-primary mb-6 flex items-center gap-2">
+              <Edit2 className="w-5 h-5 text-emerald-500" />
+              Edit Log Cutting
+            </h3>
+
+            <form onSubmit={handleSaveEdit} className="space-y-4">
+              <p className="text-sm t-secondary mb-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl">
+                Mode Edit SPV. Anda dapat merevisi detail laporan cutting ini.
+              </p>
+
+              <div>
+                <label className="block text-sm font-medium t-secondary mb-1">Nama Order / Project *</label>
+                <input
+                  type="text"
+                  required
+                  className="w-full px-4 py-2.5 rounded-xl border"
+                  style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)', color: 'var(--text-primary)' }}
+                  value={editingCuttingLog.order_name}
+                  onChange={(e) => setEditingCuttingLog({ ...editingCuttingLog, order_name: e.target.value })}
+                  placeholder="Misal: Stiker Label Produk A"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium t-secondary mb-1">Bahan yang Digunakan</label>
+                <select
+                  className="w-full px-4 py-2.5 rounded-xl border focus:outline-none"
+                  style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)', color: 'var(--text-primary)' }}
+                  value={editingCuttingLog.item_id}
+                  onChange={(e) => setEditingCuttingLog({ ...editingCuttingLog, item_id: e.target.value })}
+                >
+                  <option value="">-- Pilih Bahan --</option>
+                  {materialOptions.map(item => (
+                    <option key={item.id} value={item.id}>{item.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium t-secondary mb-1">Lembar Di-Cut *</label>
+                <input
+                  type="number"
+                  min="1"
+                  required
+                  className="w-full px-4 py-2.5 rounded-xl border"
+                  style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)', color: 'var(--text-primary)' }}
+                  value={editingCuttingLog.qty_cut}
+                  onChange={(e) => setEditingCuttingLog({ ...editingCuttingLog, qty_cut: parseInt(e.target.value) || '' })}
+                  placeholder="Jumlah lembar"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium t-secondary mb-1">Catatan Tambahan</label>
+                <textarea
+                  className="w-full px-4 py-2.5 rounded-xl border resize-none"
+                  style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)', color: 'var(--text-primary)' }}
+                  rows="2"
+                  value={editingCuttingLog.notes}
+                  onChange={(e) => setEditingCuttingLog({ ...editingCuttingLog, notes: e.target.value })}
+                  placeholder="Misal: Ukuran potong khusus..."
+                ></textarea>
+              </div>
+
+              <div className="flex gap-3 justify-end pt-4 mt-6" style={{ borderTop: '1px solid var(--border-glass)' }}>
+                <button
+                  type="button"
+                  onClick={() => setEditingCuttingLog(null)}
+                  className="px-4 py-2 text-sm font-medium rounded-xl t-secondary hover:bg-white/5 transition-colors"
+                  disabled={isSavingEdit}
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingEdit}
+                  className="px-5 py-2 text-sm font-bold text-white bg-blue-500 rounded-xl hover:bg-blue-600 transition-colors shadow-lg shadow-blue-500/25 flex items-center justify-center min-w-[120px]"
+                >
+                  {isSavingEdit ? (
+                    <div className="w-5 h-5 border-t-2 border-r-2 border-white rounded-full animate-spin"></div>
+                  ) : 'Simpan Perubahan'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
