@@ -20,9 +20,12 @@ serve(async (req) => {
 
     // Validate sender and message
     const messageText = (payload.message || payload.text || "").toString().trim().toLowerCase();
-    const senderNumber = payload.sender || payload.from;
 
-    if (!messageText || !senderNumber) {
+    // Fonnte sends Private Chats via `sender`, and Group Chats via `sender` + webhook might contain `group` or a group-formatted `sender` id (ending with @g.us).
+    // Let's grab the actual target to reply to. If it's a group, the reply target should be the `sender` which actually contains the Group ID (e.g. 123456789-12345@g.us)
+    const replyTarget = payload.sender || payload.from;
+
+    if (!messageText || !replyTarget) {
       return new Response(JSON.stringify({ success: false, reason: "Missing message or sender" }), { headers: { "Content-Type": "application/json" }, status: 200 })
     }
 
@@ -74,9 +77,9 @@ serve(async (req) => {
       replyText += `\n_Diperbarui pada: ${jakartaTime}_`;
 
       // Enqueue reply back via Fonnte
-      console.log("Sending reply to: " + senderNumber);
+      console.log("Sending reply to: " + replyTarget);
       const fonntePayload = new FormData();
-      fonntePayload.append("target", senderNumber);
+      fonntePayload.append("target", replyTarget);
       fonntePayload.append("message", replyText);
 
       const fonnteResponse = await fetch(FONNTE_API_URL, {
