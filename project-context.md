@@ -102,8 +102,7 @@
 
 ### 1. Modul Stok (OP_CETAK) - *MENGURANGI STOK*
 Hanya kesalahan/penggunaan bahan pada saat *Cetak* yang boleh mengurangi stok fisik.
-- OP_CETAK submit form → `trx_reports` (Pending)
-- SPV Approve → Trigger RPC `approve_report_with_stock()` → Kurangi tabel `mst_items` → Catat di `trx_stock_log`.
+- OP_CETAK submit form → Panggil RPC `submit_report_direct()` → Insert ke `trx_reports` (status: Approved) + Kurangi `mst_items.stock` + Catat di `trx_stock_log` — semuanya atomik.
 - Validation: Tidak merender sisa stok menjadi negatif atau di bawah 0. Warning diberikan jika input melewati `min_stock_m`.
 
 ### 2. Modul Cutting (OP_CUTTING) - *TIDAK MENGURANGI STOK*
@@ -151,7 +150,7 @@ src/
 │   ├── Sidebar.jsx              
 │   └── MainLayout.jsx           
 └── pages/dashboard/
-    ├── ApprovalDashboard.jsx    # SPV: Approve/reject trx_reports
+    ├── ApprovalDashboard.jsx    # Riwayat Laporan (list semua report)
     ├── InventoryDashboard.jsx   # Tab stok, masuk, supplier, correction
     ├── InputReportDashboard.jsx # Tab Laporan Cetak & Tracking Cutting
     ├── DefectsDashboard.jsx     # NEW: UI Lapor Kendala produksi (Non-stok)

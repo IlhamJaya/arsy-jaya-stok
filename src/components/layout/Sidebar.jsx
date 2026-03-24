@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
     Package, Users, Settings, FileText, FileEdit, LogOut,
-    ChevronRight, CircleCheck, Sun, Moon, Menu, X, AlertTriangle, Factory
+    ChevronRight, ClipboardList, Sun, Moon, Menu, X, AlertTriangle, Factory
 } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import useAppStore from '../../store/useAppStore';
@@ -41,7 +41,7 @@ export default function Sidebar({ userRole }) {
     };
 
     let menuItems = [
-        { icon: CircleCheck, label: 'Approval', shortLabel: 'Approval', path: '/dashboard' }
+        { icon: ClipboardList, label: 'Riwayat Laporan', shortLabel: 'Riwayat', path: '/dashboard' }
     ];
 
     if (userRole !== 'SPV' && userRole !== 'HRD') {
