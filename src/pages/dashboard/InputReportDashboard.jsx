@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../supabaseClient';
-import { FileEdit, Search, AlertCircle, Save, CheckCircle2, History, Scissors, Trash2 } from 'lucide-react';
+import { FileEdit, Search, AlertCircle, Save, CheckCircle2, History, Scissors, Trash2, X } from 'lucide-react';
 import { capitalizeWords, handleNumberInput } from '../../utils/formatters.js';
 
 export default function InputReportDashboard({ userRole }) {
@@ -200,38 +200,65 @@ export default function InputReportDashboard({ userRole }) {
                                             value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
                                             className="w-full bg-input border border-theme t-primary rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-accent-base/30 text-sm" />
                                     </div>
-                                    <div className="max-h-60 overflow-y-auto space-y-2 pr-2">
-                                        {filteredItems.map(item => (
-                                            <button key={item.id} onClick={() => setSelectedItem(item)}
-                                                className="w-full text-left p-3 rounded-xl border border-theme bg-input hover:border-accent-base/50 transition-all group flex justify-between items-center">
-                                                <div>
-                                                    <p className="text-sm font-semibold t-primary group-hover:text-accent-base transition-colors">{item.name}</p>
-                                                    <p className="text-xs t-muted">{item.brand || 'No Brand'} / {item.category || 'No Category'}</p>
-                                                </div>
-                                                <div className="text-right">
-                                                    <p className="text-lg font-mono font-bold t-primary">{item.stock} <span className="text-xs t-secondary">{item.unit}</span></p>
-                                                </div>
-                                            </button>
-                                        ))}
-                                        {filteredItems.length === 0 && <p className="t-muted text-sm text-center py-4">Barang tidak ditemukan.</p>}
+                                    <div className="max-h-[340px] overflow-y-auto space-y-3 pr-2 scrollbar-thin">
+                                        {filteredItems.map(item => {
+                                            const maxStock = Math.max((item.min_stock || 10) * 4, item.stock, 50);
+                                            const stockPct = Math.min((item.stock / maxStock) * 100, 100);
+                                            const stockColor = item.stock <= (item.min_stock || 0) ? 'bg-brand-red' : item.stock <= ((item.min_stock || 0) * 1.5) ? 'bg-brand-amber' : 'bg-emerald-500';
+
+                                            return (
+                                                <button key={item.id} onClick={() => setSelectedItem(item)}
+                                                    className="w-full text-left p-4 rounded-2xl border border-theme bg-surface hover:bg-input hover:border-accent-base/50 transition-all duration-300 group flex flex-col gap-3 relative overflow-hidden shadow-sm hover:shadow-md">
+                                                    <div className="flex justify-between items-center w-full">
+                                                        <div>
+                                                            <p className="text-sm font-bold t-primary group-hover:text-accent-base transition-colors">{item.name}</p>
+                                                            <p className="text-[11px] font-mono t-muted tracking-wide mt-0.5">{item.brand || 'No Brand'} / {item.category || '-'}</p>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <p className="text-lg font-mono font-bold t-primary">{item.stock} <span className="text-[10px] font-sans font-bold uppercase tracking-wider t-secondary">{item.unit}</span></p>
+                                                        </div>
+                                                    </div>
+                                                    {/* Visual Stock Indicator */}
+                                                    <div className="w-full h-1.5 bg-input rounded-full overflow-hidden border border-theme/50">
+                                                        <div className={`h-full ${stockColor} transition-all duration-500 rounded-full`} style={{ width: `${stockPct}%` }} />
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
+                                        {filteredItems.length === 0 && <p className="t-muted text-sm text-center py-8 border-2 border-dashed rounded-2xl mx-1" style={{ borderColor: 'var(--border-glass)' }}>Barang tidak ditemukan.</p>}
                                     </div>
                                 </div>
                             ) : (
-                                <div className="flex items-center justify-between p-4 bg-input rounded-xl border border-accent-base/30">
-                                    <div>
-                                        <p className="text-xs t-secondary uppercase tracking-wider mb-1">Material Terpilih</p>
-                                        <p className="text-base font-bold text-accent-base">{selectedItem.name}</p>
-                                    </div>
-                                    <div className="text-right flex items-center gap-4">
+                                <div className="flex flex-col gap-3 p-5 bg-surface rounded-2xl border border-accent-base/30 relative overflow-hidden shadow-md group">
+                                    <div className="absolute top-0 right-0 w-32 h-32 bg-accent-base/5 rounded-full blur-3xl pointer-events-none group-hover:bg-accent-base/10 transition-colors"></div>
+                                    <div className="flex items-center justify-between relative z-10">
                                         <div>
-                                            <p className="text-xs t-secondary uppercase tracking-wider mb-1">Sisa Stok</p>
-                                            <p className="text-xl font-mono font-bold t-primary">{selectedItem.stock} <span className="text-sm font-sans font-normal t-muted">{selectedItem.unit}</span></p>
+                                            <p className="text-[10px] t-secondary uppercase tracking-widest font-bold mb-1">Material Terpilih</p>
+                                            <p className="text-lg font-bold text-accent-base">{selectedItem.name}</p>
+                                            <p className="text-xs t-muted font-mono mt-0.5">{selectedItem.code || '-'}</p>
                                         </div>
-                                        <button onClick={() => setSelectedItem(null)}
-                                            className="px-4 py-2 ml-4 bg-surface hover:bg-input t-primary font-bold rounded-xl transition-all border border-theme text-sm">
-                                            Ganti
-                                        </button>
+                                        <div className="text-right flex items-center gap-3">
+                                            <div className="bg-input px-3 py-2 rounded-xl border border-theme">
+                                                <p className="text-[10px] t-secondary uppercase tracking-widest font-bold mb-0.5">Sisa Fisik</p>
+                                                <p className="text-xl font-mono font-bold t-primary leading-none">{selectedItem.stock} <span className="text-xs font-sans font-bold t-muted uppercase">{selectedItem.unit}</span></p>
+                                            </div>
+                                            <button onClick={() => setSelectedItem(null)}
+                                                className="p-2.5 bg-input hover:bg-brand-red/10 t-muted hover:text-brand-red rounded-xl transition-all border border-theme text-sm shadow-sm" title="Ganti Material">
+                                                <X className="w-5 h-5" />
+                                            </button>
+                                        </div>
                                     </div>
+                                    {/* Selected Item Stock Bar */}
+                                    {(() => {
+                                        const maxStock = Math.max((selectedItem.min_stock || 10) * 4, selectedItem.stock, 50);
+                                        const stockPct = Math.min((selectedItem.stock / maxStock) * 100, 100);
+                                        const stockColor = selectedItem.stock <= (selectedItem.min_stock || 0) ? 'bg-brand-red' : selectedItem.stock <= ((selectedItem.min_stock || 0) * 1.5) ? 'bg-brand-amber' : 'bg-emerald-500';
+                                        return (
+                                            <div className="w-full h-1.5 bg-input rounded-full overflow-hidden border border-theme/50 relative z-10 mt-2">
+                                                <div className={`h-full ${stockColor} transition-all duration-500 rounded-full`} style={{ width: `${stockPct}%` }} />
+                                            </div>
+                                        );
+                                    })()}
                                 </div>
                             )}
                         </div>
@@ -298,10 +325,13 @@ export default function InputReportDashboard({ userRole }) {
                                     </div>
                                 )}
 
-                                <div className="pt-4 border-t border-theme flex justify-end">
+                                <div className="pt-6 border-t border-theme flex justify-end">
                                     <button type="submit" disabled={!isValid || isSubmitting}
-                                        className="flex items-center gap-2 px-8 py-3 bg-accent-base t-on-accent font-bold rounded-xl hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(6,182,212,0.15)]">
-                                        {isSubmitting ? (<><div className="w-5 h-5 rounded-full border-t-2 border-r-2 border-slate-900 animate-spin" /> Memproses...</>) : (<><Save className="w-5 h-5" /> Simpan & Potong Stok</>)}
+                                        className="group relative flex items-center justify-center gap-2 w-full md:w-auto px-8 py-3.5 bg-accent-base font-bold rounded-2xl transition-all disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden shadow-[0_0_15px_rgba(6,182,212,0.2)] hover:shadow-[0_0_25px_rgba(6,182,212,0.4)]">
+                                        <div className="absolute inset-0 bg-white/20 group-hover:translate-x-full transition-transform duration-700 -translate-x-full skew-x-12"></div>
+                                        <span className="relative z-10 flex items-center gap-2 t-on-accent text-base">
+                                            {isSubmitting ? (<><div className="w-5 h-5 rounded-full border-t-2 border-r-2 t-on-accent animate-spin" /> Memproses...</>) : (<><Save className="w-5 h-5" /> Simpan & Potong Stok</>)}
+                                        </span>
                                     </button>
                                 </div>
                             </form>

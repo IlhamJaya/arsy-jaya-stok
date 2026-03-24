@@ -55,7 +55,9 @@ export default function Sidebar({ userRole }) {
         menuItems.push({ icon: FileText, label: 'Reports', shortLabel: 'Laporan', path: '/reports' });
     }
 
-    menuItems.push({ icon: AlertTriangle, label: 'Lapor Kendala', shortLabel: 'Kendala', path: '/defects' });
+    if (userRole !== 'OP_CETAK') {
+        menuItems.push({ icon: AlertTriangle, label: 'Lapor Kendala', shortLabel: 'Kendala', path: '/defects' });
+    }
 
     if (userRole === 'SPV') {
         menuItems.push({ icon: Users, label: 'Profiles', shortLabel: 'Profiles', path: '/profiles' });

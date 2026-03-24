@@ -7,11 +7,16 @@ import {
 export default function ApprovalDashboard({ userRole }) {
     const [searchTerm, setSearchTerm] = useState('');
     const [activeTab, setActiveTab] = useState('today'); // 'today' | 'history'
+    const [visibleCount, setVisibleCount] = useState(10);
     const [todayReports, setTodayReports] = useState([]);
     const [historyReports, setHistoryReports] = useState([]);
     const [stats, setStats] = useState({ todayCount: 0, criticalStock: 0 });
     const [isLoading, setIsLoading] = useState(true);
     const [errorMsg, setErrorMsg] = useState('');
+
+    useEffect(() => {
+        setVisibleCount(10);
+    }, [activeTab, searchTerm]);
 
     const fetchDashboardStats = useCallback(async () => {
         try {
@@ -198,7 +203,7 @@ export default function ApprovalDashboard({ userRole }) {
                     </div>
                 ) : (
                     <div className="flex flex-col space-y-3">
-                        {filteredReports.map((report) => (
+                        {filteredReports.slice(0, visibleCount).map((report) => (
                             <div key={report.id} className="relative rounded-2xl p-4 border flex flex-col md:flex-row md:items-center justify-between gap-4 group hover:border-accent-base/30 transition-all duration-300"
                                 style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}>
                                 <div className="flex items-center gap-4 flex-1 min-w-0">
@@ -246,6 +251,18 @@ export default function ApprovalDashboard({ userRole }) {
                                 </div>
                             </div>
                         ))}
+                        
+                        {/* Load More Button */}
+                        {visibleCount < filteredReports.length && (
+                            <div className="flex justify-center pt-6 pb-2">
+                                <button
+                                    onClick={() => setVisibleCount(prev => prev + 10)}
+                                    className="px-6 py-2.5 bg-surface border border-theme t-primary font-bold text-sm rounded-xl hover:border-accent-base/50 hover:text-accent-base transition-all shadow-sm"
+                                >
+                                    Tampilkan Lebih Banyak ({filteredReports.length - visibleCount} item lagi)
+                                </button>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
