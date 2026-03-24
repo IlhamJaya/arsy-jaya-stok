@@ -328,7 +328,7 @@ export default function InputReportDashboard({ userRole }) {
                                             <div className="flex justify-between items-start mb-1">
                                                 <p className="text-sm font-semibold t-primary truncate pr-2">{r.item?.name || 'Unknown'}</p>
                                                 <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${r.status === 'Approved' ? 'bg-accent-base/20 text-accent-base' : r.status === 'Rejected' ? 'bg-brand-red/20 text-brand-red' : 'bg-brand-amber/20 text-brand-amber'}`}>
-                                                    {r.status.toUpperCase()}
+                                                    {r.status === 'Approved' ? 'TERCATAT' : r.status === 'Rejected' ? 'DITOLAK' : 'PENDING'}
                                                 </span>
                                             </div>
                                             <p className="text-xs t-secondary">

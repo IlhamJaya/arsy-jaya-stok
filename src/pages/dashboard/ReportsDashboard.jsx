@@ -77,7 +77,7 @@ export default function ReportsDashboard({ userRole }) {
     return { start: null, end: null };
   }, [dateRange, customStart, customEnd, selectedMonth]);
 
-  // === TAB 1: Fetch Approved Reports from trx_reports ===
+  // === TAB 1: Fetch Reports from trx_reports ===
   const fetchReports = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -611,7 +611,7 @@ export default function ReportsDashboard({ userRole }) {
             <div className="glass-card overflow-hidden flex flex-col md:col-span-2 lg:col-span-3 xl:col-span-4 min-h-[400px]">
               <div className="p-6 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border-glass)' }}>
                 <h3 className="font-bold t-primary flex items-center gap-2">
-                  <BarChart3 className="w-5 h-5 text-accent-base" /> Detail Riwayat Laporan (Approved)
+                  <BarChart3 className="w-5 h-5 text-accent-base" /> Detail Riwayat Laporan
                 </h3>
                 <span className="text-xs t-muted font-mono">
                   {reports.length} data
@@ -629,7 +629,7 @@ export default function ReportsDashboard({ userRole }) {
                       <FileText className="w-8 h-8 t-muted" />
                     </div>
                     <h3 className="text-lg font-medium t-primary mb-1">Tidak Ada Data</h3>
-                    <p className="t-secondary text-sm max-w-sm">Belum ada laporan produksi yang disetujui pada filter ini.</p>
+                    <p className="t-secondary text-sm max-w-sm">Belum ada laporan produksi yang tercatat pada filter ini.</p>
                   </div>
                 ) : (
                   <table className="w-full text-left border-collapse">
