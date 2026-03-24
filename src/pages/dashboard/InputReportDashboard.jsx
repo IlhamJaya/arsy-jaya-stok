@@ -102,24 +102,28 @@ export default function InputReportDashboard({ userRole }) {
         if (!isValid) return;
         setIsSubmitting(true);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
             if (qtyUsed > 0) {
-                const { error } = await supabase.from('trx_reports').insert([{
-                    item_id: selectedItem.id, operator_id: session.user.id,
-                    type: 'Usage', quantity: qtyUsed, notes: formData.used_note.trim() || 'Pemakaian normal produksi', status: 'Pending'
-                }]);
+                const { data, error } = await supabase.rpc('submit_report_direct', {
+                    p_item_id: selectedItem.id,
+                    p_type: 'Usage',
+                    p_quantity: qtyUsed,
+                    p_notes: formData.used_note.trim() || 'Pemakaian normal produksi'
+                });
                 if (error) throw error;
             }
             if (qtyDamage > 0) {
-                const { error } = await supabase.from('trx_reports').insert([{
-                    item_id: selectedItem.id, operator_id: session.user.id,
-                    type: 'Damage', quantity: qtyDamage, notes: formData.damage_note, status: 'Pending'
-                }]);
+                const { data, error } = await supabase.rpc('submit_report_direct', {
+                    p_item_id: selectedItem.id,
+                    p_type: 'Damage',
+                    p_quantity: qtyDamage,
+                    p_notes: formData.damage_note
+                });
                 if (error) throw error;
             }
-            showToast("Laporan Berhasil Disimpan!");
+            showToast("Laporan Berhasil! Stok otomatis terpotong.");
             setFormData({ qty_used: '', used_note: '', qty_damage: '', damage_note: '' });
             setSelectedItem(null); setSearchTerm('');
+            await fetchItems();
             fetchRecentReports();
         } catch (error) {
             showToast("Gagal menyimpan laporan: " + error.message, true);
@@ -163,7 +167,7 @@ export default function InputReportDashboard({ userRole }) {
                         Input Laporan {userRole === 'OP_CUTTING' ? 'Cutting' : 'Penggunaan Bahan'}
                     </h2>
                     <p className="t-secondary">
-                        Laporkan pemakaian material dan kerusakan. Stok belum terpotong sampai di-Approve SPV.
+                        Laporkan pemakaian material dan kerusakan. Stok akan langsung terpotong otomatis.
                     </p>
                 </div>
 
@@ -297,7 +301,7 @@ export default function InputReportDashboard({ userRole }) {
                                 <div className="pt-4 border-t border-theme flex justify-end">
                                     <button type="submit" disabled={!isValid || isSubmitting}
                                         className="flex items-center gap-2 px-8 py-3 bg-accent-base t-on-accent font-bold rounded-xl hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(6,182,212,0.15)]">
-                                        {isSubmitting ? (<><div className="w-5 h-5 rounded-full border-t-2 border-r-2 border-slate-900 animate-spin" /> Mengirim...</>) : (<><Save className="w-5 h-5" /> Kirim ke Supervisor</>)}
+                                        {isSubmitting ? (<><div className="w-5 h-5 rounded-full border-t-2 border-r-2 border-slate-900 animate-spin" /> Memproses...</>) : (<><Save className="w-5 h-5" /> Simpan & Potong Stok</>)}
                                     </button>
                                 </div>
                             </form>
