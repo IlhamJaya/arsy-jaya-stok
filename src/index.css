@@ -68,16 +68,13 @@ html.light {
   /* Indigo */
   --select-bg: #ffffff;
 
-  /* Accent Colors (Light Theme - Slate Blue) */
-  --color-accent-base: #475569;
-  /* slate-600, or a blueish slate like #3b82f6 for blue */
-  --color-accent-hover: #334155;
-  /* slate-700 */
-  --color-accent-light: rgba(71, 85, 105, 0.1);
-  --color-accent-light-border: rgba(71, 85, 105, 0.2);
-  --color-accent-shadow: rgba(71, 85, 105, 0.3);
-  --text-on-accent: #0f172a;
-  /* Slate-900 for Light Mode */
+  /* Accent Colors (Light Theme - Vibrant Indigo) */
+  --color-accent-base: #4f46e5; /* Indigo 600 */
+  --color-accent-hover: #4338ca; /* Indigo 700 */
+  --color-accent-light: rgba(79, 70, 229, 0.1);
+  --color-accent-light-border: rgba(79, 70, 229, 0.2);
+  --color-accent-shadow: rgba(79, 70, 229, 0.3);
+  --text-on-accent: #ffffff; /* White text on indigo bg */
 }
 
 @layer base {

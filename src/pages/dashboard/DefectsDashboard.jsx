@@ -22,13 +22,6 @@ export default function DefectsDashboard() {
     const [sourcesOptions, setSourcesOptions] = useState([]);
     const [categoriesOptions, setCategoriesOptions] = useState([]);
 
-    // History Data
-    const [defectsHistory, setDefectsHistory] = useState([]);
-
-    // Edit Defect State (Khusus SPV)
-    const [editingDefect, setEditingDefect] = useState(null);
-    const [isSavingEdit, setIsSavingEdit] = useState(false);
-
     useEffect(() => {
         fetchInitialData();
     }, []);
@@ -59,34 +52,12 @@ export default function DefectsDashboard() {
                     if (settingsData.defect_categories.length > 0) setFormData(f => ({ ...f, error_category: settingsData.defect_categories[0] }));
                 }
             }
-
-            // 2. Fetch Recent Defects History
-            await fetchHistory();
-
         } catch (error) {
             console.error("Error fetching initial defects data:", error.message);
         } finally {
             setIsLoading(false);
         }
     };
-
-    const fetchHistory = async () => {
-        try {
-            const { data, error } = await supabase
-                .from('trx_defects')
-                .select(`
-                    id, order_name, error_source, error_category, quantity, notes, created_at, status,
-                    profiles!trx_defects_reporter_id_fkey(full_name)
-                `)
-                .order('created_at', { ascending: false })
-                .limit(50);
-
-            if (error) throw error;
-            setDefectsHistory(data || []);
-        } catch (error) {
-            console.error("Error fetching defect history:", error.message);
-        }
-    }
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -121,69 +92,12 @@ export default function DefectsDashboard() {
                 notes: ''
             });
 
-            // Refresh table
-            fetchHistory();
-
             setTimeout(() => setMessage({ type: '', text: '' }), 4000);
         } catch (err) {
             console.error("Submit Defect Error:", err.message);
             setMessage({ type: 'error', text: 'Gagal mengirim laporan. ' + err.message });
         } finally {
             setIsSubmitting(false);
-        }
-    };
-
-    const handleDelete = async (id) => {
-        if (!confirm("Apakah Anda yakin ingin menghapus catatan ini? Hanya SPV yang bisa melakukan ini.")) return;
-        try {
-            const { error } = await supabase.from('trx_defects').delete().eq('id', id);
-            if (error) throw error;
-            fetchHistory();
-        } catch (error) {
-            alert("Gagal menghapus: " + error.message);
-        }
-    };
-
-    const handleEdit = (defect) => {
-        setEditingDefect({
-            id: defect.id,
-            order_name: defect.order_name,
-            error_source: defect.error_source,
-            error_category: defect.error_category,
-            quantity: defect.quantity,
-            notes: defect.notes || ''
-        });
-    };
-
-    const handleSaveEdit = async (e) => {
-        e.preventDefault();
-        if (!editingDefect) return;
-
-        setIsSavingEdit(true);
-        try {
-            const { error } = await supabase
-                .from('trx_defects')
-                .update({
-                    order_name: editingDefect.order_name,
-                    error_source: editingDefect.error_source,
-                    error_category: editingDefect.error_category,
-                    quantity: parseFloat(editingDefect.quantity) || 0,
-                    notes: editingDefect.notes
-                })
-                .eq('id', editingDefect.id);
-
-            if (error) throw error;
-
-            setMessage({ type: 'success', text: 'Perubahan Laporan Kendala berhasil disimpan!' });
-            setEditingDefect(null);
-            fetchHistory();
-
-            setTimeout(() => setMessage({ type: '', text: '' }), 4000);
-        } catch (err) {
-            console.error("Update Defect Error:", err.message);
-            alert("Gagal menyimpan perubahan: " + err.message);
-        } finally {
-            setIsSavingEdit(false);
         }
     };
 
@@ -214,13 +128,14 @@ export default function DefectsDashboard() {
                 </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div className="flex justify-center flex-1 w-full min-h-[50vh]">
                 {/* Form Section */}
-                <div className="lg:col-span-4 space-y-6">
-                    <div className="glass-card p-6 border border-orange-500/20">
-                        <h3 className="text-xl font-bold t-primary mb-6 flex items-center gap-2">
+                <div className="w-full max-w-2xl space-y-6">
+                    <div className="glass-card p-8 border border-orange-500/20 shadow-xl relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 rounded-full blur-3xl pointer-events-none"></div>
+                        <h3 className="text-xl font-bold t-primary mb-6 flex items-center gap-2 relative z-10">
                             <FileWarning className="w-5 h-5 text-orange-400" />
-                            Form Pelaporan
+                            Form Pelaporan Kendala
                         </h3>
 
                         {sourcesOptions.length === 0 ? (
@@ -298,191 +213,7 @@ export default function DefectsDashboard() {
                         )}
                     </div>
                 </div>
-
-                {/* History Section */}
-                <div className="lg:col-span-8">
-                    <div className="glass-card p-6">
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-xl font-bold t-primary flex items-center gap-2">
-                                <History className="w-5 h-5 text-accent-base" />
-                                Riwayat Laporan Kendala
-                            </h3>
-                            <button onClick={fetchHistory} className="text-xs font-medium bg-accent-base/10 text-accent-base hover:bg-accent-base/20 px-3 py-1.5 rounded-lg transition-colors">
-                                Refresh Data
-                            </button>
-                        </div>
-
-                        <div className="table-container max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="sticky top-0 z-10" style={{ background: 'var(--bg-glass)' }}>
-                                        <th className="py-4 px-4 text-xs font-bold t-secondary uppercase tracking-wider border-b border-theme">Waktu (Pelapor)</th>
-                                        <th className="py-4 px-4 text-xs font-bold t-secondary uppercase tracking-wider border-b border-theme">Order / Kerjaan</th>
-                                        <th className="py-4 px-4 text-xs font-bold t-secondary uppercase tracking-wider border-b border-theme">Kategori & Pihak</th>
-                                        <th className="py-4 px-4 text-xs font-bold t-secondary uppercase tracking-wider border-b border-theme text-right">Qty Gagal</th>
-                                        {canManageDefects && <th className="py-4 px-4 text-xs font-bold t-secondary uppercase tracking-wider border-b border-theme text-right">Aksi</th>}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {defectsHistory.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={canManageDefects ? 5 : 4} className="py-8 text-center t-muted text-sm">
-                                                Belum ada laporan kendala.
-                                            </td>
-                                        </tr>
-                                    ) : (
-                                        defectsHistory.map((defect) => (
-                                            <tr key={defect.id} className="border-b border-theme/50 hover:bg-theme-glow transition-colors">
-                                                <td className="py-3 px-4">
-                                                    <div className="text-sm font-medium t-primary">
-                                                        {new Date(defect.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                                                    </div>
-                                                    <div className="text-xs t-muted mt-0.5 mt-1">Oleh: {defect.profiles?.full_name || 'Unknown'}</div>
-                                                </td>
-                                                <td className="py-3 px-4">
-                                                    <div className="text-sm font-bold t-primary">{defect.order_name}</div>
-                                                    <div className="text-xs t-muted mt-0.5 line-clamp-1">{defect.notes}</div>
-                                                </td>
-                                                <td className="py-3 px-4">
-                                                    <div className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-500/10 text-orange-500 mb-1">
-                                                        {defect.error_category}
-                                                    </div>
-                                                    <div className="text-xs t-secondary">Via: <span className="font-semibold text-brand-red">{defect.error_source}</span></div>
-                                                </td>
-                                                <td className="py-3 px-4 text-right">
-                                                    <span className="text-sm font-bold t-primary bg-slate-500/10 px-2 py-1 rounded-md">{defect.quantity}</span>
-                                                </td>
-                                                {canManageDefects && (
-                                                    <td className="py-3 px-4 text-right">
-                                                        <div className="flex items-center justify-end gap-2">
-                                                            <button onClick={() => handleEdit(defect)} className="text-[10px] font-bold uppercase tracking-wider text-emerald-500 hover:underline px-2 py-1 rounded hover:bg-emerald-500/10 transition-colors" title="Edit Laporan">
-                                                                Edit
-                                                            </button>
-                                                            <button onClick={() => handleDelete(defect.id)} className="text-[10px] font-bold uppercase tracking-wider text-brand-red hover:underline px-2 py-1 rounded hover:bg-brand-red/10 transition-colors" title="Hapus Laporan">
-                                                                Hapus
-                                                            </button>
-                                                        </div>
-                                                    </td>
-                                                )}
-                                            </tr>
-                                        ))
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
             </div>
-
-            {/* Edit Defect Modal (Khusus SPV) */}
-            {editingDefect && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm" onClick={() => !isSavingEdit && setEditingDefect(null)}></div>
-                    <div className="glass-card w-full max-w-lg p-6 relative z-10 animate-in zoom-in-95 duration-200" style={{ border: '1px solid var(--border-glass)' }}>
-                        <h3 className="text-xl font-bold t-primary mb-6 flex items-center gap-2">
-                            <Edit2 className="w-5 h-5 text-emerald-500" />
-                            Edit Laporan Kendala
-                        </h3>
-
-                        <form onSubmit={handleSaveEdit} className="space-y-4">
-                            <p className="text-sm t-secondary mb-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl">
-                                Mode Edit SPV. Anda dapat merevisi detail laporan kendala ini.
-                            </p>
-
-                            <div>
-                                <label className="block text-sm font-medium t-secondary mb-1">Nama Order / Project *</label>
-                                <input
-                                    type="text"
-                                    required
-                                    className="w-full px-4 py-2.5 rounded-xl border"
-                                    style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)', color: 'var(--text-primary)' }}
-                                    value={editingDefect.order_name}
-                                    onChange={(e) => setEditingDefect({ ...editingDefect, order_name: e.target.value })}
-                                />
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium t-secondary mb-1">Pihak Terlapor *</label>
-                                    <select
-                                        required
-                                        className="w-full px-4 py-2.5 rounded-xl border focus:outline-none"
-                                        style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)', color: 'var(--text-primary)' }}
-                                        value={editingDefect.error_source}
-                                        onChange={(e) => setEditingDefect({ ...editingDefect, error_source: e.target.value })}
-                                    >
-                                        <option value="" disabled>Pilih Pihak</option>
-                                        {sourcesOptions.map((opt, i) => (
-                                            <option key={`edit-src-${i}`} value={opt}>{opt}</option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium t-secondary mb-1">Jenis Kendala *</label>
-                                    <select
-                                        required
-                                        className="w-full px-4 py-2.5 rounded-xl border focus:outline-none"
-                                        style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)', color: 'var(--text-primary)' }}
-                                        value={editingDefect.error_category}
-                                        onChange={(e) => setEditingDefect({ ...editingDefect, error_category: e.target.value })}
-                                    >
-                                        <option value="" disabled>Pilih Kendala</option>
-                                        {categoriesOptions.map((opt, i) => (
-                                            <option key={`edit-cat-${i}`} value={opt}>{opt}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium t-secondary mb-1">Jumlah/Estimasi Gagal *</label>
-                                <input
-                                    type="number"
-                                    step="0.01"
-                                    min="0"
-                                    required
-                                    className="w-full px-4 py-2.5 rounded-xl border"
-                                    style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)', color: 'var(--text-primary)' }}
-                                    value={editingDefect.quantity}
-                                    onChange={(e) => setEditingDefect({ ...editingDefect, quantity: e.target.value })}
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium t-secondary mb-1">Keterangan / Kronologi Singkat</label>
-                                <textarea
-                                    className="w-full px-4 py-2.5 rounded-xl border resize-none"
-                                    style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)', color: 'var(--text-primary)' }}
-                                    rows="3"
-                                    value={editingDefect.notes}
-                                    onChange={(e) => setEditingDefect({ ...editingDefect, notes: e.target.value })}
-                                ></textarea>
-                            </div>
-
-                            <div className="flex gap-3 justify-end pt-4 mt-6" style={{ borderTop: '1px solid var(--border-glass)' }}>
-                                <button
-                                    type="button"
-                                    onClick={() => setEditingDefect(null)}
-                                    className="px-4 py-2 text-sm font-medium rounded-xl t-secondary hover:bg-white/5 transition-colors"
-                                    disabled={isSavingEdit}
-                                >
-                                    Batal
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={isSavingEdit}
-                                    className="px-5 py-2 text-sm font-bold text-white bg-blue-500 rounded-xl hover:bg-blue-600 transition-colors shadow-lg shadow-blue-500/25 flex items-center justify-center min-w-[120px]"
-                                >
-                                    {isSavingEdit ? (
-                                        <div className="w-5 h-5 border-t-2 border-r-2 border-white rounded-full animate-spin"></div>
-                                    ) : 'Simpan Perubahan'}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
