@@ -88,6 +88,15 @@ export default function ReportsDashboard({ userRole }) {
   const [editingUsageReport, setEditingUsageReport] = useState(null);
   const [isSavingUsageEdit, setIsSavingUsageEdit] = useState(false);
 
+  // UI: custom toast + confirm modal (hindari window.alert/confirm)
+  const [toastMessage, setToastMessage] = useState(null); // { text, isError }
+  const [confirmDeleteUsageReport, setConfirmDeleteUsageReport] = useState(null); // { id } | null
+
+  const showToast = (message, isError = false) => {
+    setToastMessage({ text: message, isError });
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
   // Filters
   const [dateRange, setDateRange] = useState('month');
   const [selectedType, setSelectedType] = useState('ALL');
@@ -915,24 +924,9 @@ export default function ReportsDashboard({ userRole }) {
     });
   };
 
-  const handleDeleteUsageReport = async (id) => {
+  const handleDeleteUsageReport = (id) => {
     if (userRole !== 'SPV') return;
-    if (!confirm('Yakin ingin menghapus laporan pemakaian ini? Stok akan direstore otomatis.')) return;
-
-    setIsLoading(true);
-    try {
-      const { error } = await supabase.rpc('spv_delete_trx_report_and_restore_stock', {
-        p_report_id: id,
-      });
-      if (error) throw error;
-
-      await fetchUsageReports();
-    } catch (err) {
-      console.error('Error deleting usage report:', err);
-      alert(`Gagal menghapus laporan pemakaian: ${err.message}`);
-    } finally {
-      setIsLoading(false);
-    }
+    setConfirmDeleteUsageReport({ id });
   };
 
   const handleSaveUsageReportEdit = async (e) => {
@@ -947,19 +941,57 @@ export default function ReportsDashboard({ userRole }) {
       });
       if (error) throw error;
 
-      alert('Berhasil: Laporan pemakaian diperbarui!');
+      showToast('Berhasil: Laporan pemakaian diperbarui!');
       setEditingUsageReport(null);
       await fetchUsageReports();
     } catch (err) {
       console.error('Error saving usage report edit:', err);
-      alert(`Gagal menyimpan perubahan: ${err.message}`);
+      showToast(`Gagal menyimpan perubahan: ${err.message}`, true);
     } finally {
       setIsSavingUsageEdit(false);
     }
   };
 
+  const confirmDeleteUsage = async () => {
+    if (!confirmDeleteUsageReport) return;
+    const id = confirmDeleteUsageReport.id;
+    setConfirmDeleteUsageReport(null);
+
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.rpc('spv_delete_trx_report_and_restore_stock', {
+        p_report_id: id,
+      });
+      if (error) throw error;
+
+      await fetchUsageReports();
+      showToast('Berhasil: Laporan pemakaian dihapus dan stok direstore.');
+    } catch (err) {
+      console.error('Error deleting usage report:', err);
+      showToast(`Gagal menghapus laporan pemakaian: ${err.message}`, true);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="w-full animate-in fade-in py-2">
+      {toastMessage && (
+        <div
+          className={`fixed top-6 right-6 z-[120] px-6 py-4 rounded-xl flex items-center gap-3 shadow-lg border animate-in slide-in-from-top-5 duration-300 ${
+            toastMessage.isError
+              ? 'bg-brand-red/10 border-brand-red/20 text-brand-red'
+              : 'bg-accent-base/10 border-accent-base/20 text-accent-base'
+          }`}
+        >
+          {toastMessage.isError ? (
+            <AlertTriangle className="w-5 h-5 shrink-0" />
+          ) : (
+            <CheckCircle2 className="w-5 h-5 shrink-0" />
+          )}
+          <p className="font-semibold text-sm">{toastMessage.text}</p>
+        </div>
+      )}
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
         <div>
@@ -1996,6 +2028,53 @@ export default function ReportsDashboard({ userRole }) {
           </>
         )}
       </div>
+
+      {/* Confirm Delete Usage Modal (Khusus SPV) */}
+      {confirmDeleteUsageReport && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm"
+            onClick={() => !isLoading && setConfirmDeleteUsageReport(null)}
+          ></div>
+
+          <div
+            className="glass-card w-full max-w-lg p-6 relative z-10 animate-in zoom-in-95 duration-200"
+            style={{ border: '1px solid var(--border-glass)' }}
+          >
+            <h3 className="text-xl font-bold t-primary mb-2 flex items-center gap-2">
+              <Trash2 className="w-5 h-5 text-brand-red" />
+              Konfirmasi Hapus Pemakaian
+            </h3>
+            <p className="t-secondary text-sm mb-6">
+              Tindakan ini akan <span className="t-primary font-semibold">mengembalikan stok</span> sesuai qty laporan pemakaian, lalu menghapus baris laporan.
+            </p>
+
+            <div className="flex gap-3 justify-end pt-4" style={{ borderTop: '1px solid var(--border-glass)' }}>
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteUsageReport(null)}
+                className="px-4 py-2 text-sm font-medium rounded-xl t-secondary hover:bg-white/5 transition-colors"
+                disabled={isLoading}
+              >
+                Batal
+              </button>
+
+              <button
+                type="button"
+                onClick={() => confirmDeleteUsage()}
+                className="px-5 py-2 text-sm font-bold text-white bg-brand-red rounded-xl hover:bg-brand-red/90 transition-colors shadow-lg shadow-brand-red/20 flex items-center justify-center min-w-[150px]"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <div className="w-5 h-5 border-t-2 border-r-2 border-white rounded-full animate-spin" />
+                ) : (
+                  'Hapus Pemakaian'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit Usage Modal (Khusus SPV) */}
       {editingUsageReport && (
