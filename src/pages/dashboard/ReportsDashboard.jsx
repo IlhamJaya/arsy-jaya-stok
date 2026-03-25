@@ -5,7 +5,7 @@ import {
   FileText, Calendar, Filter, Download,
   BarChart3, PieChart as PieChartIcon, CheckCircle2, User, Package, AlertTriangle,
   ArrowUpCircle, ArrowDownCircle, Settings2, History, Scissors, Trash2, Edit2, Layers, TrendingUp,
-  Database, FileWarning
+  Database, FileWarning, ChevronDown
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell,
@@ -38,6 +38,96 @@ function transformReportRow(d) {
     reason: d.notes,
     finalStock: d.item?.stock
   };
+}
+
+function TypeFilterDropdown({ activeTab, selectedType, onChange, disabled }) {
+  const options = useMemo(() => {
+    if (activeTab === 'pemakaian' || activeTab === 'kerusakan') {
+      return [
+        { value: 'ALL', label: 'Semua operator' },
+        { value: 'CETAK', label: 'Cetak' },
+        { value: 'CUTTING', label: 'Cutting' },
+      ];
+    }
+
+    if (activeTab === 'stok') {
+      return [
+        { value: 'ALL', label: 'Semua pergerakan' },
+        { value: 'MASUK', label: 'Stok masuk' },
+        { value: 'KELUAR', label: 'Stok keluar (laporan)' },
+        { value: 'AUDIT', label: 'Audit / opname' },
+      ];
+    }
+
+    return [{ value: 'ALL', label: '—' }];
+  }, [activeTab]);
+
+  const [open, setOpen] = useState(false);
+  const wrapperRef = React.useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDocDown = (e) => {
+      if (!wrapperRef.current) return;
+      if (!wrapperRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onDocDown);
+    return () => document.removeEventListener('mousedown', onDocDown);
+  }, [open]);
+
+  const current = options.find((o) => o.value === selectedType) || options[0];
+
+  return (
+    <div ref={wrapperRef} className="relative w-full min-w-[8rem]">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => !disabled && setOpen((v) => !v)}
+        className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl transition-colors border border-theme ${
+          disabled
+            ? 'bg-input opacity-70 cursor-not-allowed'
+            : 'bg-input hover:bg-accent-base/10'
+        }`}
+        style={{ color: 'var(--text-primary)' }}
+      >
+        <span className="text-sm font-medium truncate">{current.label}</span>
+        <ChevronDown className={`w-4 h-4 shrink-0 ${open ? 'rotate-180 text-accent-base' : 'text-accent-base/80'}`} />
+      </button>
+
+      {open && !disabled && (
+        <div
+          className="absolute z-[200] left-0 right-0 mt-2 rounded-xl border border-theme shadow-2xl overflow-hidden"
+          style={{ background: 'var(--bg-panel)' }}
+        >
+          <div className="px-3 py-2 text-[10px] t-muted uppercase tracking-wider border-b border-theme/50">
+            Filter
+          </div>
+          <div className="py-1 max-h-[260px] overflow-y-auto">
+            {options.map((opt) => {
+              const isActive = opt.value === selectedType;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => {
+                    onChange(opt.value);
+                    setOpen(false);
+                  }}
+                  className={`w-full text-left px-3 py-2 text-sm font-medium transition-colors ${
+                    isActive
+                      ? 'bg-accent-base/20 text-accent-base'
+                      : 't-primary hover:bg-accent-base/10'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function ReportsDashboard({ userRole }) {
@@ -1144,37 +1234,22 @@ export default function ReportsDashboard({ userRole }) {
 
             <div className="flex items-center gap-3 p-2 rounded-xl border" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}>
               <Filter className="w-5 h-5 text-accent-base ml-2 shrink-0" />
-              <select value={selectedType} onChange={(e) => setSelectedType(e.target.value)}
-                className="bg-transparent border-none t-primary text-sm font-medium focus:outline-none focus:ring-0 cursor-pointer appearance-none pr-6 min-w-[8rem]"
+              <TypeFilterDropdown
+                activeTab={activeTab}
+                selectedType={selectedType}
+                onChange={(v) => setSelectedType(v)}
                 disabled={activeTab === 'cutting' || activeTab === 'kendala'}
-              >
-                {(activeTab === 'pemakaian' || activeTab === 'kerusakan') ? (
-                  <>
-                    <option value="ALL" style={{ background: 'var(--select-bg)' }}>Semua operator</option>
-                    <option value="CETAK" style={{ background: 'var(--select-bg)' }}>Cetak</option>
-                    <option value="CUTTING" style={{ background: 'var(--select-bg)' }}>Cutting</option>
-                  </>
-                ) : activeTab === 'stok' ? (
-                  <>
-                    <option value="ALL" style={{ background: 'var(--select-bg)' }}>Semua pergerakan</option>
-                    <option value="MASUK" style={{ background: 'var(--select-bg)' }}>Stok masuk</option>
-                    <option value="KELUAR" style={{ background: 'var(--select-bg)' }}>Stok keluar (laporan)</option>
-                    <option value="AUDIT" style={{ background: 'var(--select-bg)' }}>Audit / opname</option>
-                  </>
-                ) : (
-                  <option value="ALL" style={{ background: 'var(--select-bg)' }}>—</option>
-                )}
-              </select>
+              />
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full md:w-auto">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full">
             <button type="button" onClick={handleExportExcel}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-accent-base/10 text-accent-base font-medium border border-accent-base/20 rounded-xl hover:bg-accent-base hover:t-on-accent transition-colors text-sm">
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 w-full sm:w-auto min-w-0 px-4 py-2.5 bg-accent-base/10 text-accent-base font-medium border border-accent-base/20 rounded-xl hover:bg-accent-base hover:t-on-accent transition-colors text-sm">
               <Download className="w-4 h-4 shrink-0" /> Excel (tab ini)
             </button>
             <button type="button" onClick={handleExportFullPackage} disabled={isExportingPack}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-brand-amber/10 text-brand-amber font-medium border border-brand-amber/25 rounded-xl hover:bg-brand-amber/20 transition-colors text-sm disabled:opacity-50">
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 w-full sm:w-auto min-w-0 px-4 py-2.5 bg-brand-amber/10 text-brand-amber font-medium border border-brand-amber/25 rounded-xl hover:bg-brand-amber/20 transition-colors text-sm disabled:opacity-50 whitespace-normal sm:whitespace-nowrap">
               {isExportingPack ? (
                 <span className="w-4 h-4 border-2 border-brand-amber border-t-transparent rounded-full animate-spin shrink-0" />
               ) : (
