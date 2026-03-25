@@ -51,8 +51,8 @@ const CustomItemSelect = ({ value, onChange, items, title }) => {
             </button>
 
             {isOpen && (
-                <div className="absolute z-50 w-full mt-2 bg-slate-900 border border-theme rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2">
-                    <div className="p-2 border-b border-theme/50 bg-slate-900 sticky top-0 z-10">
+                <div className="absolute z-50 w-full mt-2 bg-surface border border-theme rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2">
+                    <div className="p-2 border-b border-theme/50 bg-surface sticky top-0 z-10">
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 t-muted" />
                             <input
@@ -60,7 +60,7 @@ const CustomItemSelect = ({ value, onChange, items, title }) => {
                                 placeholder="Ketik nama/brand/kode..."
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
-                                className="w-full bg-slate-950 border border-theme/50 t-primary rounded-lg py-2 pl-9 pr-3 text-xs focus:outline-none focus:border-accent-base"
+                                className="w-full bg-input border border-theme/50 t-primary rounded-lg py-2 pl-9 pr-3 text-xs focus:outline-none focus:border-accent-base"
                                 onClick={(e) => e.stopPropagation()}
                             />
                         </div>
@@ -71,7 +71,7 @@ const CustomItemSelect = ({ value, onChange, items, title }) => {
                                 key={item.id}
                                 type="button"
                                 onClick={() => { onChange(item.id); setIsOpen(false); setSearch(''); }}
-                                className={`w-full text-left px-4 py-3 hover:bg-slate-800 transition-colors border-b border-theme/30 last:border-0 ${value === item.id ? 'bg-accent-base/10' : ''}`}
+                                className={`w-full text-left px-4 py-3 hover:bg-accent-base/20 transition-colors border-b border-theme/30 last:border-0 ${value === item.id ? 'bg-accent-base/10' : ''}`}
                             >
                                 <div className="flex justify-between items-start gap-2">
                                     <div className="min-w-0 flex-1">
@@ -316,7 +316,7 @@ export default function InventoryDashboard({ userRole }) {
                         onClick={() => setActiveTab('inventory')}
                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'inventory'
                             ? 't-primary shadow-sm'
-                            : 't-secondary hover:t-primary'
+                            : 't-primary opacity-80 hover:opacity-100'
                             }`}
                         style={activeTab === 'inventory' ? { background: 'var(--bg-surface)', boxShadow: '0 1px 3px rgba(0,0,0,0.1), inset 0 0 0 1px var(--border-glass)' } : {}}
                     >
@@ -327,7 +327,7 @@ export default function InventoryDashboard({ userRole }) {
                             onClick={() => { setActiveTab('stock_in'); setStockInSuccess(false); setFormError(null); }}
                             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'stock_in'
                                 ? 't-primary shadow-sm'
-                                : 't-secondary hover:t-primary'
+                                : 't-primary opacity-80 hover:opacity-100'
                                 }`}
                             style={activeTab === 'stock_in' ? { background: 'var(--bg-surface)', boxShadow: '0 1px 3px rgba(0,0,0,0.1), inset 0 0 0 1px var(--border-glass)' } : {}}
                         >
