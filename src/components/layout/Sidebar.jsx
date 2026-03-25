@@ -44,9 +44,8 @@ export default function Sidebar({ userRole }) {
         { icon: ClipboardList, label: 'Log Harian', shortLabel: 'Log', path: '/dashboard' }
     ];
 
-    if (userRole !== 'SPV' && userRole !== 'HRD') {
-        menuItems.push({ icon: FileEdit, label: 'Input Laporan', shortLabel: 'Input', path: '/input-report' });
-    }
+    // Input Laporan bisa dilihat oleh semua role (submit tetap akan dibatasi di halaman ini).
+    menuItems.push({ icon: FileEdit, label: 'Input Laporan', shortLabel: 'Input', path: '/input-report' });
 
     menuItems.push({ icon: Package, label: 'Inventory', shortLabel: 'Inventory', path: '/inventory' });
 
@@ -85,8 +84,8 @@ export default function Sidebar({ userRole }) {
                     <div className="flex items-center">
                         <img src="/Logo.svg" alt="Logo" className="w-[2.2rem] h-[2.2rem] object-contain mr-3 drop-shadow-[0_0_5px_rgba(6,182,212,0.7)]" />
                         <div>
-                            <h1 className="font-bold text-lg tracking-tight t-primary uppercase">{appTitle}</h1>
-                            <p className="text-[10px] t-muted font-mono tracking-wider uppercase">{appSubtitle}</p>
+                            <h1 className="font-bold text-lg tracking-tight t-primary uppercase font-app-brand">{appTitle}</h1>
+                            <p className="text-[10px] t-muted font-app-brand font-medium tracking-wide uppercase">{appSubtitle}</p>
                         </div>
                     </div>
                     <button onClick={() => setIsOpen(false)} className="lg:hidden p-1.5 rounded-lg t-muted hover:t-primary transition-colors">

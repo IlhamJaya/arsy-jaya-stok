@@ -9,6 +9,8 @@
   --color-border-glass: rgba(255, 255, 255, 0.1);
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  /* Judul / tagline aplikasi (topbar, login, sidebar) — bukan monospace */
+  --font-app-brand: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
 }
 
 /* ===== THEME CSS CUSTOM PROPERTIES ===== */

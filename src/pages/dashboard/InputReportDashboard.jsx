@@ -39,6 +39,9 @@ export default function InputReportDashboard({ userRole }) {
     // Cutting form validation
     const isCuttingValid = cuttingForm.order_name.trim() !== '' && parseInt(cuttingForm.qty_cut) > 0 && cuttingForm.item_id !== '';
 
+    // Guard: tombol submit hanya untuk OP_CETAK (SPV boleh simulasi: input tetap bisa diketik).
+    const canSubmitUsage = userRole === 'OP_CETAK';
+
     const showToast = (message, isError = false) => {
         setToastMessage({ text: message, isError });
         setTimeout(() => setToastMessage(null), 3000);
@@ -99,6 +102,11 @@ export default function InputReportDashboard({ userRole }) {
     // == Handlers ==
     const handleSubmitReport = async (e) => {
         e.preventDefault();
+        if (!canSubmitUsage) {
+            // Prevent backend mutation (mis. saat user menekan Enter dan form submit terpicu).
+            showToast('Mode simulasi: submit hanya untuk OP_CETAK.', false);
+            return;
+        }
         if (!isValid) return;
         setIsSubmitting(true);
         try {
@@ -326,7 +334,10 @@ export default function InputReportDashboard({ userRole }) {
                                 )}
 
                                 <div className="pt-6 border-t border-theme flex justify-end">
-                                    <button type="submit" disabled={!isValid || isSubmitting}
+                                    <button
+                                        type="submit"
+                                        disabled={!isValid || isSubmitting || !canSubmitUsage}
+                                        title={!canSubmitUsage ? 'Simulasi: submit hanya untuk OP_CETAK' : undefined}
                                         className="group relative flex items-center justify-center gap-2 w-full md:w-auto px-8 py-3.5 font-bold rounded-2xl transition-all disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden hover:shadow-[0_0_25px_rgba(6,182,212,0.4)] shadow-[0_0_15px_rgba(6,182,212,0.2)]"
                                         style={{ backgroundColor: 'var(--color-accent-base)' }}
                                         >

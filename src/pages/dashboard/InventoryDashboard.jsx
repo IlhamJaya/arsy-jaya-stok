@@ -417,31 +417,34 @@ export default function InventoryDashboard({ userRole }) {
                 <div className="space-y-6">
                     {/* Compact Stats Bar */}
                     <div className="grid grid-cols-3 gap-3 mb-6">
-                        <div className="glass-card px-4 py-3 flex items-center gap-3 group cursor-default">
-                            <div className="p-2 bg-slate-500/10 rounded-xl t-secondary border border-slate-500/20 shrink-0">
+                        <div className="glass-card px-4 py-3 flex items-center gap-3 group cursor-default relative overflow-hidden">
+                            <div className="absolute -bottom-5 -right-5 w-24 h-24 bg-blue-500/5 rounded-full blur-2xl pointer-events-none transition-all group-hover:bg-blue-500/15" />
+                            <div className="p-2 bg-blue-500/10 rounded-xl text-blue-400 border border-blue-500/25 shrink-0 relative z-10 group-hover:bg-blue-500/20 group-hover:text-blue-300 group-hover:border-blue-400/45 transition-colors">
                                 <Package className="w-4 h-4" />
                             </div>
-                            <div className="min-w-0">
+                            <div className="min-w-0 relative z-10">
                                 <p className="t-muted text-[10px] uppercase tracking-wider font-semibold leading-tight">Total Item</p>
-                                <p className="text-2xl font-mono font-bold t-primary leading-tight">{stats.total}</p>
+                                <p className="text-2xl font-mono font-bold t-primary group-hover:text-blue-400 transition-colors leading-tight">{stats.total}</p>
                             </div>
                         </div>
-                        <div className="glass-card px-4 py-3 flex items-center gap-3 group cursor-default">
-                            <div className="p-2 bg-accent-base/10 rounded-xl text-accent-base border border-accent-base/20 shrink-0">
+                        <div className="glass-card px-4 py-3 flex items-center gap-3 group cursor-default relative overflow-hidden">
+                            <div className="absolute -bottom-5 -right-5 w-24 h-24 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none transition-all group-hover:bg-emerald-500/15" />
+                            <div className="p-2 bg-emerald-500/10 rounded-xl text-emerald-400 border border-emerald-500/25 shrink-0 relative z-10 group-hover:bg-emerald-500/20 group-hover:text-emerald-300 group-hover:border-emerald-400/45 transition-colors">
                                 <CheckCircle2 className="w-4 h-4" />
                             </div>
-                            <div className="min-w-0">
+                            <div className="min-w-0 relative z-10">
                                 <p className="t-muted text-[10px] uppercase tracking-wider font-semibold leading-tight">Stok Aman</p>
-                                <p className="text-2xl font-mono font-bold text-accent-base leading-tight">{stats.healthy}</p>
+                                <p className="text-2xl font-mono font-bold t-primary group-hover:text-emerald-400 transition-colors leading-tight">{stats.healthy}</p>
                             </div>
                         </div>
-                        <div className="glass-card px-4 py-3 flex items-center gap-3 group cursor-default">
-                            <div className="p-2 bg-brand-red/10 rounded-xl text-brand-red border border-brand-red/20 shrink-0">
+                        <div className="glass-card px-4 py-3 flex items-center gap-3 group cursor-default relative overflow-hidden">
+                            <div className="absolute -bottom-5 -right-5 w-24 h-24 bg-red-500/5 rounded-full blur-2xl pointer-events-none transition-all group-hover:bg-red-500/15" />
+                            <div className="p-2 bg-brand-red/10 rounded-xl text-brand-red border border-brand-red/25 shrink-0 relative z-10 group-hover:bg-brand-red/20 group-hover:text-red-300 group-hover:border-red-400/45 transition-colors">
                                 <AlertTriangle className="w-4 h-4" />
                             </div>
-                            <div className="min-w-0">
+                            <div className="min-w-0 relative z-10">
                                 <p className="t-muted text-[10px] uppercase tracking-wider font-semibold leading-tight">Kritis</p>
-                                <p className="text-2xl font-mono font-bold text-brand-red leading-tight">{stats.critical}</p>
+                                <p className="text-2xl font-mono font-bold t-primary group-hover:text-brand-red transition-colors leading-tight">{stats.critical}</p>
                             </div>
                         </div>
                     </div>
