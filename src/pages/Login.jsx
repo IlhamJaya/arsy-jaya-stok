@@ -115,10 +115,11 @@ export default function Login() {
                         <button
                             type="submit"
                             disabled={isLoading}
-                            className="w-full flex items-center justify-center gap-2 py-3.5 bg-accent-base hover:bg-cyan-500 t-on-accent font-bold rounded-xl transition-all disabled:opacity-70 disabled:cursor-not-allowed mt-4 shadow-[0_0_20px_rgba(34,197,94,0.3)] hover:shadow-[0_0_25px_rgba(34,197,94,0.4)] ring-1 ring-white/10"
+                            className="w-full flex items-center justify-center gap-2 py-3.5 font-bold rounded-xl transition-all disabled:opacity-70 disabled:cursor-not-allowed mt-4 shadow-[0_0_20px_rgba(34,197,94,0.3)] hover:shadow-[0_0_25px_rgba(34,197,94,0.4)] ring-1 ring-white/10 hover:brightness-110"
+                            style={{ backgroundColor: 'var(--color-accent-base)', color: 'var(--text-on-accent)' }}
                         >
                             {isLoading ? (
-                                <div className="w-5 h-5 border-t-2 border-r-2 border-slate-950 rounded-full animate-spin"></div>
+                                <div className="w-5 h-5 border-t-2 border-r-2 border-slate-950 dark:border-slate-950 rounded-full animate-spin"></div>
                             ) : (
                                 <>
                                     Masuk Sistem <ArrowRight className="w-5 h-5" />

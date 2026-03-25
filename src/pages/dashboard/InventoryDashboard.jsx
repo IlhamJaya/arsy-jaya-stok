@@ -354,7 +354,11 @@ export default function InventoryDashboard({ userRole }) {
 
                 {userRole === 'SPV' && activeTab === 'inventory' && (
                     <div className="flex gap-2">
-                        <button onClick={() => openItemModal()} className="flex items-center gap-2 px-4 py-2 bg-accent-base t-on-accent font-medium rounded-xl hover:bg-emerald-400 transition shadow-[0_0_15px_rgba(34,197,94,0.15)]">
+                        <button
+                            onClick={() => openItemModal()}
+                            className="flex items-center gap-2 px-4 py-2 font-medium rounded-xl transition shadow-[0_0_15px_rgba(34,197,94,0.15)] hover:brightness-110"
+                            style={{ backgroundColor: 'var(--color-accent-base)', color: 'var(--text-on-accent)' }}
+                        >
                             <Plus className="w-4 h-4" /> <span className="text-sm">Item Baru</span>
                         </button>
                     </div>
@@ -365,17 +369,27 @@ export default function InventoryDashboard({ userRole }) {
             {activeTab === 'inventory' && categories.length > 1 && (
                 <div className="flex flex-wrap gap-2 mb-6">
                     {categories.map(cat => (
+                        (() => {
+                            const isActive = selectedCategory === cat;
+                            return (
                         <button
                             key={cat}
                             onClick={() => setSelectedCategory(cat)}
                             className={`px-4 py-1.5 rounded-full text-xs font-semibold border transition-all duration-200 ${
-                                selectedCategory === cat
-                                    ? 'bg-accent-base t-on-accent border-accent-base shadow-[0_0_12px_rgba(6,182,212,0.4)]'
-                                    : 'bg-accent-base/10 text-accent-base border-accent-base/20 hover:bg-accent-base/20 hover:border-accent-base/30 shadow-[0_0_10px_rgba(6,182,212,0.12)]'
+                                isActive
+                                    ? 'border-accent-base shadow-[0_0_12px_rgba(6,182,212,0.35)]'
+                                    : 'border-accent-base/20 hover:border-accent-base/30 shadow-[0_0_10px_rgba(6,182,212,0.10)]'
                               }`}
+                            style={
+                                isActive
+                                    ? { backgroundColor: 'var(--color-accent-base)', color: 'var(--text-on-accent)' }
+                                    : { backgroundColor: 'var(--color-accent-light)', color: 'var(--color-accent-base)' }
+                            }
                         >
                             {cat}
                         </button>
+                            );
+                        })()
                     ))}
                 </div>
             )}
