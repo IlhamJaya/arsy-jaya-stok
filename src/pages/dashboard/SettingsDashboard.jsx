@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {  Settings, Save, Smartphone, BellRing, Database, Moon, Sun, AppWindow, MessageSquare, AlertTriangle  } from 'lucide-react';
+import {  Settings, Save, Smartphone, BellRing, Database, AppWindow, MessageSquare, AlertTriangle  } from 'lucide-react';
 import { capitalizeWords, handleNumberInput } from '../../utils/formatters.js';
 import { supabase } from '../../supabaseClient';
 import useAppStore from '../../store/useAppStore';
@@ -22,7 +22,6 @@ export default function SettingsDashboard() {
     });
 
     const updateGlobalBranding = useAppStore((state) => state.updateBranding);
-    const { theme, toggleTheme } = useAppStore();
 
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
@@ -352,23 +351,7 @@ export default function SettingsDashboard() {
                         </div>
                     </div >
 
-                    {/* Theme Toggle */}
-                    < div className="glass-card p-6 md:p-8" >
-                        <h3 className="text-xl font-bold t-primary mb-4 flex items-center gap-2">
-                            {theme === 'dark' ? <Moon className="w-5 h-5 text-blue-400" /> : <Sun className="w-5 h-5 text-brand-amber" />}
-                            Mode Tampilan
-                        </h3>
-                        <div className="flex gap-4">
-                            <button onClick={() => { if (theme !== 'dark') toggleTheme(); }}
-                                className={`flex-1 flex items-center justify-center gap-3 px-4 py-3 rounded-xl border font-medium transition-all ${theme === 'dark' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20 shadow-sm' : 'border-transparent t-muted hover:bg-blue-500/5'}`} style={theme !== 'dark' ? { borderColor: 'var(--border-glass)' } : {}}>
-                                <Moon className="w-5 h-5" /> <span className="text-sm">Dark Mode</span>
-                            </button>
-                            <button onClick={() => { if (theme !== 'light') toggleTheme(); }}
-                                className={`flex-1 flex items-center justify-center gap-3 px-4 py-3 rounded-xl border font-medium transition-all ${theme === 'light' ? 'bg-brand-amber/10 text-brand-amber border-brand-amber/20 shadow-sm' : 'border-transparent t-muted hover:bg-brand-amber/5'}`} style={theme !== 'light' ? { borderColor: 'var(--border-glass)' } : {}}>
-                                <Sun className="w-5 h-5" /> <span className="text-sm">Light Mode</span>
-                            </button>
-                        </div>
-                    </div >
+                    {/* Mode tampilan dihapus: sudah ada toggle di tempat lain */}
 
                 </div >
             </div >

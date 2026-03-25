@@ -208,8 +208,8 @@ export default function ProfilesDashboard() {
             case 'SPV': return 'text-brand-amber bg-brand-amber/10 border-brand-amber/20';
             case 'SALES': return 'text-blue-400 bg-blue-400/10 border-blue-400/20';
             case 'OP_CUTTING': return 'text-purple-400 bg-purple-400/10 border-purple-400/20';
-            // Gunakan brand-green agar tidak "hitam polos" saat class accent-base tidak terambil.
-            case 'OP_CETAK': return 'text-brand-green bg-brand-green/10 border-brand-green/20';
+            // Pakai warna Tailwind yang lebih kontras di light mode.
+            case 'OP_CETAK': return 'text-emerald-500 bg-emerald-500/10 border-emerald-500/30';
             default: return 't-secondary bg-slate-400/10 border-slate-400/20';
         }
     };

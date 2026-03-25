@@ -114,7 +114,11 @@ export default function SuppliersDashboard({ userRole }) {
 
                 {userRole === 'SPV' && (
                     <div className="flex gap-2">
-                        <button onClick={() => openSupplierModal()} className="flex items-center gap-2 px-4 py-2 bg-accent-base t-on-accent font-medium rounded-xl hover:bg-emerald-400 transition shadow-[0_0_15px_rgba(34,197,94,0.15)]">
+                        <button
+                            onClick={() => openSupplierModal()}
+                            className="flex items-center gap-2 px-4 py-2 font-medium rounded-xl transition shadow-[0_0_15px_rgba(34,197,94,0.15)] hover:brightness-110"
+                            style={{ backgroundColor: 'var(--color-accent-base)', color: 'var(--text-on-accent)' }}
+                        >
                             <Plus className="w-4 h-4" /> <span className="text-sm">Supplier Baru</span>
                         </button>
                     </div>
