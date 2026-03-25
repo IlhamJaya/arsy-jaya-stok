@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../supabaseClient';
-import { FileEdit, Search, AlertCircle, Save, CheckCircle2, History, Scissors, Trash2 } from 'lucide-react';
+import { FileEdit, Search, AlertCircle, Save, CheckCircle2, History, Scissors, Trash2, X } from 'lucide-react';
+import { capitalizeWords, handleNumberInput } from '../../utils/formatters.js';
 
 export default function InputReportDashboard({ userRole }) {
     // == Shared State ==
@@ -9,17 +10,21 @@ export default function InputReportDashboard({ userRole }) {
     const [toastMessage, setToastMessage] = useState(null);
 
     // Tab: 'laporan' or 'cutting' (cutting only for OP_CUTTING)
-    const [activeTab, setActiveTab] = useState('laporan');
+    const [activeTab, setActiveTab] = useState(userRole === 'OP_CUTTING' ? 'cutting' : 'laporan');
+
+    useEffect(() => {
+        setActiveTab(userRole === 'OP_CUTTING' ? 'cutting' : 'laporan');
+    }, [userRole]);
 
     // == Laporan Stok State ==
     const [items, setItems] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedItem, setSelectedItem] = useState(null);
     const [recentReports, setRecentReports] = useState([]);
-    const [formData, setFormData] = useState({ qty_used: '', qty_damage: '', damage_note: '' });
+    const [formData, setFormData] = useState({ qty_used: '', used_note: '', qty_damage: '', damage_note: '' });
 
     // == Cutting Tracker State ==
-    const [cuttingForm, setCuttingForm] = useState({ order_name: '', qty_cut: '', notes: '' });
+    const [cuttingForm, setCuttingForm] = useState({ order_name: '', qty_cut: '', notes: '', item_id: '' });
     const [cuttingLogs, setCuttingLogs] = useState([]);
     const [cuttingStats, setCuttingStats] = useState({ totalOrders: 0, totalCut: 0 });
 
@@ -32,7 +37,7 @@ export default function InputReportDashboard({ userRole }) {
     const isValid = selectedItem && !isOverStock && !isNoteRequired && totalQty > 0;
 
     // Cutting form validation
-    const isCuttingValid = cuttingForm.order_name.trim() !== '' && parseInt(cuttingForm.qty_cut) > 0;
+    const isCuttingValid = cuttingForm.order_name.trim() !== '' && parseInt(cuttingForm.qty_cut) > 0 && cuttingForm.item_id !== '';
 
     const showToast = (message, isError = false) => {
         setToastMessage({ text: message, isError });
@@ -97,24 +102,28 @@ export default function InputReportDashboard({ userRole }) {
         if (!isValid) return;
         setIsSubmitting(true);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
             if (qtyUsed > 0) {
-                const { error } = await supabase.from('trx_reports').insert([{
-                    item_id: selectedItem.id, operator_id: session.user.id,
-                    type: 'Usage', quantity: qtyUsed, notes: 'Pemakaian normal produksi', status: 'Pending'
-                }]);
+                const { data, error } = await supabase.rpc('submit_report_direct', {
+                    p_item_id: selectedItem.id,
+                    p_type: 'Usage',
+                    p_quantity: qtyUsed,
+                    p_notes: formData.used_note.trim() || 'Pemakaian normal produksi'
+                });
                 if (error) throw error;
             }
             if (qtyDamage > 0) {
-                const { error } = await supabase.from('trx_reports').insert([{
-                    item_id: selectedItem.id, operator_id: session.user.id,
-                    type: 'Damage', quantity: qtyDamage, notes: formData.damage_note, status: 'Pending'
-                }]);
+                const { data, error } = await supabase.rpc('submit_report_direct', {
+                    p_item_id: selectedItem.id,
+                    p_type: 'Damage',
+                    p_quantity: qtyDamage,
+                    p_notes: formData.damage_note
+                });
                 if (error) throw error;
             }
-            showToast("Laporan Berhasil Disimpan!");
-            setFormData({ qty_used: '', qty_damage: '', damage_note: '' });
+            showToast("Laporan Berhasil! Stok otomatis terpotong.");
+            setFormData({ qty_used: '', used_note: '', qty_damage: '', damage_note: '' });
             setSelectedItem(null); setSearchTerm('');
+            await fetchItems();
             fetchRecentReports();
         } catch (error) {
             showToast("Gagal menyimpan laporan: " + error.message, true);
@@ -131,25 +140,16 @@ export default function InputReportDashboard({ userRole }) {
                 operator_id: session.user.id,
                 order_name: cuttingForm.order_name.trim(),
                 qty_cut: parseInt(cuttingForm.qty_cut),
-                notes: cuttingForm.notes.trim()
+                notes: cuttingForm.notes.trim(),
+                item_id: cuttingForm.item_id || null,
             }]);
             if (error) throw error;
             showToast("Cutting log berhasil disimpan!");
-            setCuttingForm({ order_name: '', qty_cut: '', notes: '' });
+            setCuttingForm({ order_name: '', qty_cut: '', notes: '', item_id: '' });
             fetchCuttingLogs();
         } catch (error) {
             showToast("Gagal menyimpan: " + error.message, true);
         } finally { setIsSubmitting(false); }
-    };
-
-    const handleDeleteCutting = async (id) => {
-        if (!confirm('Hapus log cutting ini?')) return;
-        try {
-            const { error } = await supabase.from('trx_cutting_log').delete().eq('id', id);
-            if (error) throw error;
-            showToast("Log dihapus.");
-            fetchCuttingLogs();
-        } catch (error) { showToast("Gagal menghapus: " + error.message, true); }
     };
 
     const filteredItems = items.filter(item =>
@@ -163,34 +163,20 @@ export default function InputReportDashboard({ userRole }) {
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
                 <div>
                     <h2 className="text-3xl font-bold tracking-tight t-primary mb-2 flex items-center gap-3">
-                        <FileEdit className="w-8 h-8 text-brand-green" />
-                        Input Laporan {userRole === 'OP_CUTTING' ? 'Cutting' : 'Cetak'}
+                        <FileEdit className="w-8 h-8 text-accent-base" />
+                        Input Laporan {userRole === 'OP_CUTTING' ? 'Cutting' : 'Penggunaan Bahan'}
                     </h2>
                     <p className="t-secondary">
-                        Laporkan pemakaian material dan kerusakan. Stok belum terpotong sampai di-Approve SPV.
+                        Laporkan pemakaian material dan kerusakan. Stok akan langsung terpotong otomatis.
                     </p>
                 </div>
 
-                {/* Tab switcher (only for OP_CUTTING) */}
-                {userRole === 'OP_CUTTING' && (
-                    <div className="flex items-center gap-2 p-1 bg-input rounded-xl border border-theme w-fit">
-                        <button onClick={() => setActiveTab('laporan')}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'laporan'
-                                ? 'bg-slate-700 t-primary shadow-sm' : 't-secondary hover:t-primary hover:bg-white/5'}`}>
-                            Laporan Stok
-                        </button>
-                        <button onClick={() => setActiveTab('cutting')}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'cutting'
-                                ? 'bg-slate-700 t-primary shadow-sm' : 't-secondary hover:t-primary hover:bg-white/5'}`}>
-                            <Scissors className="w-4 h-4" /> Tracking Cutting
-                        </button>
-                    </div>
-                )}
+
             </div>
 
             {/* Toast */}
             {toastMessage && (
-                <div className={`fixed top-6 right-6 z-50 px-6 py-4 rounded-xl flex items-center gap-3 shadow-lg animate-in slide-in-from-top-5 duration-300 border ${toastMessage.isError ? 'bg-brand-red/10 border-brand-red/20 text-brand-red' : 'bg-brand-green/10 border-brand-green/20 text-brand-green'}`}>
+                <div className={`fixed top-6 right-6 z-50 px-6 py-4 rounded-xl flex items-center gap-3 shadow-lg animate-in slide-in-from-top-5 duration-300 border ${toastMessage.isError ? 'bg-brand-red/10 border-brand-red/20 text-brand-red' : 'bg-accent-base/10 border-accent-base/20 text-accent-base'}`}>
                     {toastMessage.isError ? <AlertCircle className="w-5 h-5" /> : <CheckCircle2 className="w-5 h-5" />}
                     <p className="font-semibold text-sm">{toastMessage.text}</p>
                 </div>
@@ -203,7 +189,7 @@ export default function InputReportDashboard({ userRole }) {
                         {/* Step 1: Item Selection */}
                         <div className="glass-card p-6">
                             <h3 className="text-lg font-bold t-primary mb-4 flex items-center gap-2">
-                                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-brand-green/20 text-brand-green text-xs">1</span>
+                                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-accent-base/20 text-accent-base text-xs">1</span>
                                 Pilih Material
                             </h3>
                             {!selectedItem ? (
@@ -212,40 +198,67 @@ export default function InputReportDashboard({ userRole }) {
                                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 t-muted" />
                                         <input type="text" placeholder="Cari berdasarkan nama barang..."
                                             value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-                                            className="w-full bg-input border border-theme t-primary rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-brand-green/30 text-sm" />
+                                            className="w-full bg-input border border-theme t-primary rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-accent-base/30 text-sm" />
                                     </div>
-                                    <div className="max-h-60 overflow-y-auto space-y-2 pr-2">
-                                        {filteredItems.map(item => (
-                                            <button key={item.id} onClick={() => setSelectedItem(item)}
-                                                className="w-full text-left p-3 rounded-xl border border-theme bg-input hover:border-brand-green/50 transition-all group flex justify-between items-center">
-                                                <div>
-                                                    <p className="text-sm font-semibold t-primary group-hover:text-brand-green transition-colors">{item.name}</p>
-                                                    <p className="text-xs t-muted">{item.brand || 'No Brand'} / {item.category || 'No Category'}</p>
-                                                </div>
-                                                <div className="text-right">
-                                                    <p className="text-lg font-mono font-bold t-primary">{item.stock} <span className="text-xs t-secondary">{item.unit}</span></p>
-                                                </div>
-                                            </button>
-                                        ))}
-                                        {filteredItems.length === 0 && <p className="t-muted text-sm text-center py-4">Barang tidak ditemukan.</p>}
+                                    <div className="max-h-[340px] overflow-y-auto space-y-3 pr-2 scrollbar-thin">
+                                        {filteredItems.map(item => {
+                                            const maxStock = Math.max((item.min_stock || 10) * 4, item.stock, 50);
+                                            const stockPct = Math.min((item.stock / maxStock) * 100, 100);
+                                            const stockColor = item.stock <= (item.min_stock || 0) ? 'bg-brand-red' : item.stock <= ((item.min_stock || 0) * 1.5) ? 'bg-brand-amber' : 'bg-emerald-500';
+
+                                            return (
+                                                <button key={item.id} onClick={() => setSelectedItem(item)}
+                                                    className="w-full text-left p-4 rounded-2xl border border-theme bg-surface hover:bg-input hover:border-accent-base/50 transition-all duration-300 group flex flex-col gap-3 relative overflow-hidden shadow-sm hover:shadow-md">
+                                                    <div className="flex justify-between items-center w-full">
+                                                        <div>
+                                                            <p className="text-sm font-bold t-primary group-hover:text-accent-base transition-colors">{item.name}</p>
+                                                            <p className="text-[11px] font-mono t-muted tracking-wide mt-0.5">{item.brand || 'No Brand'} / {item.category || '-'}</p>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <p className="text-lg font-mono font-bold t-primary">{item.stock} <span className="text-[10px] font-sans font-bold uppercase tracking-wider t-secondary">{item.unit}</span></p>
+                                                        </div>
+                                                    </div>
+                                                    {/* Visual Stock Indicator */}
+                                                    <div className="w-full h-1.5 bg-input rounded-full overflow-hidden border border-theme/50">
+                                                        <div className={`h-full ${stockColor} transition-all duration-500 rounded-full`} style={{ width: `${stockPct}%` }} />
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
+                                        {filteredItems.length === 0 && <p className="t-muted text-sm text-center py-8 border-2 border-dashed rounded-2xl mx-1" style={{ borderColor: 'var(--border-glass)' }}>Barang tidak ditemukan.</p>}
                                     </div>
                                 </div>
                             ) : (
-                                <div className="flex items-center justify-between p-4 bg-input rounded-xl border border-brand-green/30">
-                                    <div>
-                                        <p className="text-xs t-secondary uppercase tracking-wider mb-1">Material Terpilih</p>
-                                        <p className="text-base font-bold text-brand-green">{selectedItem.name}</p>
-                                    </div>
-                                    <div className="text-right flex items-center gap-4">
+                                <div className="flex flex-col gap-3 p-5 bg-surface rounded-2xl border border-accent-base/30 relative overflow-hidden shadow-md group">
+                                    <div className="absolute top-0 right-0 w-32 h-32 bg-accent-base/5 rounded-full blur-3xl pointer-events-none group-hover:bg-accent-base/10 transition-colors"></div>
+                                    <div className="flex items-center justify-between relative z-10">
                                         <div>
-                                            <p className="text-xs t-secondary uppercase tracking-wider mb-1">Sisa Stok</p>
-                                            <p className="text-xl font-mono font-bold t-primary">{selectedItem.stock} <span className="text-sm font-sans font-normal t-muted">{selectedItem.unit}</span></p>
+                                            <p className="text-[10px] t-secondary uppercase tracking-widest font-bold mb-1">Material Terpilih</p>
+                                            <p className="text-lg font-bold text-accent-base">{selectedItem.name}</p>
+                                            <p className="text-xs t-muted font-mono mt-0.5">{selectedItem.code || '-'}</p>
                                         </div>
-                                        <button onClick={() => setSelectedItem(null)}
-                                            className="px-4 py-2 ml-4 bg-surface hover:bg-input t-primary font-bold rounded-xl transition-all border border-theme text-sm">
-                                            Ganti
-                                        </button>
+                                        <div className="text-right flex items-center gap-3">
+                                            <div className="bg-input px-3 py-2 rounded-xl border border-theme">
+                                                <p className="text-[10px] t-secondary uppercase tracking-widest font-bold mb-0.5">Sisa Fisik</p>
+                                                <p className="text-xl font-mono font-bold t-primary leading-none">{selectedItem.stock} <span className="text-xs font-sans font-bold t-muted uppercase">{selectedItem.unit}</span></p>
+                                            </div>
+                                            <button onClick={() => setSelectedItem(null)}
+                                                className="p-2.5 bg-input hover:bg-brand-red/10 t-muted hover:text-brand-red rounded-xl transition-all border border-theme text-sm shadow-sm" title="Ganti Material">
+                                                <X className="w-5 h-5" />
+                                            </button>
+                                        </div>
                                     </div>
+                                    {/* Selected Item Stock Bar */}
+                                    {(() => {
+                                        const maxStock = Math.max((selectedItem.min_stock || 10) * 4, selectedItem.stock, 50);
+                                        const stockPct = Math.min((selectedItem.stock / maxStock) * 100, 100);
+                                        const stockColor = selectedItem.stock <= (selectedItem.min_stock || 0) ? 'bg-brand-red' : selectedItem.stock <= ((selectedItem.min_stock || 0) * 1.5) ? 'bg-brand-amber' : 'bg-emerald-500';
+                                        return (
+                                            <div className="w-full h-1.5 bg-input rounded-full overflow-hidden border border-theme/50 relative z-10 mt-2">
+                                                <div className={`h-full ${stockColor} transition-all duration-500 rounded-full`} style={{ width: `${stockPct}%` }} />
+                                            </div>
+                                        );
+                                    })()}
                                 </div>
                             )}
                         </div>
@@ -253,7 +266,7 @@ export default function InputReportDashboard({ userRole }) {
                         {/* Step 2: Input Quantities */}
                         <div className={`glass-card p-6 transition-all duration-300 ${selectedItem ? 'opacity-100 translate-y-0' : 'opacity-50 pointer-events-none translate-y-4'}`}>
                             <h3 className="text-lg font-bold t-primary mb-6 flex items-center gap-2">
-                                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-brand-green/20 text-brand-green text-xs">2</span>
+                                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-accent-base/20 text-accent-base text-xs">2</span>
                                 Rincian Penggunaan
                             </h3>
                             <form onSubmit={handleSubmitReport} className="space-y-6">
@@ -262,8 +275,8 @@ export default function InputReportDashboard({ userRole }) {
                                         <label className="block text-sm font-medium t-secondary mb-2">Jumlah Pemakaian Normal</label>
                                         <div className="relative">
                                             <input type="number" min="0" disabled={!selectedItem}
-                                                value={formData.qty_used} onChange={(e) => setFormData({ ...formData, qty_used: e.target.value })}
-                                                className="w-full bg-input border border-brand-green/20 t-primary text-xl font-mono rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-brand-green/50 text-brand-green transition-all" placeholder="0" />
+                                                value={formData.qty_used} onChange={(e) => setFormData({ ...formData, qty_used: handleNumberInput(e, showToast) })}
+                                                className="w-full bg-input border border-accent-base/20 t-primary text-xl font-mono rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-accent-base/50 text-accent-base transition-all" placeholder="0" />
                                             <div className="absolute right-4 top-1/2 -translate-y-1/2 t-muted">{selectedItem?.unit || 'Unit'}</div>
                                         </div>
                                     </div>
@@ -271,7 +284,7 @@ export default function InputReportDashboard({ userRole }) {
                                         <label className="block text-sm font-medium t-secondary mb-2">Jumlah Gagal / Kerusakan</label>
                                         <div className="relative">
                                             <input type="number" min="0" disabled={!selectedItem}
-                                                value={formData.qty_damage} onChange={(e) => setFormData({ ...formData, qty_damage: e.target.value })}
+                                                value={formData.qty_damage} onChange={(e) => setFormData({ ...formData, qty_damage: handleNumberInput(e, showToast) })}
                                                 className={`w-full bg-input border t-primary text-xl font-mono rounded-xl py-3 px-4 focus:outline-none focus:ring-2 transition-all ${qtyDamage > 0 ? 'border-brand-red/50 focus:ring-brand-red/50 text-brand-red' : 'border-theme focus:ring-slate-500'}`} placeholder="0" />
                                             <div className="absolute right-4 top-1/2 -translate-y-1/2 t-muted">{selectedItem?.unit || 'Unit'}</div>
                                         </div>
@@ -279,12 +292,24 @@ export default function InputReportDashboard({ userRole }) {
                                 </div>
 
                                 {isOverStock && (
-                                    <div className="p-3 bg-brand-red/10 border border-brand-red/20 rounded-lg flex items-start gap-2">
+                                    <div className="p-3 bg-brand-red/10 border border-brand-red/20 rounded-lg flex items-start gap-2 mt-6">
                                         <AlertCircle className="w-5 h-5 text-brand-red shrink-0 mt-0.5" />
                                         <div>
                                             <p className="text-sm font-bold text-brand-red">Total Melebihi Stok!</p>
                                             <p className="text-xs text-brand-red/80">Total: {totalQty}. Stok: {selectedItem.stock}.</p>
                                         </div>
+                                    </div>
+                                )}
+
+                                {qtyUsed > 0 && (
+                                    <div className="mt-6">
+                                        <label className="block text-sm font-medium t-secondary mb-2">
+                                            Keterangan Pemakaian Normal <span className="text-accent-base/80">* Opsional</span>
+                                        </label>
+                                        <textarea value={formData.used_note}
+                                            onChange={(e) => setFormData({ ...formData, used_note: capitalizeWords(e.target.value) })}
+                                            className="w-full bg-input border border-theme t-primary rounded-xl py-3 px-4 min-h-[80px] resize-none focus:outline-none focus:ring-2 focus:ring-accent-base/30 transition-all"
+                                            placeholder="Contoh: Pemakaian untuk cetak nota pelanggan ABC" />
                                     </div>
                                 )}
 
@@ -294,16 +319,21 @@ export default function InputReportDashboard({ userRole }) {
                                             Alasan Kerusakan <span className="text-brand-red">* Wajib</span>
                                         </label>
                                         <textarea required value={formData.damage_note}
-                                            onChange={(e) => setFormData({ ...formData, damage_note: e.target.value })}
+                                            onChange={(e) => setFormData({ ...formData, damage_note: capitalizeWords(e.target.value) })}
                                             className={`w-full bg-input border t-primary rounded-xl py-3 px-4 min-h-[100px] resize-none focus:outline-none focus:ring-2 transition-all ${isNoteRequired ? 'border-brand-red/50 focus:ring-brand-red/30' : 'border-theme focus:ring-brand-red/30'}`}
                                             placeholder="Misal: Tinta mblobor, roll macet, dll..." />
                                     </div>
                                 )}
 
-                                <div className="pt-4 border-t border-theme flex justify-end">
+                                <div className="pt-6 border-t border-theme flex justify-end">
                                     <button type="submit" disabled={!isValid || isSubmitting}
-                                        className="flex items-center gap-2 px-8 py-3 bg-brand-green text-slate-900 font-bold rounded-xl hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(6,182,212,0.15)]">
-                                        {isSubmitting ? (<><div className="w-5 h-5 rounded-full border-t-2 border-r-2 border-slate-900 animate-spin" /> Mengirim...</>) : (<><Save className="w-5 h-5" /> Kirim ke Supervisor</>)}
+                                        className="group relative flex items-center justify-center gap-2 w-full md:w-auto px-8 py-3.5 font-bold rounded-2xl transition-all disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden hover:shadow-[0_0_25px_rgba(6,182,212,0.4)] shadow-[0_0_15px_rgba(6,182,212,0.2)]"
+                                        style={{ backgroundColor: 'var(--color-accent-base)' }}
+                                        >
+                                        <div className="absolute inset-0 bg-black/10 dark:bg-white/20 group-hover:translate-x-full transition-transform duration-700 -translate-x-full skew-x-12"></div>
+                                        <span className="relative z-10 flex items-center gap-2 t-on-accent text-base">
+                                            {isSubmitting ? (<><div className="w-5 h-5 rounded-full border-t-2 border-r-2 t-on-accent animate-spin" /> Memproses...</>) : (<><Save className="w-5 h-5" /> Simpan & Potong Stok</>)}
+                                        </span>
                                     </button>
                                 </div>
                             </form>
@@ -329,8 +359,8 @@ export default function InputReportDashboard({ userRole }) {
                                         <div key={r.id} className="bg-input p-3 rounded-lg border border-theme">
                                             <div className="flex justify-between items-start mb-1">
                                                 <p className="text-sm font-semibold t-primary truncate pr-2">{r.item?.name || 'Unknown'}</p>
-                                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${r.status === 'Approved' ? 'bg-brand-green/20 text-brand-green' : r.status === 'Rejected' ? 'bg-brand-red/20 text-brand-red' : 'bg-brand-amber/20 text-brand-amber'}`}>
-                                                    {r.status.toUpperCase()}
+                                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${r.status === 'Approved' ? 'bg-accent-base/20 text-accent-base' : r.status === 'Rejected' ? 'bg-brand-red/20 text-brand-red' : 'bg-brand-amber/20 text-brand-amber'}`}>
+                                                    {r.status === 'Approved' ? 'TERCATAT' : r.status === 'Rejected' ? 'DITOLAK' : 'PENDING'}
                                                 </span>
                                             </div>
                                             <p className="text-xs t-secondary">
@@ -357,7 +387,7 @@ export default function InputReportDashboard({ userRole }) {
                         <div className="grid grid-cols-2 gap-4">
                             <div className="glass-card p-5">
                                 <p className="text-xs t-muted uppercase tracking-wider mb-1">Total Orderan Hari Ini</p>
-                                <p className="text-3xl font-mono font-bold text-brand-green">{cuttingStats.totalOrders}</p>
+                                <p className="text-3xl font-mono font-bold text-accent-base">{cuttingStats.totalOrders}</p>
                                 <p className="text-xs t-secondary mt-1">orderan stiker</p>
                             </div>
                             <div className="glass-card p-5">
@@ -370,24 +400,43 @@ export default function InputReportDashboard({ userRole }) {
                         {/* Input Form */}
                         <div className="glass-card p-6">
                             <h3 className="text-lg font-bold t-primary mb-6 flex items-center gap-2">
-                                <Scissors className="w-5 h-5 text-brand-green" />
+                                <Scissors className="w-5 h-5 text-accent-base" />
                                 Input Cutting
                             </h3>
                             <form onSubmit={handleSubmitCutting} className="space-y-5">
                                 <div>
                                     <label className="block text-sm font-medium t-secondary mb-2">Nama Orderan / Stiker</label>
                                     <input type="text" required value={cuttingForm.order_name}
-                                        onChange={(e) => setCuttingForm({ ...cuttingForm, order_name: e.target.value })}
-                                        className="w-full bg-input border border-theme t-primary rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-brand-green/30 text-sm"
+                                        onChange={(e) => setCuttingForm({ ...cuttingForm, order_name: capitalizeWords(e.target.value) })}
+                                        className="w-full bg-input border border-theme t-primary rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-accent-base/30 text-sm"
                                         placeholder="Contoh: Stiker Logo PT ABC, Stiker Kemasan XYZ..." />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium t-secondary mb-2">
+                                        Jenis Bahan <span className="text-brand-red">* Wajib</span>
+                                    </label>
+                                    <select
+                                        required
+                                        value={cuttingForm.item_id}
+                                        onChange={(e) => setCuttingForm({ ...cuttingForm, item_id: e.target.value })}
+                                        className="w-full bg-input border border-accent-base/20 t-primary rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-accent-base/30 text-sm cursor-pointer"
+                                    >
+                                        <option value="" style={{ background: 'var(--select-bg)' }}>-- Pilih Jenis Bahan --</option>
+                                        {items.map(item => (
+                                            <option key={item.id} value={item.id} style={{ background: 'var(--select-bg)' }}>
+                                                {item.name} {item.category ? `(${item.category})` : ''}
+                                            </option>
+                                        ))}
+                                    </select>
                                 </div>
 
                                 <div>
                                     <label className="block text-sm font-medium t-secondary mb-2">Jumlah Di-Cutting</label>
                                     <div className="relative">
                                         <input type="number" min="1" required value={cuttingForm.qty_cut}
-                                            onChange={(e) => setCuttingForm({ ...cuttingForm, qty_cut: e.target.value })}
-                                            className="w-full bg-input border border-brand-green/20 t-primary text-xl font-mono rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-brand-green/50 text-brand-green transition-all"
+                                            onChange={(e) => setCuttingForm({ ...cuttingForm, qty_cut: handleNumberInput(e, showToast) })}
+                                            className="w-full bg-input border border-accent-base/20 t-primary text-xl font-mono rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-accent-base/50 text-accent-base transition-all"
                                             placeholder="0" />
                                         <div className="absolute right-4 top-1/2 -translate-y-1/2 t-muted">lembar</div>
                                     </div>
@@ -396,14 +445,16 @@ export default function InputReportDashboard({ userRole }) {
                                 <div>
                                     <label className="block text-sm font-medium t-secondary mb-2">Catatan (Opsional)</label>
                                     <input type="text" value={cuttingForm.notes}
-                                        onChange={(e) => setCuttingForm({ ...cuttingForm, notes: e.target.value })}
-                                        className="w-full bg-input border border-theme t-primary rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-brand-green/10 text-sm"
+                                        onChange={(e) => setCuttingForm({ ...cuttingForm, notes: capitalizeWords(e.target.value) })}
+                                        className="w-full bg-input border border-theme t-primary rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-accent-base/10 text-sm"
                                         placeholder="Misal: cutting manual, mesin 2, dll..." />
                                 </div>
 
                                 <div className="pt-4 border-t border-theme flex justify-end">
                                     <button type="submit" disabled={!isCuttingValid || isSubmitting}
-                                        className="flex items-center gap-2 px-8 py-3 bg-brand-green text-slate-900 font-bold rounded-xl hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(6,182,212,0.15)]">
+                                        className="flex items-center gap-2 px-8 py-3 t-on-accent font-bold rounded-xl hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(6,182,212,0.15)]"
+                                        style={{ backgroundColor: 'var(--color-accent-base)' }}
+                                        >
                                         {isSubmitting ? (<><div className="w-5 h-5 rounded-full border-t-2 border-r-2 border-slate-900 animate-spin" /> Menyimpan...</>) : (<><Scissors className="w-5 h-5" /> Simpan Cutting</>)}
                                     </button>
                                 </div>
@@ -427,17 +478,15 @@ export default function InputReportDashboard({ userRole }) {
                                 <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
                                     {cuttingLogs.map(log => (
                                         <div key={log.id} className="bg-input p-3 rounded-lg border border-theme group">
-                                            <div className="flex justify-between items-start mb-1">
+                                            <div className="mb-1">
                                                 <p className="text-sm font-semibold t-primary truncate pr-2">{log.order_name}</p>
-                                                <button onClick={() => handleDeleteCutting(log.id)}
-                                                    className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-brand-red/10 text-brand-red transition-all"
-                                                    title="Hapus">
-                                                    <Trash2 className="w-3.5 h-3.5" />
-                                                </button>
                                             </div>
                                             <p className="text-xs t-secondary">
-                                                Jumlah: <span className="font-mono text-brand-green font-bold">{log.qty_cut}</span> lembar
+                                                Jumlah: <span className="font-mono text-accent-base font-bold">{log.qty_cut}</span> lembar
                                             </p>
+                                            {log.item_id && (
+                                                <p className="text-[10px] text-brand-amber mt-0.5">🧴 {items.find(i => i.id === log.item_id)?.name || 'Bahan tidak ditemukan'}</p>
+                                            )}
                                             {log.notes && <p className="text-[10px] t-muted mt-1">📝 {log.notes}</p>}
                                             <p className="text-[10px] t-muted mt-1">{new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                                         </div>

@@ -1,20 +1,24 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase, supabaseAdmin } from '../../supabaseClient';
-import {
+import { 
     Users, UserPlus, Shield, User, Scissors, Paintbrush, Edit3,
     Settings, CheckCircle2, AlertTriangle, AlertCircle, Trash2
-} from 'lucide-react';
+ } from 'lucide-react';
+import { capitalizeWords, handleNumberInput } from '../../utils/formatters.js';
+import useAppStore from '../../store/useAppStore';
 
 export default function ProfilesDashboard() {
     const [profiles, setProfiles] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
+    const theme = useAppStore((s) => s.theme);
 
     // Modals state
     const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
     const [isEditProfileModalOpen, setIsEditProfileModalOpen] = useState(false);
 
     const [selectedUser, setSelectedUser] = useState(null);
+    const [confirmDeleteUser, setConfirmDeleteUser] = useState(null); // { userId, userEmail } | null
 
     // Forms State
     const [newUserForm, setNewUserForm] = useState({
@@ -37,7 +41,41 @@ export default function ProfilesDashboard() {
                 .order('full_name', { ascending: true });
 
             if (error) throw error;
-            setProfiles(data || []);
+
+            let profilesData = data || [];
+
+            // Email disimpan di Supabase Auth (auth.users), bukan di tabel `profiles`
+            // sehingga perlu ditarik via admin client, lalu di-merge ke object profiles.
+            if (supabaseAdmin && profilesData.length > 0) {
+                const emailByUserId = {};
+                const perPage = 100;
+                let page = 1;
+
+                // pagination safety: biasanya jumlah user tidak besar
+                while (page < 50) {
+                    const { data: usersResp, error: usersError } = await supabaseAdmin.auth.admin.listUsers({
+                        page,
+                        perPage,
+                    });
+
+                    if (usersError) throw usersError;
+
+                    const users = usersResp?.users || [];
+                    users.forEach((u) => {
+                        if (u?.id) emailByUserId[u.id] = u.email || null;
+                    });
+
+                    if (users.length < perPage) break;
+                    page += 1;
+                }
+
+                profilesData = profilesData.map((p) => ({
+                    ...p,
+                    email: emailByUserId[p.id] ?? p.email ?? null,
+                }));
+            }
+
+            setProfiles(profilesData);
         } catch (err) {
             console.error("Error fetching profiles:", err);
             setError(err.message);
@@ -123,17 +161,19 @@ export default function ProfilesDashboard() {
         }
     };
 
-    // Handle Delete User
-    const handleDeleteUser = async (userId, userEmail) => {
+    // Request Delete User (open modal confirm)
+    const handleRequestDeleteUser = async (userId, userEmail) => {
         if (!supabaseAdmin) {
             setError("Supabase Admin Key tiak ditemukan di environment. Fitur hapus dinonaktifkan.");
             return;
         }
 
-        if (!window.confirm(`Apakah Anda yakin ingin menghapus permanen pengguna ${userEmail}?`)) {
-            return;
-        }
+        setConfirmDeleteUser({ userId, userEmail });
+    };
 
+    // Perform Delete User (only when confirmed)
+    const performDeleteUser = async (userId, userEmail) => {
+        setConfirmDeleteUser(null);
         setIsLoading(true);
         setError(null);
         try {
@@ -154,7 +194,8 @@ export default function ProfilesDashboard() {
 
 
     const getRoleIcon = (role) => {
-        switch (role) {
+        const r = (role || '').toString().trim().toUpperCase();
+        switch (r) {
             case 'SPV': return <Shield className="w-5 h-5" />;
             case 'SALES': return <User className="w-5 h-5" />;
             case 'OP_CUTTING': return <Scissors className="w-5 h-5" />;
@@ -164,13 +205,39 @@ export default function ProfilesDashboard() {
     };
 
     const getRoleColorClass = (role) => {
-        switch (role) {
+        const r = (role || '').toString().trim().toUpperCase();
+        switch (r) {
             case 'SPV': return 'text-brand-amber bg-brand-amber/10 border-brand-amber/20';
             case 'SALES': return 'text-blue-400 bg-blue-400/10 border-blue-400/20';
             case 'OP_CUTTING': return 'text-purple-400 bg-purple-400/10 border-purple-400/20';
-            case 'OP_CETAK': return 'text-brand-green bg-brand-green/10 border-brand-green/20';
+            // Pakai warna Tailwind yang lebih kontras di light mode.
+            case 'OP_CETAK': return 'text-emerald-500 bg-emerald-500/10 border-emerald-500/30';
             default: return 't-secondary bg-slate-400/10 border-slate-400/20';
         }
+    };
+
+    const getRoleLabel = (role) => {
+        const r = (role || '').toString().trim().toUpperCase();
+        switch (r) {
+            case 'SPV': return 'SPV';
+            case 'SALES': return 'SALES';
+            case 'OP_CUTTING': return 'OP_CUTTING (Cutting)';
+            case 'OP_CETAK': return 'OP_CETAK (Cetak)';
+            default: return role || 'GUEST';
+        }
+    };
+
+    const getRoleBadgeStyle = (role) => {
+        const r = (role || '').toString().trim().toUpperCase();
+        if (r === 'OP_CETAK') {
+            // Inline style agar warna tidak "ketimpa" / tidak kebaca di light mode.
+            return {
+                color: '#059669', // emerald-600
+                backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                borderColor: 'rgba(16, 185, 129, 0.65)',
+            };
+        }
+        return undefined;
     };
 
     return (
@@ -200,7 +267,7 @@ export default function ProfilesDashboard() {
                 </div>
             )}
 
-            {/* Profile Cards Grid */}
+            {/* Profiles List (mendatar) */}
             {isLoading ? (
                 <div className="glass-card min-h-[400px] flex items-center justify-center">
                     <div className="w-10 h-10 border-t-2 border-r-2 border-blue-500 rounded-full animate-spin"></div>
@@ -211,56 +278,76 @@ export default function ProfilesDashboard() {
                     <p>Belum ada data pengguna.</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {profiles.map(profile => (
-                        <div key={profile.id} className="glass-card p-6 flex flex-col group hover:shadow-xl hover:shadow-blue-500/5 hover:-translate-y-1 transition-all duration-300">
-                            <div className="flex justify-between items-start mb-6">
-                                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border shadow-inner ${getRoleColorClass(profile.role)}`}>
-                                    {getRoleIcon(profile.role)}
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <button
-                                        onClick={() => {
-                                            setSelectedUser({ ...profile });
-                                            setIsEditProfileModalOpen(true);
-                                            setError(null);
-                                        }}
-                                        className="p-2 t-secondary hover:text-white bg-input hover:bg-slate-700/80 rounded-lg transition-colors tooltip-trigger"
-                                        title="Edit Profil"
+                <div className="glass-card overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr
+                                    className="text-xs font-semibold t-muted uppercase tracking-wider"
+                                    style={{ background: 'var(--bg-input)', borderBottom: '1px solid var(--border-glass)' }}
+                                >
+                                    <th className="px-6 py-4">UID</th>
+                                    <th className="px-6 py-4">Display name</th>
+                                    <th className="px-6 py-4">Role</th>
+                                    <th className="px-6 py-4">Email</th>
+                                    <th className="px-6 py-4 text-right">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {profiles.map((profile) => (
+                                    <tr
+                                        key={profile.id}
+                                        className="border-t border-theme hover:bg-surface/60 transition-colors"
                                     >
-                                        <Edit3 className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                        onClick={() => handleDeleteUser(profile.id, profile.email || profile.full_name)}
-                                        className="p-2 t-secondary hover:text-brand-red bg-input hover:bg-brand-red/20 rounded-lg transition-colors tooltip-trigger"
-                                        title="Hapus Pengguna"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
-                                </div>
-                            </div>
-
-                            <h3 className="text-xl font-bold t-primary mb-1 truncate">{profile.full_name || profile.email || 'User'}</h3>
-                            <div className="flex items-center gap-2 mb-4">
-                                <span className={`text-xs font-mono px-2 py-0.5 rounded border ${getRoleColorClass(profile.role)}`}>
-                                    {profile.role || 'GUEST'}
-                                </span>
-                            </div>
-
-                            {profile.block_area && (
-                                <p className="text-sm t-secondary mb-4 bg-input p-2 rounded-lg border border-theme inline-flex items-center gap-2">
-                                    <Settings className="w-3.5 h-3.5" /> Area: {profile.block_area}
-                                </p>
-                            )}
-
-                            <div className="mt-auto border-t border-theme pt-4 flex items-center justify-between">
-                                <span className="text-xs t-muted font-mono" title={profile.id}>ID: {...profile.id.substring(0, 8)}</span>
-                                <div className="flex items-center gap-1.5 text-xs font-medium text-brand-green bg-brand-green/10 px-2 py-1 rounded">
-                                    <CheckCircle2 className="w-3.5 h-3.5" /> Aktif
-                                </div>
-                            </div>
-                        </div>
-                    ))}
+                                        <td className="px-6 py-4 font-mono text-xs t-muted" title={profile.id}>
+                                            {profile.id ? profile.id.substring(0, 8) : '-'}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <p className="font-semibold t-primary truncate">
+                                                {profile.full_name || profile.email || 'User'}
+                                            </p>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span
+                                                className={`inline-flex items-center gap-2 text-xs font-mono px-2 py-0.5 rounded border ${getRoleColorClass(profile.role)}`}
+                                                style={getRoleBadgeStyle(profile.role)}
+                                            >
+                                                {getRoleIcon(profile.role)}
+                                                <span>{getRoleLabel(profile.role)}</span>
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 break-all">
+                                            <span className="text-sm t-secondary font-mono">{profile.email || '-'}</span>
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <div className="inline-flex items-center gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setSelectedUser({ ...profile });
+                                                        setIsEditProfileModalOpen(true);
+                                                        setError(null);
+                                                    }}
+                                                    className="p-2 t-secondary hover:text-white bg-input hover:bg-slate-700/80 rounded-lg transition-colors tooltip-trigger"
+                                                    title="Edit Profil"
+                                                >
+                                                    <Edit3 className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleRequestDeleteUser(profile.id, profile.email || profile.full_name)}
+                                                    className="p-2 t-secondary hover:text-brand-red bg-input hover:bg-brand-red/20 rounded-lg transition-colors tooltip-trigger"
+                                                    title="Hapus Pengguna"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             )}
 
@@ -444,6 +531,59 @@ export default function ProfilesDashboard() {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Confirm Delete User Modal */}
+            {confirmDeleteUser && (
+                <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+                    <div
+                        className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm"
+                        onClick={() => !isLoading && setConfirmDeleteUser(null)}
+                    />
+                    <div
+                        className="glass-card w-full max-w-lg p-6 relative z-10 animate-in zoom-in-95 duration-200"
+                        style={{
+                            border: '1px solid var(--border-glass)',
+                            backgroundColor: theme === 'light' ? '#ffffff' : undefined,
+                        }}
+                    >
+                        <h3 className="text-xl font-bold t-primary mb-2 flex items-center gap-2">
+                            <Trash2 className="w-5 h-5 text-brand-red" />
+                            Konfirmasi Hapus Pengguna
+                        </h3>
+                        <p className="t-secondary text-sm mb-6">
+                            Apakah Anda yakin ingin menghapus permanen pengguna{' '}
+                            <span className="t-primary font-semibold">
+                                {confirmDeleteUser.userEmail || '-'}
+                            </span>
+                            ?
+                        </p>
+                        <div className="flex gap-3 justify-end pt-4" style={{ borderTop: '1px solid var(--border-glass)' }}>
+                            <button
+                                type="button"
+                                onClick={() => setConfirmDeleteUser(null)}
+                                className="px-4 py-2 text-sm font-medium rounded-xl t-secondary hover:bg-white/5 transition-colors"
+                                disabled={isLoading}
+                            >
+                                Batal
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    performDeleteUser(confirmDeleteUser.userId, confirmDeleteUser.userEmail)
+                                }
+                                className="px-5 py-2 text-sm font-bold text-white bg-brand-red rounded-xl hover:bg-brand-red/90 transition-colors shadow-lg shadow-brand-red/20 flex items-center justify-center min-w-[160px]"
+                                disabled={isLoading}
+                            >
+                                {isLoading ? (
+                                    <div className="w-5 h-5 border-t-2 border-r-2 border-white rounded-full animate-spin" />
+                                ) : (
+                                    'Hapus Pengguna'
+                                )}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

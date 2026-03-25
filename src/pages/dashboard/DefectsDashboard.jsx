@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabaseClient';
-import { AlertTriangle, Send, History, CheckCircle, FileWarning } from 'lucide-react';
+import { AlertTriangle, Send, History, CheckCircle, FileWarning, Edit2 } from 'lucide-react';
+import { capitalizeWords, handleNumberInput } from '../../utils/formatters.js';
 
 export default function DefectsDashboard() {
     const [user, setUser] = useState(null);
@@ -20,9 +21,6 @@ export default function DefectsDashboard() {
     // Dropdown Data from Settings
     const [sourcesOptions, setSourcesOptions] = useState([]);
     const [categoriesOptions, setCategoriesOptions] = useState([]);
-
-    // History Data
-    const [defectsHistory, setDefectsHistory] = useState([]);
 
     useEffect(() => {
         fetchInitialData();
@@ -54,34 +52,12 @@ export default function DefectsDashboard() {
                     if (settingsData.defect_categories.length > 0) setFormData(f => ({ ...f, error_category: settingsData.defect_categories[0] }));
                 }
             }
-
-            // 2. Fetch Recent Defects History
-            await fetchHistory();
-
         } catch (error) {
             console.error("Error fetching initial defects data:", error.message);
         } finally {
             setIsLoading(false);
         }
     };
-
-    const fetchHistory = async () => {
-        try {
-            const { data, error } = await supabase
-                .from('trx_defects')
-                .select(`
-                    id, order_name, error_source, error_category, quantity, notes, created_at, status,
-                    profiles!trx_defects_reporter_id_fkey(full_name)
-                `)
-                .order('created_at', { ascending: false })
-                .limit(50);
-
-            if (error) throw error;
-            setDefectsHistory(data || []);
-        } catch (error) {
-            console.error("Error fetching defect history:", error.message);
-        }
-    }
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -116,26 +92,12 @@ export default function DefectsDashboard() {
                 notes: ''
             });
 
-            // Refresh table
-            fetchHistory();
-
             setTimeout(() => setMessage({ type: '', text: '' }), 4000);
         } catch (err) {
             console.error("Submit Defect Error:", err.message);
             setMessage({ type: 'error', text: 'Gagal mengirim laporan. ' + err.message });
         } finally {
             setIsSubmitting(false);
-        }
-    };
-
-    const handleDelete = async (id) => {
-        if (!confirm("Apakah Anda yakin ingin menghapus catatan ini? Hanya SPV yang bisa melakukan ini.")) return;
-        try {
-            const { error } = await supabase.from('trx_defects').delete().eq('id', id);
-            if (error) throw error;
-            fetchHistory();
-        } catch (error) {
-            alert("Gagal menghapus: " + error.message);
         }
     };
 
@@ -160,19 +122,20 @@ export default function DefectsDashboard() {
             </div>
 
             {message.text && (
-                <div className={`p-4 mb-6 rounded-xl flex items-start gap-3 border ${message.type === 'success' ? 'bg-brand-green/10 border-brand-green/20 text-brand-green' : 'bg-brand-red/10 border-brand-red/20 text-brand-red'}`}>
+                <div className={`p-4 mb-6 rounded-xl flex items-start gap-3 border ${message.type === 'success' ? 'bg-accent-base/10 border-accent-base/20 text-accent-base' : 'bg-brand-red/10 border-brand-red/20 text-brand-red'}`}>
                     {message.type === 'success' ? <CheckCircle className="w-5 h-5 mt-0.5" /> : <FileWarning className="w-5 h-5 mt-0.5" />}
                     <p className="text-sm font-medium">{message.text}</p>
                 </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div className="flex justify-center flex-1 w-full min-h-[50vh]">
                 {/* Form Section */}
-                <div className="lg:col-span-4 space-y-6">
-                    <div className="glass-card p-6 border border-orange-500/20">
-                        <h3 className="text-xl font-bold t-primary mb-6 flex items-center gap-2">
+                <div className="w-full max-w-2xl space-y-6">
+                    <div className="glass-card p-8 border border-orange-500/20 shadow-xl relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 rounded-full blur-3xl pointer-events-none"></div>
+                        <h3 className="text-xl font-bold t-primary mb-6 flex items-center gap-2 relative z-10">
                             <FileWarning className="w-5 h-5 text-orange-400" />
-                            Form Pelaporan
+                            Form Pelaporan Kendala
                         </h3>
 
                         {sourcesOptions.length === 0 ? (
@@ -248,75 +211,6 @@ export default function DefectsDashboard() {
                                 </button>
                             </form>
                         )}
-                    </div>
-                </div>
-
-                {/* History Section */}
-                <div className="lg:col-span-8">
-                    <div className="glass-card p-6">
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-xl font-bold t-primary flex items-center gap-2">
-                                <History className="w-5 h-5 text-brand-green" />
-                                Riwayat Laporan Kendala
-                            </h3>
-                            <button onClick={fetchHistory} className="text-xs font-medium bg-brand-green/10 text-brand-green hover:bg-brand-green/20 px-3 py-1.5 rounded-lg transition-colors">
-                                Refresh Data
-                            </button>
-                        </div>
-
-                        <div className="table-container max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="sticky top-0 z-10" style={{ background: 'var(--bg-glass)' }}>
-                                        <th className="py-4 px-4 text-xs font-bold t-secondary uppercase tracking-wider border-b border-theme">Waktu (Pelapor)</th>
-                                        <th className="py-4 px-4 text-xs font-bold t-secondary uppercase tracking-wider border-b border-theme">Order / Kerjaan</th>
-                                        <th className="py-4 px-4 text-xs font-bold t-secondary uppercase tracking-wider border-b border-theme">Kategori & Pihak</th>
-                                        <th className="py-4 px-4 text-xs font-bold t-secondary uppercase tracking-wider border-b border-theme text-right">Qty Gagal</th>
-                                        {canManageDefects && <th className="py-4 px-4 text-xs font-bold t-secondary uppercase tracking-wider border-b border-theme text-right">Aksi</th>}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {defectsHistory.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={canManageDefects ? 5 : 4} className="py-8 text-center t-muted text-sm">
-                                                Belum ada laporan kendala.
-                                            </td>
-                                        </tr>
-                                    ) : (
-                                        defectsHistory.map((defect) => (
-                                            <tr key={defect.id} className="border-b border-theme/50 hover:bg-theme-glow transition-colors">
-                                                <td className="py-3 px-4">
-                                                    <div className="text-sm font-medium t-primary">
-                                                        {new Date(defect.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                                                    </div>
-                                                    <div className="text-xs t-muted mt-0.5 mt-1">Oleh: {defect.profiles?.full_name || 'Unknown'}</div>
-                                                </td>
-                                                <td className="py-3 px-4">
-                                                    <div className="text-sm font-bold t-primary">{defect.order_name}</div>
-                                                    <div className="text-xs t-muted mt-0.5 line-clamp-1">{defect.notes}</div>
-                                                </td>
-                                                <td className="py-3 px-4">
-                                                    <div className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-500/10 text-orange-500 mb-1">
-                                                        {defect.error_category}
-                                                    </div>
-                                                    <div className="text-xs t-secondary">Via: <span className="font-semibold text-brand-red">{defect.error_source}</span></div>
-                                                </td>
-                                                <td className="py-3 px-4 text-right">
-                                                    <span className="text-sm font-bold t-primary bg-slate-500/10 px-2 py-1 rounded-md">{defect.quantity}</span>
-                                                </td>
-                                                {canManageDefects && (
-                                                    <td className="py-3 px-4 text-right">
-                                                        <button onClick={() => handleDelete(defect.id)} className="text-[10px] font-bold uppercase tracking-wider text-brand-red hover:underline px-2 py-1 rounded hover:bg-brand-red/10 transition-colors">
-                                                            Hapus
-                                                        </button>
-                                                    </td>
-                                                )}
-                                            </tr>
-                                        ))
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
                     </div>
                 </div>
             </div>

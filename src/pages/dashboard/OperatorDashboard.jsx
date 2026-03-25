@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import {
+import { 
     Package,
     Send,
     AlertTriangle,
     History,
     CheckCircle2
-} from 'lucide-react';
+ } from 'lucide-react';
+import { capitalizeWords, handleNumberInput } from '../../utils/formatters.js';
 
 export default function OperatorDashboard() {
     const [formData, setFormData] = useState({
@@ -62,7 +63,7 @@ export default function OperatorDashboard() {
                     </div>
                     <div>
                         <h3 className="text-sm font-medium text-slate-200 leading-tight">Budi Santoso</h3>
-                        <p className="text-[11px] text-brand-green font-mono">OP_CETAK</p>
+                        <p className="text-[11px] text-accent-base font-mono">OP_CETAK</p>
                     </div>
                 </div>
                 <button className="p-2 text-slate-400 hover:text-white bg-white/5 rounded-lg active:scale-95 transition-all">
@@ -77,11 +78,11 @@ export default function OperatorDashboard() {
                 </header>
 
                 {showSuccess && (
-                    <div className="mb-6 p-4 rounded-xl bg-brand-green/10 border border-brand-green/20 flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
-                        <CheckCircle2 className="w-5 h-5 text-brand-green shrink-0 mt-0.5" />
+                    <div className="mb-6 p-4 rounded-xl bg-accent-base/10 border border-accent-base/20 flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
+                        <CheckCircle2 className="w-5 h-5 text-accent-base shrink-0 mt-0.5" />
                         <div>
-                            <h4 className="text-sm font-medium text-brand-green">Laporan Berhasil Terkirim</h4>
-                            <p className="text-xs text-brand-green/80 mt-1">Laporan masuk ke status Pending & menunggu review SPV.</p>
+                            <h4 className="text-sm font-medium text-accent-base">Laporan Berhasil Terkirim</h4>
+                            <p className="text-xs text-accent-base/80 mt-1">Laporan masuk ke status Pending & menunggu review SPV.</p>
                         </div>
                     </div>
                 )}
@@ -95,13 +96,13 @@ export default function OperatorDashboard() {
                             <label className="block text-sm font-medium text-slate-300 mb-2">Pilih Bahan Baku <span className="text-brand-red">*</span></label>
                             <div className="relative group">
                                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                    <Package className="h-5 w-5 text-slate-500 group-focus-within:text-brand-green transition-colors" />
+                                    <Package className="h-5 w-5 text-slate-500 group-focus-within:text-accent-base transition-colors" />
                                 </div>
                                 <select
                                     required
                                     value={formData.itemId}
                                     onChange={(e) => setFormData({ ...formData, itemId: e.target.value })}
-                                    className="w-full bg-slate-900/50 border border-white/10 text-white rounded-xl py-3.5 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-brand-green/30 focus:border-brand-green/50 appearance-none transition-all placeholder:text-slate-500 text-base"
+                                    className="w-full bg-slate-900/50 border border-white/10 text-white rounded-xl py-3.5 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-accent-base/30 focus:border-accent-base/50 appearance-none transition-all placeholder:text-slate-500 text-base"
                                 >
                                     <option value="" disabled>-- Pilih Bahan --</option>
                                     {items.map(item => (
@@ -131,7 +132,7 @@ export default function OperatorDashboard() {
                                         placeholder="0"
                                         value={formData.usageQty}
                                         onChange={(e) => setFormData({ ...formData, usageQty: e.target.value })}
-                                        className="w-full bg-slate-900/50 border border-white/10 text-white rounded-xl py-3.5 px-4 focus:outline-none focus:ring-2 focus:ring-brand-green/30 focus:border-brand-green/50 transition-all text-xl font-mono"
+                                        className="w-full bg-slate-900/50 border border-white/10 text-white rounded-xl py-3.5 px-4 focus:outline-none focus:ring-2 focus:ring-accent-base/30 focus:border-accent-base/50 transition-all text-xl font-mono"
                                     />
                                     <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
                                         <span className="text-slate-500 text-sm font-medium uppercase min-w-[30px] text-right">
@@ -182,11 +183,11 @@ export default function OperatorDashboard() {
                             <button
                                 type="submit"
                                 disabled={isSubmitting || !formData.itemId || !formData.usageQty}
-                                className="relative w-full overflow-hidden rounded-xl bg-brand-green text-slate-900 font-bold py-4 text-sm tracking-wide hover:bg-emerald-400 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed group flex items-center justify-center gap-2"
+                                className="relative w-full overflow-hidden rounded-xl bg-accent-base t-on-accent font-bold py-4 text-sm tracking-wide hover:bg-emerald-400 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed group flex items-center justify-center gap-2"
                             >
                                 {isSubmitting ? (
                                     <div className="flex items-center gap-2">
-                                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-slate-900" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 t-on-accent" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                         </svg>

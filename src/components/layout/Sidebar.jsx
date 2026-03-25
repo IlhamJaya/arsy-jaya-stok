@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
     Package, Users, Settings, FileText, FileEdit, LogOut,
-    ChevronRight, CircleCheck, Sun, Moon, Menu, X, AlertTriangle
+    ChevronRight, ClipboardList, Sun, Moon, Menu, X, AlertTriangle, Factory
 } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import useAppStore from '../../store/useAppStore';
@@ -41,48 +41,32 @@ export default function Sidebar({ userRole }) {
     };
 
     let menuItems = [
-        { icon: CircleCheck, label: 'Approval', path: '/dashboard' },
-        { icon: Package, label: 'Inventory', path: '/inventory' },
-        { icon: FileText, label: 'Reports', path: '/reports' },
-        { icon: AlertTriangle, label: 'Lapor Kendala', path: '/defects' }
+        { icon: ClipboardList, label: 'Log Harian', shortLabel: 'Log', path: '/dashboard' }
     ];
 
     if (userRole !== 'SPV' && userRole !== 'HRD') {
-        menuItems.splice(1, 0, { icon: FileEdit, label: 'Input Laporan', path: '/input-report' });
+        menuItems.push({ icon: FileEdit, label: 'Input Laporan', shortLabel: 'Input', path: '/input-report' });
     }
 
-    // SALES also gets access (already covered above since SALES !== SPV && SALES !== HRD)
+    menuItems.push({ icon: Package, label: 'Inventory', shortLabel: 'Inventory', path: '/inventory' });
+
+    if (userRole === 'SPV' || userRole === 'HRD') {
+        menuItems.push({ icon: Factory, label: 'Partner & Supplier', shortLabel: 'Mitra', path: '/suppliers' });
+        menuItems.push({ icon: FileText, label: 'Reports', shortLabel: 'Laporan', path: '/reports' });
+    }
+
+    if (userRole !== 'OP_CETAK') {
+        menuItems.push({ icon: AlertTriangle, label: 'Lapor Kendala', shortLabel: 'Kendala', path: '/defects' });
+    }
 
     if (userRole === 'SPV') {
-        menuItems.push({ icon: Users, label: 'Profiles', path: '/profiles' });
-        menuItems.push({ icon: Settings, label: 'Settings', path: '/settings' });
+        menuItems.push({ icon: Users, label: 'Profiles', shortLabel: 'Profiles', path: '/profiles' });
+        menuItems.push({ icon: Settings, label: 'Settings', shortLabel: 'Settings', path: '/settings' });
     }
 
     return (
         <>
-            {/* Mobile Top Bar */}
-            <div className="lg:hidden fixed top-0 left-0 right-0 z-[60] glass-panel flex items-center justify-between px-4 h-14"
-                style={{ borderBottom: '1px solid var(--border-glass)' }}>
-                <div className="flex items-center gap-3">
-                    <button onClick={() => setIsOpen(true)} className="p-2 rounded-xl t-primary hover:bg-brand-green/10 transition-colors">
-                        <Menu className="w-5 h-5" />
-                    </button>
-                    <div className="flex items-center gap-2">
-                        <img src="/Logo.svg" alt="Logo" className="w-7 h-7 object-contain drop-shadow-[0_0_4px_rgba(6,182,212,0.7)]" />
-                        <h1 className="font-bold text-sm tracking-tight t-primary uppercase">{appTitle}</h1>
-                    </div>
-                </div>
-                <div className="flex items-center gap-2">
-                    <button onClick={toggleTheme}
-                        className="p-2 rounded-xl border border-theme t-muted hover:text-brand-amber transition-colors"
-                        title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}>
-                        {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-                    </button>
-                    <div className="w-8 h-8 rounded-full bg-surface border border-theme flex items-center justify-center">
-                        <span className="text-xs font-medium t-secondary">{profile.initial}</span>
-                    </div>
-                </div>
-            </div>
+
 
             {/* Mobile Overlay */}
             {isOpen && (
@@ -119,15 +103,15 @@ export default function Sidebar({ userRole }) {
                                     className={({ isActive }) =>
                                         `flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-200 group
                                         ${isActive
-                                            ? 'bg-brand-green/10 text-brand-green shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] border border-brand-green/20'
-                                            : 't-muted hover:t-primary hover:bg-brand-green/5 border border-transparent'
+                                            ? 'bg-accent-base/10 text-accent-base shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] border border-accent-base/20'
+                                            : 't-muted hover:t-primary hover:bg-accent-base/5 border border-transparent'
                                         }`
                                     }
                                 >
                                     {({ isActive }) => (
                                         <>
                                             <div className="flex items-center gap-3">
-                                                <item.icon className={`w-5 h-5 ${isActive ? 'text-brand-green' : 't-muted group-hover:t-secondary'}`} />
+                                                <item.icon className={`w-5 h-5 ${isActive ? 'text-accent-base' : 't-muted group-hover:t-secondary'}`} />
                                                 <span className="font-medium text-sm">{item.label}</span>
                                             </div>
                                             {isActive && <ChevronRight className="w-4 h-4 opacity-50" />}
@@ -161,6 +145,36 @@ export default function Sidebar({ userRole }) {
                     </button>
                 </div>
             </aside>
+
+            {/* Mobile Bottom Navigation */}
+            <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-[50] flex items-end pb-[max(env(safe-area-inset-bottom),0.5rem)] drop-shadow-[0_-5px_15px_rgba(0,0,0,0.1)]"
+                style={{ borderTop: '1px solid var(--border-glass)', background: 'var(--bg-glass)', backdropFilter: 'blur(16px)' }}>
+                <div className="flex items-center justify-around w-full px-1 min-h-[4rem]">
+                    {menuItems.slice(0, 4).map((item, index) => (
+                        <NavLink key={index} to={item.path}
+                            className={({ isActive }) =>
+                                `flex flex-col items-center justify-center flex-1 h-full py-2 gap-1 transition-all duration-200
+                                ${isActive ? 'text-accent-base' : 't-muted hover:t-primary'}`
+                            }
+                        >
+                            {({ isActive }) => (
+                                <>
+                                    <div className={`relative flex items-center justify-center ${isActive ? 'transform -translate-y-1' : ''} transition-transform duration-200`}>
+                                        <item.icon className={`w-5 h-5 ${isActive ? 'drop-shadow-[0_0_8px_rgba(34,197,94,0.5)] text-accent-base' : ''}`} />
+                                    </div>
+                                    <span className={`text-[10px] font-medium truncate ${isActive ? 'font-bold' : ''}`}>{item.shortLabel || item.label}</span>
+                                </>
+                            )}
+                        </NavLink>
+                    ))}
+
+                    {/* Mobile Menu Toggle Button */}
+                    <button onClick={() => setIsOpen(true)} className="flex flex-col items-center justify-center flex-1 h-full py-2 gap-1 t-muted hover:t-primary transition-all">
+                        <Menu className="w-5 h-5" />
+                        <span className="text-[10px] font-medium">Menu</span>
+                    </button>
+                </div>
+            </nav>
         </>
     );
 }

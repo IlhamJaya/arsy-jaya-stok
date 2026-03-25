@@ -142,15 +142,21 @@ serve(async (req) => {
 
             // Fetch relations
             const { data: opData } = await supabase.from('profiles').select('full_name').eq('id', record.operator_id).single()
+            let itemName = 'Unknown';
+            if (record.item_id) {
+                const { data: itemData } = await supabase.from('mst_items').select('name').eq('id', record.item_id).single()
+                if (itemData) itemName = itemData.name;
+            }
 
             const templateData = {
                 operator: opData?.full_name || 'OP Cutting',
                 order: record.order_name,
                 qty: record.qty_cut,
+                item: itemName,
                 notes: record.notes
             }
 
-            message = formatMessage(settingsData.wa_template_cutting || `✂️ Log Cutting: {qty} lembar untuk order {order} oleh {operator}. Catatan: {notes}`, templateData);
+            message = formatMessage(settingsData.wa_template_cutting || `✂️ Log Cutting: {qty} lembar {item} untuk order {order} oleh {operator}. Catatan: {notes}`, templateData);
         }
 
         else if (table === 'trx_defects') {
