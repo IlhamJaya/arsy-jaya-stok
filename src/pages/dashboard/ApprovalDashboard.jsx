@@ -549,7 +549,7 @@ export default function ApprovalDashboard() {
                                                 <div className="inline-flex items-start gap-1.5 bg-surface border border-theme rounded-lg p-2 mt-3 w-full max-w-xl">
                                                     <FileText className="w-3 h-3 t-muted shrink-0 mt-0.5" />
                                                     <p
-                                                        className="text-[11px] t-secondary leading-relaxed italic line-clamp-3"
+                                                        className="text-[11px] t-secondary leading-relaxed line-clamp-3"
                                                         title={entry.notes}
                                                     >
                                                         {entry.notes}

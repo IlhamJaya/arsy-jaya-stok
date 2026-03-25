@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../supabaseClient';
+import useAppStore from '../../store/useAppStore';
 import { 
     Package, Search, Plus, Upload, Filter, Link,
     AlertTriangle, CheckCircle2, Factory, Phone,
@@ -97,6 +98,10 @@ const CustomItemSelect = ({ value, onChange, items, title }) => {
 };
 
 export default function InventoryDashboard({ userRole }) {
+    const theme = useAppStore((s) => s.theme);
+    const isDark = theme === 'dark';
+    const blue = '#3b82f6'; // "biru" biar tidak terlihat purcat
+
     const [activeTab, setActiveTab] = useState('inventory'); // 'inventory' | 'suppliers' | 'stock_in'
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('Semua');
@@ -357,7 +362,10 @@ export default function InventoryDashboard({ userRole }) {
                         <button
                             onClick={() => openItemModal()}
                             className="flex items-center gap-2 px-4 py-2 font-medium rounded-xl transition shadow-[0_0_15px_rgba(34,197,94,0.15)] hover:brightness-110"
-                            style={{ backgroundColor: 'var(--color-accent-base)', color: 'var(--text-on-accent)' }}
+                            style={{
+                                backgroundColor: isDark ? blue : 'var(--color-accent-base)',
+                                color: isDark ? '#ffffff' : 'var(--text-on-accent)',
+                            }}
                         >
                             <Plus className="w-4 h-4" /> <span className="text-sm">Item Baru</span>
                         </button>
@@ -382,8 +390,18 @@ export default function InventoryDashboard({ userRole }) {
                               }`}
                             style={
                                 isActive
-                                    ? { backgroundColor: 'var(--color-accent-base)', color: 'var(--text-on-accent)' }
-                                    : { backgroundColor: 'var(--color-accent-light)', color: 'var(--color-accent-base)' }
+                                    ? {
+                                        backgroundColor: isDark ? blue : 'var(--color-accent-base)',
+                                        color: isDark ? '#ffffff' : 'var(--text-on-accent)',
+                                        borderColor: isDark ? 'rgba(59,130,246,0.55)' : undefined,
+                                        boxShadow: isDark ? '0 0 12px rgba(59,130,246,0.35)' : undefined,
+                                    }
+                                    : {
+                                        backgroundColor: isDark ? 'rgba(59,130,246,0.12)' : 'var(--color-accent-light)',
+                                        color: isDark ? blue : 'var(--color-accent-base)',
+                                        borderColor: isDark ? 'rgba(59,130,246,0.25)' : undefined,
+                                        boxShadow: isDark ? '0 0 10px rgba(59,130,246,0.12)' : undefined,
+                                    }
                             }
                         >
                             {cat}
