@@ -3,13 +3,13 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../../supabaseClient';
 import {
   FileText, Calendar, Filter, Download,
-  BarChart3, PieChart as PieChartIcon, CheckCircle2, Factory, User, Package, AlertTriangle,
-  ArrowUpCircle, ArrowDownCircle, Settings2, History, Scissors, Trash2, Plus, Database, Truck, RefreshCw, Edit2
+  BarChart3, PieChart as PieChartIcon, CheckCircle2, User, Package, AlertTriangle,
+  ArrowUpCircle, ArrowDownCircle, Settings2, History, Scissors, Trash2, Edit2, Layers, TrendingUp,
+  Database, FileWarning
 } from 'lucide-react';
-import { capitalizeWords, handleNumberInput } from '../../utils/formatters.js';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell,
-  PieChart, Pie, AreaChart, Area
+  PieChart, Pie
 } from 'recharts';
 
 import * as XLSX from 'xlsx';
@@ -24,11 +24,27 @@ const SOURCE_LABELS = {
   AUDIT: { label: 'Audit Opname', color: 'text-brand-amber', bg: 'bg-brand-amber/10 border-brand-amber/20', icon: Settings2 }
 };
 
+function transformReportRow(d) {
+  return {
+    id: d.id,
+    date: new Date(d.created_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }),
+    rawDate: new Date(d.created_at),
+    operatorRole: d.operator?.role?.replace('OP_', '') || 'Unknown',
+    itemName: d.item?.name || 'Unknown Item',
+    itemUnit: d.item?.unit || '-',
+    operatorName: d.operator?.full_name || 'Unknown Operator',
+    qtyUsed: d.type === 'Usage' ? d.quantity : 0,
+    qtyDamage: d.type === 'Damage' ? d.quantity : 0,
+    reason: d.notes,
+    finalStock: d.item?.stock
+  };
+}
+
 export default function ReportsDashboard({ userRole }) {
-  const [activeTab, setActiveTab] = useState('produksi'); // 'produksi' | 'stok'
+  const [activeTab, setActiveTab] = useState('pemakaian'); // pemakaian | kerusakan | stok | cutting | kendala
   const [materialOptions, setMaterialOptions] = useState([]);
-  const [operatorOptions, setOperatorOptions] = useState([]);
-  const [reports, setReports] = useState([]);
+  const [usageReports, setUsageReports] = useState([]);
+  const [damageReports, setDamageReports] = useState([]);
   const [stockLogs, setStockLogs] = useState([]);
 
   // Pagination states
@@ -53,11 +69,20 @@ export default function ReportsDashboard({ userRole }) {
     fetchSettings();
   }, []);
 
+  useEffect(() => {
+    const loadItems = async () => {
+      const { data } = await supabase.from('mst_items').select('id, name').order('name');
+      setMaterialOptions(data || []);
+    };
+    loadItems();
+  }, []);
+
   // State untuk Edit Cutting Log (Khusus SPV)
   const [editingCuttingLog, setEditingCuttingLog] = useState(null);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [cuttingLogs, setCuttingLogs] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isExportingPack, setIsExportingPack] = useState(false);
 
   // Filters
   const [dateRange, setDateRange] = useState('month');
@@ -102,12 +127,13 @@ export default function ReportsDashboard({ userRole }) {
       const start = new Date(y, m - 1, 1);
       const end = new Date(y, m, 0, 23, 59, 59, 999);
       return { start: start.toISOString(), end: end.toISOString() };
+    } else if (dateRange === 'all') {
+      return { start: null, end: null };
     }
     return { start: null, end: null };
   }, [dateRange, customStart, customEnd, selectedMonth]);
 
-  // === TAB 1: Fetch Reports from trx_reports ===
-  const fetchReports = useCallback(async () => {
+  const fetchUsageReports = useCallback(async () => {
     setIsLoading(true);
     try {
       const { start, end } = getTimeFilter();
@@ -119,6 +145,7 @@ export default function ReportsDashboard({ userRole }) {
             operator:profiles!trx_reports_operator_id_fkey(full_name, role)
         `)
         .eq('status', 'Approved')
+        .eq('type', 'Usage')
         .order('created_at', { ascending: false });
 
       if (start) query = query.gte('created_at', start);
@@ -126,31 +153,53 @@ export default function ReportsDashboard({ userRole }) {
 
       const { data, error } = await query;
       if (error) throw error;
-
-      let transformed = data.map(d => ({
-        id: d.id,
-        date: new Date(d.created_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }),
-        rawDate: new Date(d.created_at),
-        type: d.operator?.role?.replace('OP_', '') || 'Unknown',
-        itemName: d.item?.name || 'Unknown Item',
-        itemUnit: d.item?.unit || '-',
-        operatorName: d.operator?.full_name || 'Unknown Operator',
-        qtyUsed: d.type === 'Usage' ? d.quantity : 0,
-        qtyDamage: d.type === 'Damage' ? d.quantity : 0,
-        reason: d.notes,
-        finalStock: d.item?.stock
-      }));
-
+      let transformed = (data || []).map(transformReportRow);
       if (selectedType !== 'ALL') {
-        transformed = transformed.filter(r => r.type.toUpperCase() === selectedType.toUpperCase());
+        transformed = transformed.filter(
+          (r) => r.operatorRole.toUpperCase() === selectedType.toUpperCase()
+        );
       }
-      setReports(transformed);
+      setUsageReports(transformed);
     } catch (err) {
-      console.error("Error fetching reports:", err);
+      console.error('Error fetching usage reports:', err);
     } finally {
       setIsLoading(false);
     }
-  }, [dateRange, selectedType, getTimeFilter]);
+  }, [selectedType, getTimeFilter]);
+
+  const fetchDamageReports = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const { start, end } = getTimeFilter();
+      let query = supabase
+        .from('trx_reports')
+        .select(`
+            id, type, quantity, notes, status, created_at,
+            item:mst_items(name, unit, stock),
+            operator:profiles!trx_reports_operator_id_fkey(full_name, role)
+        `)
+        .eq('status', 'Approved')
+        .eq('type', 'Damage')
+        .order('created_at', { ascending: false });
+
+      if (start) query = query.gte('created_at', start);
+      if (end) query = query.lte('created_at', end);
+
+      const { data, error } = await query;
+      if (error) throw error;
+      let transformed = (data || []).map(transformReportRow);
+      if (selectedType !== 'ALL') {
+        transformed = transformed.filter(
+          (r) => r.operatorRole.toUpperCase() === selectedType.toUpperCase()
+        );
+      }
+      setDamageReports(transformed);
+    } catch (err) {
+      console.error('Error fetching damage reports:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [selectedType, getTimeFilter]);
 
   // === TAB 2: Fetch Stock Movement Logs from trx_stock_log ===
   const fetchStockLogs = useCallback(async () => {
@@ -164,7 +213,7 @@ export default function ReportsDashboard({ userRole }) {
             item:mst_items(name, unit)
         `)
         .order('created_at', { ascending: false })
-        .limit(100);
+        .limit(800);
 
       if (start) query = query.gte('created_at', start);
       if (end) query = query.lte('created_at', end);
@@ -193,7 +242,7 @@ export default function ReportsDashboard({ userRole }) {
     } finally {
       setIsLoading(false);
     }
-  }, [dateRange, selectedType, getTimeFilter]);
+  }, [selectedType, getTimeFilter]);
 
   // === TAB 3: Fetch Cutting Logs from trx_cutting_log ===
   const fetchCuttingLogs = useCallback(async () => {
@@ -205,7 +254,7 @@ export default function ReportsDashboard({ userRole }) {
         .from('trx_cutting_log')
         .select('id, order_name, qty_cut, notes, created_at, operator_id, item_id')
         .order('created_at', { ascending: false })
-        .limit(200);
+        .limit(600);
 
       if (start) query = query.gte('created_at', start);
       if (end) query = query.lte('created_at', end);
@@ -263,7 +312,7 @@ export default function ReportsDashboard({ userRole }) {
       let query = supabase.from('trx_defects').select(`
           id, order_name, error_source, error_category, quantity, notes, created_at, status,
           profiles!trx_defects_reporter_id_fkey(full_name)
-      `).order('created_at', { ascending: false });
+      `).order('created_at', { ascending: false }).limit(800);
 
       if (start) query = query.gte('created_at', start);
       if (end) query = query.lte('created_at', end);
@@ -280,8 +329,10 @@ export default function ReportsDashboard({ userRole }) {
 
 
   useEffect(() => {
-    if (activeTab === 'produksi') {
-      fetchReports();
+    if (activeTab === 'pemakaian') {
+      fetchUsageReports();
+    } else if (activeTab === 'kerusakan') {
+      fetchDamageReports();
     } else if (activeTab === 'stok') {
       fetchStockLogs();
     } else if (activeTab === 'cutting') {
@@ -289,22 +340,88 @@ export default function ReportsDashboard({ userRole }) {
     } else if (activeTab === 'kendala') {
       fetchDefectsLogs();
     }
-  }, [activeTab, fetchReports, fetchStockLogs, fetchCuttingLogs, fetchDefectsLogs]);
+  }, [activeTab, fetchUsageReports, fetchDamageReports, fetchStockLogs, fetchCuttingLogs, fetchDefectsLogs]);
 
-  // === Analytics (Tab 1 only) ===
-  const analyticsData = useMemo(() => {
+  const damageAnalyticsData = useMemo(() => {
     const grouped = {};
-    reports.forEach(r => {
-      if (r.qtyDamage <= 0) return;
+    damageReports.forEach((r) => {
       const key = chartType === 'operator' ? r.operatorName : r.itemName;
       if (!grouped[key]) grouped[key] = { name: key, totalKerusakan: 0 };
       grouped[key].totalKerusakan += r.qtyDamage;
     });
-    return Object.values(grouped).sort((a, b) => b.totalKerusakan - a.totalKerusakan).slice(0, 5);
-  }, [reports, chartType]);
+    return Object.values(grouped)
+      .sort((a, b) => b.totalKerusakan - a.totalKerusakan)
+      .slice(0, 8);
+  }, [damageReports, chartType]);
 
-  const totalDamage = useMemo(() => reports.reduce((acc, curr) => acc + curr.qtyDamage, 0), [reports]);
-  const totalUsed = useMemo(() => reports.reduce((acc, curr) => acc + curr.qtyUsed, 0), [reports]);
+  const usageByItem = useMemo(() => {
+    const g = {};
+    usageReports.forEach((r) => {
+      g[r.itemName] = (g[r.itemName] || 0) + r.qtyUsed;
+    });
+    return Object.entries(g)
+      .map(([name, totalPemakaian]) => ({ name, totalPemakaian }))
+      .sort((a, b) => b.totalPemakaian - a.totalPemakaian)
+      .slice(0, 8);
+  }, [usageReports]);
+
+  const usageByOperator = useMemo(() => {
+    const g = {};
+    usageReports.forEach((r) => {
+      g[r.operatorName] = (g[r.operatorName] || 0) + r.qtyUsed;
+    });
+    return Object.entries(g)
+      .map(([name, totalPemakaian]) => ({ name, totalPemakaian }))
+      .sort((a, b) => b.totalPemakaian - a.totalPemakaian)
+      .slice(0, 8);
+  }, [usageReports]);
+
+  const usageChartBars = useMemo(() => {
+    const src = chartType === 'operator' ? usageByOperator : usageByItem;
+    return src.map((r) => ({ name: r.name, total: r.totalPemakaian }));
+  }, [chartType, usageByOperator, usageByItem]);
+
+  const totalDamage = useMemo(
+    () => damageReports.reduce((acc, curr) => acc + curr.qtyDamage, 0),
+    [damageReports]
+  );
+  const totalUsed = useMemo(
+    () => usageReports.reduce((acc, curr) => acc + curr.qtyUsed, 0),
+    [usageReports]
+  );
+
+  const defectCategoryChart = useMemo(() => {
+    const g = {};
+    defectsLogs.forEach((d) => {
+      const k = d.error_category || 'Lainnya';
+      g[k] = (g[k] || 0) + Number(d.quantity || 0);
+    });
+    return Object.entries(g)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 10);
+  }, [defectsLogs]);
+
+  const defectTotals = useMemo(
+    () => ({
+      qty: defectsLogs.reduce((a, d) => a + Number(d.quantity || 0), 0),
+      rows: defectsLogs.length,
+    }),
+    [defectsLogs]
+  );
+
+  const stockMovementBySource = useMemo(() => {
+    const c = { STOCK_IN: 0, REPORT_USAGE: 0, REPORT_DAMAGE: 0, AUDIT: 0 };
+    stockLogs.forEach((l) => {
+      if (c[l.source] !== undefined) c[l.source]++;
+    });
+    return [
+      { name: 'Stok masuk', key: 'STOCK_IN', count: c.STOCK_IN, fill: '#06b6d4' },
+      { name: 'Keluar (pakai)', key: 'REPORT_USAGE', count: c.REPORT_USAGE, fill: '#3b82f6' },
+      { name: 'Keluar (rusak)', key: 'REPORT_DAMAGE', count: c.REPORT_DAMAGE, fill: '#ef4444' },
+      { name: 'Audit', key: 'AUDIT', count: c.AUDIT, fill: '#f59e0b' },
+    ];
+  }, [stockLogs]);
 
   // === Stock Log Stats (Tab 2) ===
   const stockLogStats = useMemo(() => {
@@ -336,40 +453,345 @@ export default function ReportsDashboard({ userRole }) {
 
 
 
-  // Export Excel
-  const handleExportExcel = () => {
-    let worksheet;
-    let sheetName = "";
-    if (activeTab === 'produksi') {
-      sheetName = "Laporan_Produksi";
-      worksheet = XLSX.utils.json_to_sheet(reports.map(r => ({
-        "Tanggal": r.date, "Tipe": r.type, "Operator": r.operatorName,
-        "Item": r.itemName, "Terpakai": r.qtyUsed, "Rusak": r.qtyDamage,
-        "Alasan": r.reason || '-', "Stok Akhir": r.finalStock
-      })));
-    } else if (activeTab === 'stok') {
-      sheetName = "Riwayat_Stok";
-      worksheet = XLSX.utils.json_to_sheet(stockLogs.map(l => ({
-        "Tanggal": new Date(l.created_at).toLocaleString('id-ID'),
-        "Item": l.item?.name || '-',
-        "Tipe": SOURCE_LABELS[l.source]?.label || l.source,
-        "Perubahan": l.change_amount, "Stok Awal": l.previous_stock,
-        "Stok Akhir": l.final_stock, "Catatan": l.notes || '-'
-      })));
-    } else {
-      sheetName = "Tracking_Cutting";
-      worksheet = XLSX.utils.json_to_sheet(cuttingLogs.map(l => ({
-        "Tanggal": new Date(l.created_at).toLocaleString('id-ID'),
-        "Order": l.order_name,
-        "Bahan": l.item?.name || '-',
-        "Lembar Di-Cut": l.qty_cut,
-        "Operator": l.operator?.full_name || '-',
-        "Catatan": l.notes || '-'
-      })));
+  const getExportSlug = () => {
+    if (dateRange === 'today') return 'hari_ini';
+    if (dateRange === 'week') return '7_hari';
+    if (dateRange === 'month') return '30_hari';
+    if (dateRange === 'bulan') return `bulan_${selectedMonth}`;
+    if (dateRange === 'custom' && customStart && customEnd) return `${customStart}_${customEnd}`;
+    if (dateRange === 'custom' && customStart) return `dari_${customStart}`;
+    if (dateRange === 'all') return 'semua_waktu';
+    return 'export';
+  };
+
+  const getPeriodDescription = () => {
+    const fmt = (d) =>
+      d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+    const now = new Date();
+    if (dateRange === 'today') return fmt(now);
+    if (dateRange === 'week') {
+      const s = new Date();
+      s.setDate(s.getDate() - 7);
+      return `${fmt(s)} – ${fmt(now)}`;
     }
+    if (dateRange === 'month') {
+      const s = new Date();
+      s.setDate(s.getDate() - 30);
+      return `${fmt(s)} – ${fmt(now)}`;
+    }
+    if (dateRange === 'bulan' && selectedMonth) {
+      const [y, m] = selectedMonth.split('-').map(Number);
+      const start = new Date(y, m - 1, 1);
+      const end = new Date(y, m, 0);
+      return `${fmt(start)} – ${fmt(end)}`;
+    }
+    if (dateRange === 'custom') {
+      if (customStart && customEnd) return `${fmt(new Date(customStart))} – ${fmt(new Date(customEnd))}`;
+      if (customStart) return `Mulai ${fmt(new Date(customStart))}`;
+      return 'Rentang custom (lengkapi tanggal)';
+    }
+    if (dateRange === 'all') return 'Semua data tersedia';
+    return '-';
+  };
+
+  const safeSheetName = (name) => name.replace(/[:\\/?*[\]]/g, '').slice(0, 31);
+
+  const handleExportExcel = () => {
+    const slug = getExportSlug();
+    const ts = Date.now();
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
-    XLSX.writeFile(workbook, `ArsyStok_${sheetName}_${Date.now()}.xlsx`);
+
+    if (activeTab === 'pemakaian') {
+      const ws = XLSX.utils.json_to_sheet(
+        usageReports.map((r) => ({
+          Tanggal: r.date,
+          Operator: r.operatorName,
+          Peran_operator: r.operatorRole,
+          Item: r.itemName,
+          Satuan: r.itemUnit,
+          Qty_pemakaian: r.qtyUsed,
+          Catatan: r.reason || '-',
+          Stok_akhir_sistem: r.finalStock,
+        }))
+      );
+      XLSX.utils.book_append_sheet(workbook, ws, safeSheetName('Pemakaian'));
+      XLSX.writeFile(workbook, `ArsyStok_Pemakaian_${slug}_${ts}.xlsx`);
+      return;
+    }
+
+    if (activeTab === 'kerusakan') {
+      const ws = XLSX.utils.json_to_sheet(
+        damageReports.map((r) => ({
+          Tanggal: r.date,
+          Operator: r.operatorName,
+          Peran_operator: r.operatorRole,
+          Item: r.itemName,
+          Satuan: r.itemUnit,
+          Qty_kerusakan: r.qtyDamage,
+          Catatan: r.reason || '-',
+          Stok_akhir_sistem: r.finalStock,
+        }))
+      );
+      XLSX.utils.book_append_sheet(workbook, ws, safeSheetName('Kerusakan'));
+      XLSX.writeFile(workbook, `ArsyStok_Kerusakan_${slug}_${ts}.xlsx`);
+      return;
+    }
+
+    if (activeTab === 'stok') {
+      const ws = XLSX.utils.json_to_sheet(
+        stockLogs.map((l) => ({
+          Tanggal: new Date(l.created_at).toLocaleString('id-ID'),
+          Item: l.item?.name || '-',
+          Proses: SOURCE_LABELS[l.source]?.label || l.source,
+          Perubahan: l.change_amount,
+          Stok_awal: l.previous_stock,
+          Stok_akhir: l.final_stock,
+          Catatan: l.notes || '-',
+        }))
+      );
+      XLSX.utils.book_append_sheet(workbook, ws, safeSheetName('Pergerakan_stok'));
+      XLSX.writeFile(workbook, `ArsyStok_PergerakanStok_${slug}_${ts}.xlsx`);
+      return;
+    }
+
+    if (activeTab === 'cutting') {
+      const ws = XLSX.utils.json_to_sheet(
+        cuttingLogs.map((l) => ({
+          Tanggal: new Date(l.created_at).toLocaleString('id-ID'),
+          Order: l.order_name,
+          Bahan: l.item?.name || '-',
+          Lembar_di_cut: l.qty_cut,
+          Operator: l.operator?.full_name || '-',
+          Catatan: l.notes || '-',
+        }))
+      );
+      XLSX.utils.book_append_sheet(workbook, ws, safeSheetName('Cutting'));
+      XLSX.writeFile(workbook, `ArsyStok_Cutting_${slug}_${ts}.xlsx`);
+      return;
+    }
+
+    if (activeTab === 'kendala') {
+      const ws = XLSX.utils.json_to_sheet(
+        defectsLogs.map((d) => ({
+          Tanggal: new Date(d.created_at).toLocaleString('id-ID'),
+          Order: d.order_name,
+          Pihak_sumber: d.error_source,
+          Kategori: d.error_category,
+          Qty_gagal: d.quantity,
+          Pelapor: d.profiles?.full_name || '-',
+          Status: d.status || '-',
+          Catatan: d.notes || '-',
+        }))
+      );
+      XLSX.utils.book_append_sheet(workbook, ws, safeSheetName('Kendala'));
+      XLSX.writeFile(workbook, `ArsyStok_Kendala_${slug}_${ts}.xlsx`);
+      return;
+    }
+  };
+
+  const handleExportFullPackage = async () => {
+    setIsExportingPack(true);
+    try {
+      const { start, end } = getTimeFilter();
+      const applyRange = (q) => {
+        if (start) q = q.gte('created_at', start);
+        if (end) q = q.lte('created_at', end);
+        return q;
+      };
+
+      let qU = supabase
+        .from('trx_reports')
+        .select(
+          `id, type, quantity, notes, created_at, item:mst_items(name, unit, stock), operator:profiles!trx_reports_operator_id_fkey(full_name, role)`
+        )
+        .eq('status', 'Approved')
+        .eq('type', 'Usage')
+        .order('created_at', { ascending: false })
+        .limit(8000);
+      qU = applyRange(qU);
+
+      let qD = supabase
+        .from('trx_reports')
+        .select(
+          `id, type, quantity, notes, created_at, item:mst_items(name, unit, stock), operator:profiles!trx_reports_operator_id_fkey(full_name, role)`
+        )
+        .eq('status', 'Approved')
+        .eq('type', 'Damage')
+        .order('created_at', { ascending: false })
+        .limit(8000);
+      qD = applyRange(qD);
+
+      let qS = supabase
+        .from('trx_stock_log')
+        .select(
+          `id, change_amount, previous_stock, final_stock, source, notes, created_at, item:mst_items(name, unit)`
+        )
+        .order('created_at', { ascending: false })
+        .limit(8000);
+      qS = applyRange(qS);
+
+      let qC = supabase
+        .from('trx_cutting_log')
+        .select('id, order_name, qty_cut, notes, created_at, operator_id, item_id')
+        .order('created_at', { ascending: false })
+        .limit(8000);
+      qC = applyRange(qC);
+
+      let qK = supabase
+        .from('trx_defects')
+        .select(
+          `id, order_name, error_source, error_category, quantity, notes, created_at, status, profiles!trx_defects_reporter_id_fkey(full_name)`
+        )
+        .order('created_at', { ascending: false })
+        .limit(8000);
+      qK = applyRange(qK);
+
+      const [
+        { data: dataU, error: eU },
+        { data: dataD, error: eD },
+        { data: dataS, error: eS },
+        { data: logsC, error: eC },
+        { data: dataK, error: eK },
+      ] = await Promise.all([qU, qD, qS, qC, qK]);
+
+      if (eU) throw eU;
+      if (eD) throw eD;
+      if (eS) throw eS;
+      if (eC) throw eC;
+      if (eK) throw eK;
+
+      let enrichedCut = [];
+      if (logsC && logsC.length > 0) {
+        const operatorIds = [...new Set(logsC.map((l) => l.operator_id))];
+        const { data: profiles } = await supabase.from('profiles').select('id, full_name').in('id', operatorIds);
+        const profileMap = {};
+        (profiles || []).forEach((p) => {
+          profileMap[p.id] = p.full_name;
+        });
+        const itemIds = [...new Set(logsC.map((l) => l.item_id).filter(Boolean))];
+        let itemMap = {};
+        if (itemIds.length > 0) {
+          const { data: items } = await supabase.from('mst_items').select('id, name').in('id', itemIds);
+          (items || []).forEach((it) => {
+            itemMap[it.id] = it.name;
+          });
+        }
+        enrichedCut = logsC.map((l) => ({
+          ...l,
+          operator_name: profileMap[l.operator_id] || '-',
+          bahan: l.item_id ? itemMap[l.item_id] || '-' : '-',
+        }));
+      }
+
+      const rowsU = (dataU || []).map(transformReportRow);
+      const rowsD = (dataD || []).map(transformReportRow);
+      const totalU = rowsU.reduce((a, r) => a + r.qtyUsed, 0);
+      const totalD = rowsD.reduce((a, r) => a + r.qtyDamage, 0);
+      const slug = getExportSlug();
+      const ts = Date.now();
+      const wb = XLSX.utils.book_new();
+
+      const summaryRows = [
+        { Keterangan: 'Periode', Nilai: getPeriodDescription() },
+        { Keterangan: 'Baris pemakaian', Nilai: rowsU.length },
+        { Keterangan: 'Total qty pemakaian', Nilai: totalU },
+        { Keterangan: 'Baris kerusakan', Nilai: rowsD.length },
+        { Keterangan: 'Total qty kerusakan', Nilai: totalD },
+        { Keterangan: 'Baris pergerakan stok', Nilai: (dataS || []).length },
+        { Keterangan: 'Baris cutting', Nilai: enrichedCut.length },
+        { Keterangan: 'Baris kendala', Nilai: (dataK || []).length },
+      ];
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryRows), safeSheetName('Ringkasan'));
+
+      XLSX.utils.book_append_sheet(
+        wb,
+        XLSX.utils.json_to_sheet(
+          rowsU.map((r) => ({
+            Tanggal: r.date,
+            Operator: r.operatorName,
+            Peran: r.operatorRole,
+            Item: r.itemName,
+            Satuan: r.itemUnit,
+            Qty_pemakaian: r.qtyUsed,
+            Catatan: r.reason || '-',
+            Stok_akhir: r.finalStock,
+          }))
+        ),
+        safeSheetName('Pemakaian')
+      );
+
+      XLSX.utils.book_append_sheet(
+        wb,
+        XLSX.utils.json_to_sheet(
+          rowsD.map((r) => ({
+            Tanggal: r.date,
+            Operator: r.operatorName,
+            Peran: r.operatorRole,
+            Item: r.itemName,
+            Satuan: r.itemUnit,
+            Qty_kerusakan: r.qtyDamage,
+            Catatan: r.reason || '-',
+            Stok_akhir: r.finalStock,
+          }))
+        ),
+        safeSheetName('Kerusakan')
+      );
+
+      XLSX.utils.book_append_sheet(
+        wb,
+        XLSX.utils.json_to_sheet(
+          (dataS || []).map((l) => ({
+            Tanggal: new Date(l.created_at).toLocaleString('id-ID'),
+            Item: l.item?.name || '-',
+            Proses: SOURCE_LABELS[l.source]?.label || l.source,
+            Perubahan: l.change_amount,
+            Stok_awal: l.previous_stock,
+            Stok_akhir: l.final_stock,
+            Catatan: l.notes || '-',
+          }))
+        ),
+        safeSheetName('Pergerakan_stok')
+      );
+
+      XLSX.utils.book_append_sheet(
+        wb,
+        XLSX.utils.json_to_sheet(
+          enrichedCut.map((l) => ({
+            Tanggal: new Date(l.created_at).toLocaleString('id-ID'),
+            Order: l.order_name,
+            Bahan: l.bahan,
+            Lembar_di_cut: l.qty_cut,
+            Operator: l.operator_name,
+            Catatan: l.notes || '-',
+          }))
+        ),
+        safeSheetName('Cutting')
+      );
+
+      XLSX.utils.book_append_sheet(
+        wb,
+        XLSX.utils.json_to_sheet(
+          (dataK || []).map((d) => ({
+            Tanggal: new Date(d.created_at).toLocaleString('id-ID'),
+            Order: d.order_name,
+            Pihak: d.error_source,
+            Kategori: d.error_category,
+            Qty_gagal: d.quantity,
+            Pelapor: d.profiles?.full_name || '-',
+            Status: d.status || '-',
+            Catatan: d.notes || '-',
+          }))
+        ),
+        safeSheetName('Kendala')
+      );
+
+      XLSX.writeFile(wb, `ArsyStok_PaketSemuaProses_${slug}_${ts}.xlsx`);
+    } catch (err) {
+      console.error('Export paket:', err);
+      alert(`Gagal mengekspor paket: ${err.message}`);
+    } finally {
+      setIsExportingPack(false);
+    }
   };
 
   // Hapus Cutting Log (Hanya SPV)
@@ -481,39 +903,53 @@ export default function ReportsDashboard({ userRole }) {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
         <div>
           <h2 className="text-3xl font-bold tracking-tight t-primary mb-2 flex items-center gap-3">
-            <FileText className="w-8 h-8 text-brand-amber" />
-            Laporan Sistem
+            <BarChart3 className="w-8 h-8 text-brand-amber" />
+            Analisis & ekspor laporan
           </h2>
-          <p className="t-secondary">Analitik kerusakan, riwayat pemakaian, pergerakan stok, dan ekspor data.</p>
+          <p className="t-secondary max-w-2xl">
+            Satu halaman per <strong className="t-primary font-semibold">jenis proses</strong>: pemakaian material, kerusakan, pergerakan stok (masuk/keluar/audit), cutting, dan kendala QC.
+            Pilih periode, baca ringkasan dan grafik, lalu unduh Excel per tab atau paket multi-sheet.
+          </p>
         </div>
       </div>
 
-      {/* Sub-Tabs */}
-      <div className="flex gap-2 mb-6">
+      {/* Proses — satu tab = satu laporan */}
+      <div className="flex flex-wrap gap-2 mb-6">
         <button
-          onClick={() => { setActiveTab('produksi'); setSelectedType('ALL'); }}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all border ${activeTab === 'produksi' ? 'bg-accent-base/10 text-accent-base border-accent-base/20 shadow-sm' : 't-muted border-transparent hover:bg-accent-base/5'}`}
+          type="button"
+          onClick={() => { setActiveTab('pemakaian'); setSelectedType('ALL'); }}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all border ${activeTab === 'pemakaian' ? 'bg-sky-500/10 text-sky-400 border-sky-500/25 shadow-sm' : 't-muted border-transparent hover:bg-sky-500/5'}`}
         >
-          <FileText className="w-4 h-4" /> Laporan Produksi
+          <ArrowDownCircle className="w-4 h-4 shrink-0" /> Pemakaian
         </button>
         <button
+          type="button"
+          onClick={() => { setActiveTab('kerusakan'); setSelectedType('ALL'); }}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all border ${activeTab === 'kerusakan' ? 'bg-brand-red/10 text-brand-red border-brand-red/25 shadow-sm' : 't-muted border-transparent hover:bg-brand-red/5'}`}
+        >
+          <AlertTriangle className="w-4 h-4 shrink-0" /> Kerusakan
+        </button>
+        <button
+          type="button"
           onClick={() => { setActiveTab('stok'); setSelectedType('ALL'); }}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all border ${activeTab === 'stok' ? 'bg-brand-amber/10 text-brand-amber border-brand-amber/20 shadow-sm' : 't-muted border-transparent hover:bg-brand-amber/5'}`}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all border ${activeTab === 'stok' ? 'bg-brand-amber/10 text-brand-amber border-brand-amber/20 shadow-sm' : 't-muted border-transparent hover:bg-brand-amber/5'}`}
         >
-          <History className="w-4 h-4" /> Riwayat Stok
+          <Database className="w-4 h-4 shrink-0" /> Pergerakan stok
         </button>
         <button
+          type="button"
           onClick={() => { setActiveTab('cutting'); setSelectedType('ALL'); }}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all border ${activeTab === 'cutting' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20 shadow-sm' : 't-muted border-transparent hover:bg-blue-500/5'}`}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all border ${activeTab === 'cutting' ? 'bg-violet-500/10 text-violet-400 border-violet-500/25 shadow-sm' : 't-muted border-transparent hover:bg-violet-500/5'}`}
         >
-          <Scissors className="w-4 h-4" /> Tracking Cutting
+          <Scissors className="w-4 h-4 shrink-0" /> Cutting
         </button>
         {userRole !== 'OP_CETAK' && (
           <button
+            type="button"
             onClick={() => { setActiveTab('kendala'); setSelectedType('ALL'); }}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all border ${activeTab === 'kendala' ? 'bg-orange-500/10 text-orange-500 border-orange-500/20 shadow-sm' : 't-muted border-transparent hover:bg-orange-500/5'}`}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all border ${activeTab === 'kendala' ? 'bg-orange-500/10 text-orange-500 border-orange-500/25 shadow-sm' : 't-muted border-transparent hover:bg-orange-500/5'}`}
           >
-            <AlertTriangle className="w-4 h-4" /> Laporan Kendala
+            <FileWarning className="w-4 h-4 shrink-0" /> Kendala QC
           </button>
         )}
       </div>
@@ -596,111 +1032,283 @@ export default function ReportsDashboard({ userRole }) {
                     if (customStart) return `📅 Mulai ${fmt(new Date(customStart))}`;
                     return '📅 Pilih tanggal mulai';
                   }
+                  if (dateRange === 'all') return '📅 Semua waktu (bisa berat)';
                   return '📅 Semua data yang tersedia';
                 })()}
               </p>
             </div>
 
-
+            <div className="hidden lg:flex flex-col justify-end min-w-[200px] max-w-sm">
+              <p className="text-[10px] font-semibold t-muted uppercase tracking-wider mb-1">Proses aktif</p>
+              <p className="text-xs t-secondary leading-snug">
+                {activeTab === 'pemakaian' && 'Laporan tipe Usage (sudah disetujui). Filter peran = divisi operator.'}
+                {activeTab === 'kerusakan' && 'Laporan tipe Damage. Cocok untuk analisis reject & waste per item/operator.'}
+                {activeTab === 'stok' && 'Log sistem: stok masuk, keluar dari laporan, dan koreksi audit.'}
+                {activeTab === 'cutting' && 'Order cutting & lembar terpotong per operator.'}
+                {activeTab === 'kendala' && 'QC: sumber error, kategori, dan estimasi qty gagal.'}
+              </p>
+            </div>
 
             <div className="flex items-center gap-3 p-2 rounded-xl border" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}>
-              <Filter className="w-5 h-5 text-accent-base ml-2" />
+              <Filter className="w-5 h-5 text-accent-base ml-2 shrink-0" />
               <select value={selectedType} onChange={(e) => setSelectedType(e.target.value)}
-                className="bg-transparent border-none t-primary text-sm font-medium focus:outline-none focus:ring-0 cursor-pointer appearance-none pr-6"
-                disabled={activeTab === 'cutting'}
+                className="bg-transparent border-none t-primary text-sm font-medium focus:outline-none focus:ring-0 cursor-pointer appearance-none pr-6 min-w-[8rem]"
+                disabled={activeTab === 'cutting' || activeTab === 'kendala'}
               >
-                {activeTab === 'produksi' ? (
+                {(activeTab === 'pemakaian' || activeTab === 'kerusakan') ? (
                   <>
-                    <option value="ALL" style={{ background: 'var(--select-bg)' }}>Semua Tipe</option>
+                    <option value="ALL" style={{ background: 'var(--select-bg)' }}>Semua operator</option>
                     <option value="CETAK" style={{ background: 'var(--select-bg)' }}>Cetak</option>
                     <option value="CUTTING" style={{ background: 'var(--select-bg)' }}>Cutting</option>
                   </>
                 ) : activeTab === 'stok' ? (
                   <>
-                    <option value="ALL" style={{ background: 'var(--select-bg)' }}>Semua Pergerakan</option>
-                    <option value="MASUK" style={{ background: 'var(--select-bg)' }}>Stok Masuk</option>
-                    <option value="KELUAR" style={{ background: 'var(--select-bg)' }}>Stok Keluar</option>
-                    <option value="AUDIT" style={{ background: 'var(--select-bg)' }}>Audit</option>
+                    <option value="ALL" style={{ background: 'var(--select-bg)' }}>Semua pergerakan</option>
+                    <option value="MASUK" style={{ background: 'var(--select-bg)' }}>Stok masuk</option>
+                    <option value="KELUAR" style={{ background: 'var(--select-bg)' }}>Stok keluar (laporan)</option>
+                    <option value="AUDIT" style={{ background: 'var(--select-bg)' }}>Audit / opname</option>
                   </>
                 ) : (
-                  <option value="ALL" style={{ background: 'var(--select-bg)' }}>Semua Order</option>
+                  <option value="ALL" style={{ background: 'var(--select-bg)' }}>—</option>
                 )}
               </select>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 w-full md:w-auto">
-            <button onClick={handleExportExcel}
-              className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-accent-base/10 text-accent-base font-medium border border-accent-base/20 rounded-xl hover:bg-accent-base hover:t-on-accent transition-colors">
-              <Download className="w-4 h-4" /> Excel
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full md:w-auto">
+            <button type="button" onClick={handleExportExcel}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-accent-base/10 text-accent-base font-medium border border-accent-base/20 rounded-xl hover:bg-accent-base hover:t-on-accent transition-colors text-sm">
+              <Download className="w-4 h-4 shrink-0" /> Excel (tab ini)
             </button>
-
+            <button type="button" onClick={handleExportFullPackage} disabled={isExportingPack}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-brand-amber/10 text-brand-amber font-medium border border-brand-amber/25 rounded-xl hover:bg-brand-amber/20 transition-colors text-sm disabled:opacity-50">
+              {isExportingPack ? (
+                <span className="w-4 h-4 border-2 border-brand-amber border-t-transparent rounded-full animate-spin shrink-0" />
+              ) : (
+                <Layers className="w-4 h-4 shrink-0" />
+              )}
+              Paket semua proses
+            </button>
           </div>
         </div>
 
-        {/* ========== TAB 1: PRODUKSI ========== */}
-        {activeTab === 'produksi' && (
+        {/* ========== PEMAKAIAN (trx_reports type Usage) ========== */}
+        {activeTab === 'pemakaian' && (
           <>
-            {/* 1x1 Card: Total Terpakai */}
             <div className="glass-card p-6 flex flex-col justify-between group cursor-default relative overflow-hidden">
-              <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-accent-base/5 rounded-full blur-2xl pointer-events-none transition-all group-hover:bg-accent-base/10"></div>
+              <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-sky-500/5 rounded-full blur-2xl pointer-events-none transition-all group-hover:bg-sky-500/10" />
               <div className="flex items-start justify-between mb-4 relative z-10">
-                <div className="p-3 bg-accent-base/10 rounded-2xl text-accent-base border border-accent-base/20 group-hover:bg-accent-base/20 transition-colors">
-                  <Package className="w-6 h-6" />
+                <div className="p-3 bg-sky-500/10 rounded-2xl text-sky-400 border border-sky-500/20 group-hover:bg-sky-500/20 transition-colors">
+                  <TrendingUp className="w-6 h-6" />
                 </div>
               </div>
               <div className="relative z-10">
-                <h3 className="t-secondary text-sm font-medium mb-1 uppercase tracking-wider">Total Item Dipakai</h3>
-                <div className="text-4xl font-mono font-bold t-primary group-hover:text-accent-base transition-colors">{totalUsed}</div>
+                <h3 className="t-secondary text-sm font-medium mb-1 uppercase tracking-wider">Total qty pemakaian</h3>
+                <div className="text-4xl font-mono font-bold t-primary group-hover:text-sky-400 transition-colors">{totalUsed}</div>
+                <p className="text-[11px] t-muted mt-2">Penjumlahan quantity laporan pemakaian (approved).</p>
               </div>
             </div>
 
-            {/* 1x1 Card: Total Rusak */}
             <div className="glass-card p-6 flex flex-col justify-between group cursor-default relative overflow-hidden">
-              <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-brand-red/5 rounded-full blur-2xl pointer-events-none transition-all group-hover:bg-brand-red/10"></div>
+              <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-accent-base/5 rounded-full blur-2xl pointer-events-none transition-all group-hover:bg-accent-base/10" />
               <div className="flex items-start justify-between mb-4 relative z-10">
-                <div className="p-3 bg-brand-red/10 rounded-2xl text-brand-red border border-brand-red/20 group-hover:bg-brand-red/20 transition-colors">
+                <div className="p-3 bg-accent-base/10 rounded-2xl text-accent-base border border-accent-base/20">
+                  <FileText className="w-6 h-6" />
+                </div>
+              </div>
+              <div className="relative z-10">
+                <h3 className="t-secondary text-sm font-medium mb-1 uppercase tracking-wider">Jumlah entri</h3>
+                <div className="text-4xl font-mono font-bold t-primary">{usageReports.length}</div>
+                <p className="text-[11px] t-muted mt-2">Baris laporan pada filter ini.</p>
+              </div>
+            </div>
+
+            <div className="glass-card p-6 flex flex-col justify-between group cursor-default relative overflow-hidden">
+              <div className="flex items-start justify-between mb-4 relative z-10">
+                <div className="p-3 bg-input rounded-2xl border border-theme">
+                  <Package className="w-6 h-6 t-secondary" />
+                </div>
+              </div>
+              <div className="relative z-10">
+                <h3 className="t-secondary text-sm font-medium mb-1 uppercase tracking-wider">Rata-rata / entri</h3>
+                <div className="text-4xl font-mono font-bold t-primary">
+                  {usageReports.length > 0 ? (totalUsed / usageReports.length).toFixed(2) : '—'}
+                </div>
+                <p className="text-[11px] t-muted mt-2">Membantu melihat intensitas per transaksi.</p>
+              </div>
+            </div>
+
+            <div className="glass-card p-6 flex flex-col md:col-span-2 lg:col-span-2 xl:col-span-2 min-h-[300px]">
+              <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+                <h3 className="font-bold t-primary flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5 text-sky-400" /> Top pemakaian
+                </h3>
+                <div className="flex rounded-xl p-1 border" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}>
+                  <button type="button" onClick={() => setChartType('operator')}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${chartType === 'operator' ? 'bg-sky-500/20 t-primary shadow-sm' : 't-muted hover:t-secondary'}`}
+                  >Operator</button>
+                  <button type="button" onClick={() => setChartType('item')}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${chartType === 'item' ? 'bg-sky-500/20 t-primary shadow-sm' : 't-muted hover:t-secondary'}`}
+                  >Item</button>
+                </div>
+              </div>
+              <div className="flex-1 w-full min-h-[200px]">
+                {isLoading ? (
+                  <div className="h-[200px] rounded-xl animate-pulse" style={{ background: 'var(--bg-input)' }} />
+                ) : usageChartBars.length === 0 ? (
+                  <div className="text-center py-12">
+                    <BarChart3 className="w-10 h-10 t-muted mx-auto mb-3 opacity-50" />
+                    <p className="t-secondary text-sm">Belum ada data pemakaian pada periode ini.</p>
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={260}>
+                    <BarChart data={usageChartBars} layout="vertical" margin={{ top: 4, right: 24, left: 4, bottom: 4 }} barSize={14}>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(255,255,255,0.06)" />
+                      <XAxis type="number" stroke="#64748b" fontSize={11} />
+                      <YAxis dataKey="name" type="category" width={110} stroke="#64748b" fontSize={11} tick={{ fill: 'var(--text-secondary)' }} />
+                      <Tooltip
+                        cursor={{ fill: 'rgba(255,255,255,0.04)' }}
+                        contentStyle={{ backgroundColor: 'var(--bg-body)', border: '1px solid var(--border-glass)', borderRadius: '12px', fontSize: '12px' }}
+                        formatter={(v) => [`${v} qty`, 'Pemakaian']}
+                      />
+                      <Bar dataKey="total" radius={[0, 4, 4, 0]}>
+                        {usageChartBars.map((_, index) => (
+                          <Cell key={`u-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </div>
+
+            <div className="glass-card overflow-hidden flex flex-col md:col-span-2 lg:col-span-3 xl:col-span-4 min-h-[400px]">
+              <div className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-2" style={{ borderBottom: '1px solid var(--border-glass)' }}>
+                <h3 className="font-bold t-primary flex items-center gap-2">
+                  <ArrowDownCircle className="w-5 h-5 text-sky-400" /> Detail laporan pemakaian
+                </h3>
+                <span className="text-xs t-muted font-mono">{usageReports.length} baris</span>
+              </div>
+              <div className="flex-1 overflow-x-auto">
+                {isLoading ? (
+                  <div className="p-12 flex items-center justify-center">
+                    <div className="w-8 h-8 border-t-2 border-r-2 border-sky-400 rounded-full animate-spin" />
+                  </div>
+                ) : usageReports.length === 0 ? (
+                  <div className="p-12 flex flex-col items-center justify-center text-center border-2 border-dashed mx-2 my-2 rounded-2xl" style={{ borderColor: 'var(--border-glass)' }}>
+                    <FileText className="w-8 h-8 t-muted mb-3" />
+                    <p className="t-secondary text-sm">Tidak ada laporan pemakaian untuk filter ini.</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-3 pb-2 px-1">
+                    {usageReports.slice(0, visibleReportsCount).map((r, i) => (
+                      <div key={r.id || i} className="group flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-2xl bg-surface border border-theme hover:border-sky-500/30 transition-all">
+                        <div className="flex items-center gap-4 md:w-1/3">
+                          <div className="w-12 h-12 rounded-2xl bg-input border border-theme flex flex-col items-center justify-center shrink-0">
+                            <span className="text-xs font-bold t-primary">{r.date.split(',')[0].split(' ')[0]}</span>
+                            <span className="text-[10px] font-mono t-muted">{r.date.split(',')[0].split(' ')[1]?.substring(0, 3)}</span>
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold t-primary flex items-center gap-1.5">
+                              <User className="w-3.5 h-3.5 t-muted" /> {r.operatorName}
+                            </p>
+                            <span className="text-[10px] font-mono t-muted uppercase mt-1 inline-block">{r.operatorRole}</span>
+                            <p className="text-[10px] font-mono t-muted mt-0.5">{r.date.split(',')[1]}</p>
+                          </div>
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-bold text-sky-400 flex items-center gap-1.5 mb-1">
+                            <Package className="w-4 h-4" /> {r.itemName}
+                          </p>
+                          {r.reason ? (
+                            <p className="text-[11px] t-secondary line-clamp-2">{r.reason}</p>
+                          ) : null}
+                        </div>
+                        <div className="flex items-center gap-6 justify-between md:justify-end border-t md:border-t-0 pt-3 md:pt-0 border-theme">
+                          <div className="text-center">
+                            <p className="text-[9px] uppercase font-bold t-muted mb-1">Qty</p>
+                            <span className="text-xl font-mono font-bold text-sky-400">{r.qtyUsed}</span>
+                            <span className="text-xs t-muted ml-1">{r.itemUnit}</span>
+                          </div>
+                          <div className="text-right min-w-[72px]">
+                            <p className="text-[9px] uppercase font-bold t-muted mb-1">Stok akhir</p>
+                            <span className="text-lg font-mono font-bold t-primary">{r.finalStock != null ? r.finalStock : '—'}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {visibleReportsCount < usageReports.length && (
+                      <div className="flex justify-center pt-6 pb-2">
+                        <button type="button" onClick={() => setVisibleReportsCount((p) => p + 15)} className="px-6 py-2.5 bg-surface border border-theme t-primary font-bold text-sm rounded-xl hover:border-sky-500/50 hover:text-sky-400 transition-all">
+                          Tampilkan lebih banyak ({usageReports.length - visibleReportsCount})
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ========== KERUSAKAN (trx_reports type Damage) ========== */}
+        {activeTab === 'kerusakan' && (
+          <>
+            <div className="glass-card p-6 flex flex-col justify-between relative overflow-hidden">
+              <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-brand-red/5 rounded-full blur-2xl pointer-events-none" />
+              <div className="flex items-start justify-between mb-4 relative z-10">
+                <div className="p-3 bg-brand-red/10 rounded-2xl text-brand-red border border-brand-red/20">
                   <AlertTriangle className="w-6 h-6" />
                 </div>
               </div>
               <div className="relative z-10">
-                <h3 className="t-secondary text-sm font-medium mb-1 uppercase tracking-wider">Total Item Rusak</h3>
-                <div className="text-4xl font-mono font-bold t-primary group-hover:text-brand-red transition-colors">{totalDamage}</div>
+                <h3 className="t-secondary text-sm font-medium mb-1 uppercase tracking-wider">Total qty kerusakan</h3>
+                <div className="text-4xl font-mono font-bold t-primary text-brand-red">{totalDamage}</div>
+                <p className="text-[11px] t-muted mt-2">Material yang dilaporkan rusak (approved).</p>
               </div>
             </div>
 
-            {/* 2x1 Card: Analytics Chart */}
+            <div className="glass-card p-6 flex flex-col justify-between relative overflow-hidden">
+              <div className="flex items-start justify-between mb-4 relative z-10">
+                <div className="p-3 bg-brand-amber/10 rounded-2xl text-brand-amber border border-brand-amber/20">
+                  <FileText className="w-6 h-6" />
+                </div>
+              </div>
+              <div className="relative z-10">
+                <h3 className="t-secondary text-sm font-medium mb-1 uppercase tracking-wider">Jumlah laporan</h3>
+                <div className="text-4xl font-mono font-bold t-primary">{damageReports.length}</div>
+                <p className="text-[11px] t-muted mt-2">Frekuensi kejadian kerusakan.</p>
+              </div>
+            </div>
+
             <div className="glass-card p-6 flex flex-col md:col-span-2 lg:col-span-2 xl:col-span-2 min-h-[300px]">
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
                 <h3 className="font-bold t-primary flex items-center gap-2">
-                  <PieChartIcon className="w-5 h-5 text-brand-amber" /> Damage Analytics
+                  <PieChartIcon className="w-5 h-5 text-brand-red" /> Distribusi kerusakan
                 </h3>
                 <div className="flex rounded-xl p-1 border" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}>
-                  <button onClick={() => setChartType('operator')}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${chartType === 'operator' ? 'bg-accent-base/20 t-primary shadow-sm' : 't-muted hover:t-secondary'}`}
+                  <button type="button" onClick={() => setChartType('operator')}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${chartType === 'operator' ? 'bg-brand-red/15 t-primary shadow-sm' : 't-muted hover:t-secondary'}`}
                   >Operator</button>
-                  <button onClick={() => setChartType('item')}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${chartType === 'item' ? 'bg-accent-base/20 t-primary shadow-sm' : 't-muted hover:t-secondary'}`}
+                  <button type="button" onClick={() => setChartType('item')}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${chartType === 'item' ? 'bg-brand-red/15 t-primary shadow-sm' : 't-muted hover:t-secondary'}`}
                   >Item</button>
                 </div>
               </div>
-
               <div className="flex-1 w-full flex items-center justify-center min-h-[200px]">
                 {isLoading ? (
-                  <div className="w-48 h-48 rounded-full border-4 animate-pulse" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}></div>
-                ) : analyticsData.length === 0 ? (
+                  <div className="w-48 h-48 rounded-full border-4 animate-pulse" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }} />
+                ) : damageAnalyticsData.length === 0 ? (
                   <div className="text-center">
-                    <div className="w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-4 border" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}>
-                      <PieChartIcon className="w-8 h-8 t-muted" />
-                    </div>
+                    <PieChartIcon className="w-10 h-10 t-muted mx-auto mb-3 opacity-50" />
                     <p className="t-secondary text-sm">Belum ada data kerusakan pada periode ini.</p>
                   </div>
                 ) : (
                   <ResponsiveContainer width="100%" height={250}>
                     <PieChart>
-                      <Pie data={analyticsData} cx="50%" cy="50%" innerRadius={70} outerRadius={100} paddingAngle={5} dataKey="totalKerusakan" nameKey="name" stroke="none">
-                        {analyticsData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      <Pie data={damageAnalyticsData} cx="50%" cy="50%" innerRadius={70} outerRadius={100} paddingAngle={5} dataKey="totalKerusakan" nameKey="name" stroke="none">
+                        {damageAnalyticsData.map((entry, index) => (
+                          <Cell key={`d-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>
                       <Tooltip
@@ -716,94 +1324,68 @@ export default function ReportsDashboard({ userRole }) {
               </div>
             </div>
 
-            {/* Produksi History Table */}
             <div className="glass-card overflow-hidden flex flex-col md:col-span-2 lg:col-span-3 xl:col-span-4 min-h-[400px]">
-              <div className="p-6 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border-glass)' }}>
+              <div className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-2" style={{ borderBottom: '1px solid var(--border-glass)' }}>
                 <h3 className="font-bold t-primary flex items-center gap-2">
-                  <BarChart3 className="w-5 h-5 text-accent-base" /> Detail Riwayat Laporan
+                  <AlertTriangle className="w-5 h-5 text-brand-red" /> Detail laporan kerusakan
                 </h3>
-                <span className="text-xs t-muted font-mono">
-                  {reports.length} data
-                </span>
+                <span className="text-xs t-muted font-mono">{damageReports.length} baris</span>
               </div>
-
               <div className="flex-1 overflow-x-auto">
                 {isLoading ? (
-                  <div className="p-12 flex items-center justify-center">
-                    <div className="w-8 h-8 border-t-2 border-r-2 border-accent-base rounded-full animate-spin"></div>
+                  <div className="p-12 flex justify-center">
+                    <div className="w-8 h-8 border-t-2 border-r-2 border-brand-red rounded-full animate-spin" />
                   </div>
-                ) : reports.length === 0 ? (
-                  <div className="p-12 flex flex-col items-center justify-center text-center h-full border-2 border-dashed mx-2 my-2 rounded-2xl" style={{ borderColor: 'var(--border-glass)' }}>
-                    <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4 border" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}>
-                      <FileText className="w-8 h-8 t-muted" />
-                    </div>
-                    <h3 className="text-lg font-medium t-primary mb-1">Tidak Ada Data</h3>
-                    <p className="t-secondary text-sm max-w-sm">Belum ada laporan produksi yang tercatat pada filter ini.</p>
+                ) : damageReports.length === 0 ? (
+                  <div className="p-12 text-center border-2 border-dashed mx-2 my-2 rounded-2xl" style={{ borderColor: 'var(--border-glass)' }}>
+                    <p className="t-secondary text-sm">Tidak ada laporan kerusakan untuk filter ini.</p>
                   </div>
                 ) : (
                   <div className="flex flex-col gap-3 pb-2 px-1">
-                      {reports.slice(0, visibleReportsCount).map((r, i) => (
-                        <div key={r.id || i} className="group flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-2xl bg-surface border border-theme hover:border-accent-base/40 hover:shadow-md transition-all duration-300">
-                          {/* Left: Time & Operator */}
-                          <div className="flex items-center gap-4 md:w-1/3">
-                            <div className="w-12 h-12 rounded-2xl bg-input border border-theme flex flex-col items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                              <span className="text-xs font-bold t-primary">{r.date.split(',')[0].split(' ')[0]}</span>
-                              <span className="text-[10px] font-mono t-muted">{r.date.split(',')[0].split(' ')[1]?.substring(0,3)}</span>
-                            </div>
-                            <div>
-                              <p className="text-sm font-bold t-primary flex items-center gap-1.5">
-                                <User className="w-3.5 h-3.5 t-muted" /> {r.operatorName}
-                              </p>
-                              <p className="text-[10px] font-mono t-muted mt-1">{r.date.split(',')[1]}</p>
-                            </div>
+                    {damageReports.slice(0, visibleReportsCount).map((r, i) => (
+                      <div key={r.id || i} className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-2xl bg-surface border border-theme hover:border-brand-red/25 transition-all">
+                        <div className="flex items-center gap-4 md:w-1/3">
+                          <div className="w-12 h-12 rounded-2xl bg-brand-red/10 border border-brand-red/20 flex flex-col items-center justify-center shrink-0">
+                            <span className="text-xs font-bold t-primary">{r.date.split(',')[0].split(' ')[0]}</span>
+                            <span className="text-[10px] font-mono t-muted">{r.date.split(',')[0].split(' ')[1]?.substring(0, 3)}</span>
                           </div>
-                          
-                          {/* Middle: Item Details */}
-                          <div className="flex-1">
-                            <p className="text-sm font-bold text-accent-base flex items-center gap-1.5 mb-1">
-                                <Package className="w-4 h-4 text-accent-base" /> {r.itemName}
+                          <div>
+                            <p className="text-sm font-bold t-primary flex items-center gap-1.5">
+                              <User className="w-3.5 h-3.5 t-muted" /> {r.operatorName}
                             </p>
-                            <span className="inline-block text-[10px] border px-2 py-0.5 rounded-md font-mono tracking-widest bg-input text-secondary border-theme uppercase">
-                                {r.type}
-                            </span>
-                          </div>
-
-                          {/* Right: Quantities */}
-                          <div className="flex items-center justify-between md:justify-end gap-4 md:gap-6 mt-3 md:mt-0 pt-3 md:pt-0 border-t border-theme md:border-none w-full md:w-auto">
-                            <div className="text-center w-1/3 md:w-auto">
-                              <p className="text-[9px] uppercase font-bold t-muted mb-1 opacity-70">Terpakai</p>
-                              <p className="text-lg font-mono font-bold t-primary min-w-[40px] leading-none">{r.qtyUsed}</p>
-                            </div>
-                            <div className="text-center w-1/3 md:w-auto min-w-[50px]">
-                              <p className="text-[9px] uppercase font-bold text-brand-red mb-1 opacity-70">Rusak</p>
-                              {r.qtyDamage > 0 ? (
-                                <span className="text-sm font-mono font-bold text-brand-red bg-brand-red/10 border border-brand-red/20 px-2 py-0.5 rounded-lg shadow-sm whitespace-nowrap">{r.qtyDamage}</span>
-                              ) : (
-                                <span className="text-xs t-muted leading-[1.75rem]">-</span>
-                              )}
-                            </div>
-                            <div className="text-right w-1/3 md:w-auto md:pl-4 md:pr-1 md:border-l md:border-theme min-w-[70px]">
-                              <p className="text-[9px] uppercase font-bold t-secondary mb-1 opacity-70">Sisa Stok</p>
-                              <div className="flex items-center justify-end gap-1.5">
-                                <span className="text-lg font-mono font-bold text-accent-base leading-none">{r.finalStock != null ? r.finalStock : '-'}</span>
-                                {r.finalStock != null && <CheckCircle2 className="w-3 h-3 text-accent-base/50" />}
-                              </div>
-                            </div>
+                            <span className="text-[10px] font-mono text-brand-amber uppercase mt-1 inline-block">{r.operatorRole}</span>
                           </div>
                         </div>
-                      ))}
-                      
-                      {/* Load More Button Reports */}
-                      {visibleReportsCount < reports.length && (
-                        <div className="flex justify-center pt-6 pb-2">
-                            <button
-                                onClick={() => setVisibleReportsCount(prev => prev + 15)}
-                                className="flex items-center gap-2 px-6 py-2.5 bg-surface border border-theme t-primary font-bold text-sm rounded-xl hover:border-accent-base/50 hover:text-accent-base transition-all shadow-sm"
-                            >
-                                Tampilkan Lebih Banyak ({reports.length - visibleReportsCount} item lagi)
-                            </button>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-brand-red flex items-center gap-1.5 mb-1">
+                            <Package className="w-4 h-4" /> {r.itemName}
+                          </p>
+                          {r.reason ? (
+                            <p className="text-[11px] t-secondary italic line-clamp-3">{r.reason}</p>
+                          ) : (
+                            <p className="text-[11px] t-muted">Tanpa catatan</p>
+                          )}
                         </div>
-                      )}
+                        <div className="flex items-center gap-6 justify-between md:justify-end">
+                          <div className="text-center">
+                            <p className="text-[9px] uppercase font-bold text-brand-red mb-1">Qty rusak</p>
+                            <span className="text-2xl font-mono font-bold text-brand-red">{r.qtyDamage}</span>
+                            <span className="text-xs t-muted ml-1">{r.itemUnit}</span>
+                          </div>
+                          <div className="text-right min-w-[72px]">
+                            <p className="text-[9px] uppercase font-bold t-muted mb-1">Stok akhir</p>
+                            <span className="text-lg font-mono t-primary">{r.finalStock != null ? r.finalStock : '—'}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {visibleReportsCount < damageReports.length && (
+                      <div className="flex justify-center pt-6 pb-2">
+                        <button type="button" onClick={() => setVisibleReportsCount((p) => p + 15)} className="px-6 py-2.5 bg-surface border border-theme t-primary font-bold text-sm rounded-xl hover:border-brand-red/40 hover:text-brand-red transition-all">
+                          Tampilkan lebih banyak ({damageReports.length - visibleReportsCount})
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -853,14 +1435,46 @@ export default function ReportsDashboard({ userRole }) {
               <div className="relative z-10">
                 <h3 className="t-secondary text-sm font-medium mb-1 uppercase tracking-wider">Audit Dilakukan</h3>
                 <div className="text-4xl font-mono font-bold t-primary group-hover:text-brand-amber transition-colors">{stockLogStats.totalAudit}</div>
+                <p className="text-[11px] t-muted mt-2">Satu baris per sesi koreksi stok.</p>
+              </div>
+            </div>
+
+            <div className="glass-card p-6 md:col-span-2 lg:col-span-3 xl:col-span-3 flex flex-col min-h-[260px]">
+              <h3 className="text-md font-bold t-primary mb-1 flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 text-brand-amber" /> Frekuensi per jenis proses
+              </h3>
+              <p className="text-[11px] t-muted mb-4">Jumlah entri di log stok per kategori sumber (bukan total qty).</p>
+              <div className="flex-1 min-h-[180px]">
+                {isLoading ? (
+                  <div className="h-full rounded-xl animate-pulse" style={{ background: 'var(--bg-input)' }} />
+                ) : stockMovementBySource.every((x) => x.count === 0) ? (
+                  <p className="t-secondary text-sm py-8 text-center">Tidak ada data untuk grafik.</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height={200}>
+                    <BarChart data={stockMovementBySource} margin={{ top: 8, right: 12, left: 4, bottom: 4 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+                      <XAxis dataKey="name" stroke="#64748b" fontSize={10} tick={{ fill: 'var(--text-muted)' }} interval={0} angle={-12} textAnchor="end" height={56} />
+                      <YAxis stroke="#64748b" fontSize={11} allowDecimals={false} />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: 'var(--bg-body)', border: '1px solid var(--border-glass)', borderRadius: '12px', fontSize: '12px' }}
+                        formatter={(v) => [`${v} entri`, 'Jumlah']}
+                      />
+                      <Bar dataKey="count" radius={[6, 6, 0, 0]}>
+                        {stockMovementBySource.map((entry, index) => (
+                          <Cell key={`s-${index}`} fill={entry.fill} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
               </div>
             </div>
 
             {/* Stock Log Table - Full Width */}
             <div className="glass-card overflow-hidden flex flex-col md:col-span-2 lg:col-span-3 xl:col-span-4 min-h-[400px]">
-              <div className="p-6 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border-glass)' }}>
+              <div className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-2" style={{ borderBottom: '1px solid var(--border-glass)' }}>
                 <h3 className="font-bold t-primary flex items-center gap-2">
-                  <History className="w-5 h-5 text-brand-amber" /> Seluruh Pergerakan Stok
+                  <History className="w-5 h-5 text-brand-amber" /> Detail pergerakan stok
                 </h3>
                 <span className="text-xs t-muted font-mono">{stockLogs.length} entri</span>
               </div>
@@ -1133,15 +1747,75 @@ export default function ReportsDashboard({ userRole }) {
           </>
         )}
 
-        {/* ========== TAB 4: TRACKING KENDALA ========== */}
+        {/* ========== KENDALA QC (trx_defects) ========== */}
         {activeTab === 'kendala' && (
-          <div className="glass-card overflow-hidden flex flex-col md:col-span-2 lg:col-span-3 xl:col-span-4 min-h-[400px]">
+          <>
+            <div className="glass-card p-6 flex flex-col justify-between relative overflow-hidden">
+              <div className="p-3 bg-orange-500/10 rounded-2xl text-orange-500 border border-orange-500/20 w-fit mb-4">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="t-secondary text-sm font-medium mb-1 uppercase tracking-wider">Total qty gagal (laporan)</h3>
+                <div className="text-4xl font-mono font-bold text-orange-500">{defectTotals.qty}</div>
+                <p className="text-[11px] t-muted mt-2">Penjumlahan field quantity per baris.</p>
+              </div>
+            </div>
+            <div className="glass-card p-6 flex flex-col justify-between">
+              <div className="p-3 bg-input rounded-2xl border border-theme w-fit mb-4">
+                <FileText className="w-6 h-6 t-secondary" />
+              </div>
+              <div>
+                <h3 className="t-secondary text-sm font-medium mb-1 uppercase tracking-wider">Jumlah laporan</h3>
+                <div className="text-4xl font-mono font-bold t-primary">{defectTotals.rows}</div>
+                <p className="text-[11px] t-muted mt-2">Frekuensi pelaporan kendala.</p>
+              </div>
+            </div>
+            <div className="glass-card p-6 md:col-span-2 lg:col-span-2 xl:col-span-2 min-h-[280px] flex flex-col">
+              <h3 className="font-bold t-primary mb-1 flex items-center gap-2">
+                <PieChartIcon className="w-5 h-5 text-orange-500" /> Qty gagal per kategori
+              </h3>
+              <p className="text-[11px] t-muted mb-4">Membantu melihat jenis masalah yang paling memberatkan.</p>
+              <div className="flex-1 min-h-[200px] flex items-center justify-center">
+                {isLoading ? (
+                  <div className="w-40 h-40 rounded-full border-4 animate-pulse" style={{ borderColor: 'var(--border-glass)' }} />
+                ) : defectCategoryChart.length === 0 ? (
+                  <p className="t-secondary text-sm text-center px-4">Belum ada data kendala pada periode ini.</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height={220}>
+                    <PieChart>
+                      <Pie
+                        data={defectCategoryChart}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={55}
+                        outerRadius={85}
+                        paddingAngle={4}
+                        dataKey="value"
+                        nameKey="name"
+                        stroke="none"
+                      >
+                        {defectCategoryChart.map((entry, index) => (
+                          <Cell key={`def-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{ backgroundColor: 'var(--bg-body)', border: '1px solid var(--border-glass)', borderRadius: '12px' }}
+                        formatter={(v) => [`${v} qty`, '']}
+                      />
+                      <Legend iconType="circle" wrapperStyle={{ fontSize: '11px' }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </div>
+
+            <div className="glass-card overflow-hidden flex flex-col md:col-span-2 lg:col-span-3 xl:col-span-4 min-h-[400px]">
             <div className="p-6 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border-glass)' }}>
               <h3 className="font-bold t-primary flex items-center gap-2 text-orange-500">
-                <AlertTriangle className="w-5 h-5" /> Detail Laporan Kendala Produksi
+                <FileWarning className="w-5 h-5" /> Tabel laporan kendala
               </h3>
               <span className="text-xs t-muted font-mono">
-                {defectsLogs.length} data
+                {defectsLogs.length} baris
               </span>
             </div>
 
@@ -1238,6 +1912,7 @@ export default function ReportsDashboard({ userRole }) {
               )}
             </div>
           </div>
+          </>
         )}
       </div>
 

@@ -110,7 +110,7 @@ function App() {
           {/* Protected Routes */}
           <Route element={<ProtectedRoute session={session} userRole={userRole} isLoading={isLoading} />}>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<ApprovalDashboard userRole={userRole} />} />
+            <Route path="/dashboard" element={<ApprovalDashboard />} />
             <Route path="/inventory" element={<InventoryDashboard userRole={userRole} />} />
             <Route path="/input-report" element={<InputReportDashboard userRole={userRole} />} />
             <Route path="/defects" element={<DefectsDashboard />} />

@@ -1,12 +1,5 @@
--- ==============================================================================================
--- FUNCTION: SUBMIT REPORT DIRECT (tanpa approval - langsung potong stok)
--- ==============================================================================================
-
--- Fungsi ini secara atomik akan:
--- 1. Insert laporan ke trx_reports dengan status 'Approved' langsung
--- 2. Mengurangi stok di mst_items berdasarkan tipe (Usage/Damage)
--- 3. Mencatat perubahan di trx_stock_log (termasuk previous_stock)
--- 4. Mengembalikan data stok terbaru
+-- Migration: fix enum casting for submit_report_direct(p_type TEXT)
+-- Purpose: ensure p_type TEXT is cast to enum public.report_type when inserting into trx_reports.type
 
 CREATE OR REPLACE FUNCTION public.submit_report_direct(
   p_item_id UUID,
@@ -63,9 +56,23 @@ BEGIN
 
   -- A. Insert Laporan langsung dengan status Approved
   INSERT INTO public.trx_reports (
-    item_id, operator_id, type, quantity, notes, status, reviewed_by, reviewed_at
+    item_id,
+    operator_id,
+    type,
+    quantity,
+    notes,
+    status,
+    reviewed_by,
+    reviewed_at
   ) VALUES (
-    p_item_id, v_user_id, p_type::report_type, p_quantity, p_notes, 'Approved', v_user_id, NOW()
+    p_item_id,
+    v_user_id,
+    p_type::report_type,
+    p_quantity,
+    p_notes,
+    'Approved',
+    v_user_id,
+    NOW()
   )
   RETURNING id INTO v_report_id;
 
@@ -76,9 +83,23 @@ BEGIN
 
   -- C. Catat di Log
   INSERT INTO public.trx_stock_log (
-    item_id, report_id, changed_by, change_amount, previous_stock, final_stock, source, notes
+    item_id,
+    report_id,
+    changed_by,
+    change_amount,
+    previous_stock,
+    final_stock,
+    source,
+    notes
   ) VALUES (
-    v_item.id, v_report_id, v_user_id, -p_quantity, v_item.stock, v_final_stock, v_source, p_notes
+    v_item.id,
+    v_report_id,
+    v_user_id,
+    -p_quantity,
+    v_item.stock,
+    v_final_stock,
+    v_source,
+    p_notes
   );
 
   -- ============================================================
@@ -93,3 +114,4 @@ BEGIN
   );
 END;
 $$;
+
