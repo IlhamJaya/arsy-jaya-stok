@@ -368,10 +368,11 @@ export default function InventoryDashboard({ userRole }) {
                         <button
                             key={cat}
                             onClick={() => setSelectedCategory(cat)}
-                            className={`px-4 py-1.5 rounded-full text-xs font-semibold border transition-all duration-200 ${selectedCategory === cat
-                                ? 'bg-accent-base t-on-accent border-accent-base shadow-[0_0_12px_rgba(6,182,212,0.4)]'
-                                : 'bg-transparent t-muted border-theme hover:border-accent-base hover:t-primary'
-                                }`}
+                            className={`px-4 py-1.5 rounded-full text-xs font-semibold border transition-all duration-200 ${
+                                selectedCategory === cat
+                                    ? 'bg-accent-base t-on-accent border-accent-base shadow-[0_0_12px_rgba(6,182,212,0.4)]'
+                                    : 'bg-accent-base/10 text-accent-base border-accent-base/20 hover:bg-accent-base/20 hover:border-accent-base/30 shadow-[0_0_10px_rgba(6,182,212,0.12)]'
+                              }`}
                         >
                             {cat}
                         </button>
