@@ -84,6 +84,10 @@ export default function ReportsDashboard({ userRole }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isExportingPack, setIsExportingPack] = useState(false);
 
+  // State untuk Edit/Hapus Laporan Pemakaian (Khusus SPV)
+  const [editingUsageReport, setEditingUsageReport] = useState(null);
+  const [isSavingUsageEdit, setIsSavingUsageEdit] = useState(false);
+
   // Filters
   const [dateRange, setDateRange] = useState('month');
   const [selectedType, setSelectedType] = useState('ALL');
@@ -897,6 +901,63 @@ export default function ReportsDashboard({ userRole }) {
     }
   };
 
+  // Handlers untuk Edit/Hapus Laporan Pemakaian (Khusus SPV)
+  const handleEditUsageReport = (report) => {
+    setEditingUsageReport({
+      id: report.id,
+      itemName: report.itemName,
+      itemUnit: report.itemUnit,
+      qtyUsed: report.qtyUsed,
+      operatorName: report.operatorName,
+      operatorRole: report.operatorRole,
+      date: report.date,
+      notes: report.reason || '',
+    });
+  };
+
+  const handleDeleteUsageReport = async (id) => {
+    if (userRole !== 'SPV') return;
+    if (!confirm('Yakin ingin menghapus laporan pemakaian ini? Stok akan direstore otomatis.')) return;
+
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.rpc('spv_delete_trx_report_and_restore_stock', {
+        p_report_id: id,
+      });
+      if (error) throw error;
+
+      await fetchUsageReports();
+    } catch (err) {
+      console.error('Error deleting usage report:', err);
+      alert(`Gagal menghapus laporan pemakaian: ${err.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSaveUsageReportEdit = async (e) => {
+    e.preventDefault();
+    if (!editingUsageReport) return;
+
+    setIsSavingUsageEdit(true);
+    try {
+      const { error } = await supabase.rpc('spv_update_trx_report_notes', {
+        p_report_id: editingUsageReport.id,
+        p_notes: editingUsageReport.notes || null,
+      });
+      if (error) throw error;
+
+      alert('Berhasil: Laporan pemakaian diperbarui!');
+      setEditingUsageReport(null);
+      await fetchUsageReports();
+    } catch (err) {
+      console.error('Error saving usage report edit:', err);
+      alert(`Gagal menyimpan perubahan: ${err.message}`);
+    } finally {
+      setIsSavingUsageEdit(false);
+    }
+  };
+
   return (
     <div className="w-full animate-in fade-in py-2">
       {/* Header */}
@@ -1235,6 +1296,26 @@ export default function ReportsDashboard({ userRole }) {
                             <span className="text-lg font-mono font-bold t-primary">{r.finalStock != null ? r.finalStock : '—'}</span>
                           </div>
                         </div>
+                        {userRole === 'SPV' && (
+                          <div className="flex justify-end gap-2 mt-3">
+                            <button
+                              type="button"
+                              onClick={() => handleEditUsageReport(r)}
+                              className="p-1.5 rounded-lg text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500 hover:text-white transition-colors"
+                              title="Edit Laporan Pemakaian"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteUsageReport(r.id)}
+                              className="p-1.5 rounded-lg text-brand-red bg-brand-red/10 border border-brand-red/20 hover:bg-brand-red hover:text-white transition-colors"
+                              title="Hapus Laporan Pemakaian"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        )}
                       </div>
                     ))}
                     {visibleReportsCount < usageReports.length && (
@@ -1915,6 +1996,72 @@ export default function ReportsDashboard({ userRole }) {
           </>
         )}
       </div>
+
+      {/* Edit Usage Modal (Khusus SPV) */}
+      {editingUsageReport && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm"
+            onClick={() => !isSavingUsageEdit && setEditingUsageReport(null)}
+          ></div>
+          <div
+            className="glass-card w-full max-w-lg p-6 relative z-10 animate-in zoom-in-95 duration-200"
+            style={{ border: '1px solid var(--border-glass)' }}
+          >
+            <h3 className="text-xl font-bold t-primary mb-6 flex items-center gap-2">
+              <Edit2 className="w-5 h-5 text-sky-400" />
+              Edit Laporan Pemakaian
+            </h3>
+
+            <form onSubmit={handleSaveUsageReportEdit} className="space-y-4">
+              <div className="text-sm t-secondary p-3 bg-sky-500/10 border border-sky-500/20 rounded-xl">
+                Qty: <span className="font-bold t-primary">{editingUsageReport.qtyUsed}</span> {editingUsageReport.itemUnit} • Item:{' '}
+                <span className="font-bold t-primary">{editingUsageReport.itemName}</span>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium t-secondary mb-1">Catatan / Alasan</label>
+                <textarea
+                  className="w-full px-4 py-2.5 rounded-xl border resize-none"
+                  style={{
+                    background: 'var(--bg-input)',
+                    borderColor: 'var(--border-glass)',
+                    color: 'var(--text-primary)',
+                  }}
+                  rows={5}
+                  value={editingUsageReport.notes}
+                  onChange={(e) =>
+                    setEditingUsageReport({ ...editingUsageReport, notes: e.target.value })
+                  }
+                  placeholder="Tulis catatan pemakaian..."
+                />
+              </div>
+
+              <div className="flex gap-3 justify-end pt-4 mt-6" style={{ borderTop: '1px solid var(--border-glass)' }}>
+                <button
+                  type="button"
+                  onClick={() => setEditingUsageReport(null)}
+                  className="px-4 py-2 text-sm font-medium rounded-xl t-secondary hover:bg-white/5 transition-colors"
+                  disabled={isSavingUsageEdit}
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingUsageEdit}
+                  className="px-5 py-2 text-sm font-bold text-white bg-blue-500 rounded-xl hover:bg-blue-600 transition-colors shadow-lg shadow-blue-500/25 flex items-center justify-center min-w-[140px]"
+                >
+                  {isSavingUsageEdit ? (
+                    <div className="w-5 h-5 border-t-2 border-r-2 border-white rounded-full animate-spin"></div>
+                  ) : (
+                    'Simpan Perubahan'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Edit Defect Modal (Khusus SPV) */}
       {editingDefect && (
