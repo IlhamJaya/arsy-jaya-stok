@@ -41,7 +41,7 @@ export default function Sidebar({ userRole }) {
     };
 
     let menuItems = [
-        { icon: ClipboardList, label: 'Riwayat Laporan', shortLabel: 'Riwayat', path: '/dashboard' }
+        { icon: ClipboardList, label: 'Log Harian', shortLabel: 'Log', path: '/dashboard' }
     ];
 
     if (userRole !== 'SPV' && userRole !== 'HRD') {
