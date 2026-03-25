@@ -5,7 +5,7 @@ import {
   FileText, Calendar, Download,
   BarChart3, PieChart as PieChartIcon, CheckCircle2, User, Package, AlertTriangle,
   ArrowUpCircle, ArrowDownCircle, Settings2, History, Scissors, Trash2, Edit2, TrendingUp,
-  Database, FileWarning
+  Database, FileWarning, Clock
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell,
@@ -452,16 +452,132 @@ export default function ReportsDashboard({ userRole }) {
     return { totalOrders: cuttingLogs.length, totalCut };
   }, [cuttingLogs]);
 
+  const parseYMD = (ymd) => {
+    if (!ymd) return null;
+    const [y, m, d] = ymd.split('-').map(Number);
+    if (!y || !m || !d) return null;
+    return new Date(y, m - 1, d, 0, 0, 0, 0);
+  };
+
+  const daysBetweenInclusive = (a, b) => {
+    if (!a || !b) return 0;
+    const msPerDay = 24 * 60 * 60 * 1000;
+    const start = new Date(a);
+    const end = new Date(b);
+    start.setHours(0, 0, 0, 0);
+    end.setHours(0, 0, 0, 0);
+    const diff = Math.floor((end - start) / msPerDay);
+    return diff >= 0 ? diff + 1 : 0;
+  };
+
+  const cuttingPeriodDays = useMemo(() => {
+    if (cuttingLogs.length === 0) return 0;
+
+    if (dateRange === 'today') return 1;
+    if (dateRange === 'week') return 7;
+    if (dateRange === 'month') return 30;
+
+    if (dateRange === 'bulan' && selectedMonth) {
+      const [y, m] = selectedMonth.split('-').map(Number);
+      if (!y || !m) return 0;
+      // new Date(y, m, 0) -> last day of month
+      return new Date(y, m, 0).getDate();
+    }
+
+    if (dateRange === 'custom') {
+      const start = parseYMD(customStart);
+      if (!start) return 0;
+
+      const end = customEnd ? parseYMD(customEnd) : new Date();
+      const now = new Date();
+      end.setHours(0, 0, 0, 0);
+
+      // If customEnd is empty, treat period as start..today
+      const endDate = customEnd ? end : new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+      return Math.max(1, daysBetweenInclusive(start, endDate));
+    }
+
+    // "all": average per day based on actual range of data
+    if (dateRange === 'all') {
+      const dates = cuttingLogs
+        .map((l) => new Date(l.created_at).getTime())
+        .filter((t) => Number.isFinite(t));
+      if (dates.length === 0) return 0;
+      const minTs = Math.min(...dates);
+      const maxTs = Math.max(...dates);
+      const minD = new Date(minTs);
+      const maxD = new Date(maxTs);
+      return Math.max(1, daysBetweenInclusive(minD, maxD));
+    }
+
+    return 0;
+  }, [cuttingLogs, dateRange, customStart, customEnd, selectedMonth]);
+
+  const cuttingAvgPerDay = useMemo(() => {
+    if (!cuttingPeriodDays) return 0;
+    return cuttingLogStats.totalCut / cuttingPeriodDays;
+  }, [cuttingLogStats.totalCut, cuttingPeriodDays]);
+
+  // === Pemakaian periode (untuk rata-rata qty bahan, bukan jumlah entri) ===
+  const pemakaianPeriodDays = useMemo(() => {
+    if (!usageReports || usageReports.length === 0) return 0;
+
+    if (dateRange === 'today') return 1;
+    if (dateRange === 'week') return 7;
+    if (dateRange === 'month') return 30;
+
+    if (dateRange === 'bulan' && selectedMonth) {
+      const [y, m] = selectedMonth.split('-').map(Number);
+      if (!y || !m) return 0;
+      return new Date(y, m, 0).getDate();
+    }
+
+    if (dateRange === 'custom') {
+      const start = parseYMD(customStart);
+      if (!start) return 0;
+
+      const endDate = customEnd ? parseYMD(customEnd) : new Date();
+      if (!endDate) return 0;
+      endDate.setHours(0, 0, 0, 0);
+      return Math.max(1, daysBetweenInclusive(start, endDate));
+    }
+
+    if (dateRange === 'all') {
+      const times = usageReports
+        .map((r) => (r.rawDate instanceof Date ? r.rawDate.getTime() : null))
+        .filter((t) => Number.isFinite(t));
+      if (times.length === 0) return 0;
+      const minTs = Math.min(...times);
+      const maxTs = Math.max(...times);
+      return Math.max(1, daysBetweenInclusive(new Date(minTs), new Date(maxTs)));
+    }
+
+    return 0;
+  }, [usageReports, dateRange, customStart, customEnd, selectedMonth]);
+
+  const pemakaianAvgPerDay = useMemo(() => {
+    if (!pemakaianPeriodDays) return 0;
+    return totalUsed / pemakaianPeriodDays;
+  }, [totalUsed, pemakaianPeriodDays]);
+
   // === Top Bahan Di-Cut Chart Data ===
   const topBahanData = useMemo(() => {
     const grouped = {};
     cuttingLogs.forEach(l => {
-      const key = l.item?.name || 'Tidak Diketahui';
+      // "jenis bahan" dipakai dari kategori item (mis. Kertas/Stiker), bukan nama item spesifik
+      const key = l.item?.category || l.item?.name || 'Tidak Diketahui';
       if (!grouped[key]) grouped[key] = { name: key, totalLembar: 0 };
       grouped[key].totalLembar += l.qty_cut;
     });
-    return Object.values(grouped).sort((a, b) => b.totalLembar - a.totalLembar).slice(0, 6);
-  }, [cuttingLogs]);
+    const days = cuttingPeriodDays || 0;
+    return Object.values(grouped)
+      .map((g) => ({
+        ...g,
+        avgPerDay: days > 0 ? g.totalLembar / days : 0,
+      }))
+      .sort((a, b) => b.totalLembar - a.totalLembar)
+      .slice(0, 6);
+  }, [cuttingLogs, cuttingPeriodDays]);
 
 
 
@@ -977,9 +1093,9 @@ export default function ReportsDashboard({ userRole }) {
                 </div>
               </div>
               <div className="relative z-10">
-                <h3 className="t-secondary text-sm font-medium mb-1 uppercase tracking-wider">Jumlah entri</h3>
-                <div className="text-4xl font-mono font-bold t-primary group-hover:text-sky-400 transition-colors">{usageReports.length}</div>
-                <p className="text-[11px] t-muted mt-2">Baris laporan pada filter ini.</p>
+                <h3 className="t-secondary text-sm font-medium mb-1 uppercase tracking-wider">Penggunaan qty bahan</h3>
+                <div className="text-4xl font-mono font-bold t-primary group-hover:text-sky-400 transition-colors">{totalUsed}</div>
+                <p className="text-[11px] t-muted mt-2">Total qty bahan pemakaian pada periode ini (approved).</p>
               </div>
             </div>
 
@@ -991,11 +1107,13 @@ export default function ReportsDashboard({ userRole }) {
                 </div>
               </div>
               <div className="relative z-10">
-                <h3 className="t-secondary text-sm font-medium mb-1 uppercase tracking-wider">Rata-rata / entri</h3>
+                <h3 className="t-secondary text-sm font-medium mb-1 uppercase tracking-wider">Rata-rata Penggunaan Bahan / Hari</h3>
                 <div className="text-4xl font-mono font-bold t-primary group-hover:text-sky-400 transition-colors">
-                  {usageReports.length > 0 ? (totalUsed / usageReports.length).toFixed(2) : '—'}
+                  {pemakaianPeriodDays > 0 ? pemakaianAvgPerDay.toFixed(2) : '—'}
                 </div>
-                <p className="text-[11px] t-muted mt-2">Membantu melihat intensitas per transaksi.</p>
+                <p className="text-[11px] t-muted mt-2">
+                  Rata-rata qty bahan pemakaian per hari pada periode ini.
+                </p>
               </div>
             </div>
 
@@ -1029,7 +1147,14 @@ export default function ReportsDashboard({ userRole }) {
                       <YAxis dataKey="name" type="category" width={110} stroke="#64748b" fontSize={11} tick={{ fill: 'var(--text-secondary)' }} />
                       <Tooltip
                         cursor={{ fill: 'rgba(255,255,255,0.04)' }}
-                        contentStyle={{ backgroundColor: 'var(--bg-body)', border: '1px solid var(--border-glass)', borderRadius: '12px', fontSize: '12px' }}
+                        contentStyle={{
+                          backgroundColor: 'var(--bg-body)',
+                          border: '1px solid var(--border-glass)',
+                          borderRadius: '12px',
+                          fontSize: '12px',
+                          color: 'var(--text-primary)',
+                        }}
+                        itemStyle={{ color: 'var(--text-primary)' }}
                         formatter={(v) => [`${v} qty`, 'Pemakaian']}
                       />
                       <Bar dataKey="total" radius={[0, 4, 4, 0]}>
@@ -1338,7 +1463,15 @@ export default function ReportsDashboard({ userRole }) {
                       <XAxis dataKey="name" stroke="#64748b" fontSize={10} tick={{ fill: 'var(--text-muted)' }} interval={0} angle={-12} textAnchor="end" height={56} />
                       <YAxis stroke="#64748b" fontSize={11} allowDecimals={false} />
                       <Tooltip
-                        contentStyle={{ backgroundColor: 'var(--bg-body)', border: '1px solid var(--border-glass)', borderRadius: '12px', fontSize: '12px' }}
+                        cursor={false}
+                        contentStyle={{
+                          backgroundColor: 'var(--bg-body)',
+                          border: '1px solid var(--border-glass)',
+                          borderRadius: '12px',
+                          fontSize: '12px',
+                          color: 'var(--text-primary)',
+                        }}
+                        itemStyle={{ color: 'var(--text-primary)' }}
                         formatter={(v) => [`${v} entri`, 'Jumlah']}
                       />
                       <Bar dataKey="count" radius={[6, 6, 0, 0]}>
@@ -1479,6 +1612,25 @@ export default function ReportsDashboard({ userRole }) {
               </div>
             </div>
 
+            {/* 1x1 Card: Avg / Hari */}
+            <div className="glass-card p-6 flex flex-col justify-between group cursor-default relative overflow-hidden">
+              <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-indigo-500/5 rounded-full blur-2xl pointer-events-none transition-all group-hover:bg-indigo-500/10"></div>
+              <div className="flex items-start justify-between mb-4 relative z-10">
+                <div className="p-3 bg-indigo-500/10 rounded-2xl text-indigo-500 border border-indigo-500/20 group-hover:bg-indigo-500/20 transition-colors">
+                  <Clock className="w-6 h-6" />
+                </div>
+              </div>
+              <div className="relative z-10">
+                <h3 className="t-secondary text-sm font-medium mb-1 uppercase tracking-wider">Rata-rata / Hari</h3>
+                <div className="text-4xl font-mono font-bold t-primary transition-colors">
+                  {cuttingPeriodDays > 0 ? Math.round(cuttingAvgPerDay) : 0}
+                </div>
+                <p className="text-[11px] t-muted mt-2 font-mono">
+                  {cuttingPeriodDays > 0 ? `(${cuttingPeriodDays} hari)` : ''}
+                </p>
+              </div>
+            </div>
+
             {/* 2x1 Card: Top Bahan Di-Cut */}
             <div className="glass-card p-6 md:col-span-2 relative overflow-hidden flex flex-col">
               <h3 className="text-md font-bold t-primary mb-4 flex items-center gap-2">
@@ -1512,6 +1664,25 @@ export default function ReportsDashboard({ userRole }) {
                   </ResponsiveContainer>
                 )}
               </div>
+
+              {/* Avg per day by jenis bahan */}
+              {topBahanData.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-theme">
+                  <p className="text-[11px] t-secondary font-medium mb-3">
+                    Rata-rata Di-Cut per Hari (jenis bahan)
+                  </p>
+                  <div className="space-y-2">
+                    {topBahanData.map((b, idx) => (
+                      <div key={`${b.name}-${idx}`} className="flex items-center justify-between gap-3">
+                        <span className="text-xs t-muted truncate">{b.name}</span>
+                        <span className="text-xs t-primary font-mono font-bold whitespace-nowrap">
+                          {cuttingPeriodDays > 0 ? b.avgPerDay.toFixed(2) : '0.00'} / hari
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Cutting Log Table - Full Width */}
