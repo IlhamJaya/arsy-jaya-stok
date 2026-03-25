@@ -327,8 +327,10 @@ export default function InputReportDashboard({ userRole }) {
 
                                 <div className="pt-6 border-t border-theme flex justify-end">
                                     <button type="submit" disabled={!isValid || isSubmitting}
-                                        className="group relative flex items-center justify-center gap-2 w-full md:w-auto px-8 py-3.5 bg-accent-base font-bold rounded-2xl transition-all disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden shadow-[0_0_15px_rgba(6,182,212,0.2)] hover:shadow-[0_0_25px_rgba(6,182,212,0.4)]">
-                                        <div className="absolute inset-0 bg-white/20 group-hover:translate-x-full transition-transform duration-700 -translate-x-full skew-x-12"></div>
+                                        className="group relative flex items-center justify-center gap-2 w-full md:w-auto px-8 py-3.5 font-bold rounded-2xl transition-all disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden hover:shadow-[0_0_25px_rgba(6,182,212,0.4)] shadow-[0_0_15px_rgba(6,182,212,0.2)]"
+                                        style={{ backgroundColor: 'var(--color-accent-base)' }}
+                                        >
+                                        <div className="absolute inset-0 bg-black/10 dark:bg-white/20 group-hover:translate-x-full transition-transform duration-700 -translate-x-full skew-x-12"></div>
                                         <span className="relative z-10 flex items-center gap-2 t-on-accent text-base">
                                             {isSubmitting ? (<><div className="w-5 h-5 rounded-full border-t-2 border-r-2 t-on-accent animate-spin" /> Memproses...</>) : (<><Save className="w-5 h-5" /> Simpan & Potong Stok</>)}
                                         </span>
@@ -450,7 +452,9 @@ export default function InputReportDashboard({ userRole }) {
 
                                 <div className="pt-4 border-t border-theme flex justify-end">
                                     <button type="submit" disabled={!isCuttingValid || isSubmitting}
-                                        className="flex items-center gap-2 px-8 py-3 bg-accent-base t-on-accent font-bold rounded-xl hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(6,182,212,0.15)]">
+                                        className="flex items-center gap-2 px-8 py-3 t-on-accent font-bold rounded-xl hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(6,182,212,0.15)]"
+                                        style={{ backgroundColor: 'var(--color-accent-base)' }}
+                                        >
                                         {isSubmitting ? (<><div className="w-5 h-5 rounded-full border-t-2 border-r-2 border-slate-900 animate-spin" /> Menyimpan...</>) : (<><Scissors className="w-5 h-5" /> Simpan Cutting</>)}
                                     </button>
                                 </div>
