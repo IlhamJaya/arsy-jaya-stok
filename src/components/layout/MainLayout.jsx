@@ -35,8 +35,8 @@ const getTopbarMenuItems = (role) => {
 
     const items = [{ label: 'Log Harian', path: '/dashboard', roles: ['*'] }];
 
-    // Input Laporan tidak terlihat untuk role SPV/HRD (mengacu ke logika Sidebar).
-    if (r !== 'SPV' && r !== 'HRD') items.push({ label: 'Input Laporan', path: '/input-report', roles: [r] });
+    // Input Laporan bisa dilihat oleh semua role (submit dibatasi di halaman).
+    items.push({ label: 'Input Laporan', path: '/input-report', roles: [r] });
 
     items.push({ label: 'Inventory', path: '/inventory', roles: ['*'] });
 
@@ -54,33 +54,45 @@ const getTopbarAccent = (path) => {
     switch (path) {
         case '/dashboard':
             return {
-                active: 'bg-accent-base/10 text-accent-base border-accent-base/20 shadow-sm',
-                hover: 'hover:bg-accent-base/5 hover:text-accent-base/90',
+                active: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/35 shadow-sm',
+                idle: 'bg-cyan-500/10 border-cyan-500/25 t-muted',
+                hover: 'hover:bg-cyan-500/20 hover:text-cyan-300 hover:border-cyan-400/45',
+            };
+        case '/input-report':
+            return {
+                active: 'bg-sky-500/15 text-sky-400 border-sky-500/35 shadow-sm',
+                idle: 'bg-sky-500/10 border-sky-500/25 t-muted',
+                hover: 'hover:bg-sky-500/20 hover:text-sky-300 hover:border-sky-400/45',
             };
         case '/inventory':
             return {
-                active: 'bg-brand-amber/10 text-brand-amber border-brand-amber/20 shadow-sm',
-                hover: 'hover:bg-brand-amber/5 hover:text-brand-amber/90',
+                active: 'bg-brand-amber/15 text-brand-amber border-brand-amber/30 shadow-sm',
+                idle: 'bg-brand-amber/10 border-brand-amber/25 t-muted',
+                hover: 'hover:bg-brand-amber/20 hover:text-brand-amber hover:border-brand-amber/40',
             };
         case '/suppliers':
             return {
-                active: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30 shadow-sm',
-                hover: 'hover:bg-emerald-500/5 hover:text-emerald-500/90',
+                active: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/35 shadow-sm',
+                idle: 'bg-emerald-500/10 border-emerald-500/30 t-muted',
+                hover: 'hover:bg-emerald-500/20 hover:text-emerald-300 hover:border-emerald-400/45',
             };
         case '/reports':
             return {
-                active: 'bg-purple-500/10 text-purple-400 border-purple-500/20 shadow-sm',
-                hover: 'hover:bg-purple-500/5 hover:text-purple-400/90',
+                active: 'bg-purple-500/15 text-purple-400 border-purple-500/35 shadow-sm',
+                idle: 'bg-purple-500/10 border-purple-500/25 t-muted',
+                hover: 'hover:bg-purple-500/20 hover:text-purple-300 hover:border-purple-400/45',
             };
         case '/defects':
             return {
-                active: 'bg-brand-red/10 text-brand-red border-brand-red/20 shadow-sm',
-                hover: 'hover:bg-brand-red/5 hover:text-brand-red/90',
+                active: 'bg-brand-red/15 text-brand-red border-brand-red/30 shadow-sm',
+                idle: 'bg-brand-red/10 border-brand-red/25 t-muted',
+                hover: 'hover:bg-brand-red/20 hover:text-brand-red hover:border-brand-red/40',
             };
         default:
             return {
-                active: 'bg-accent-base/10 text-accent-base border-accent-base/20 shadow-sm',
-                hover: 'hover:bg-accent-base/5 hover:text-accent-base/90',
+                active: 'bg-accent-base/15 text-accent-base border-accent-base/30 shadow-sm',
+                idle: 'bg-accent-base/10 border-accent-base/25 t-muted',
+                hover: 'hover:bg-accent-base/20 hover:text-accent-base hover:border-accent-base/40',
             };
     }
 };
@@ -190,9 +202,9 @@ export default function MainLayout({ children, userRole }) {
                                         className="w-9 h-9 object-contain"
                                     />
                                     <div className="min-w-0">
-                                        <p className="text-sm font-bold t-primary truncate">{appTitle}</p>
+                                        <p className="text-sm font-bold t-primary truncate font-app-brand tracking-tight">{appTitle}</p>
                                         <div className="flex items-center gap-3 min-w-0">
-                                            <p className="text-[11px] t-muted font-mono uppercase tracking-wider truncate mb-0.5">
+                                            <p className="text-[11px] t-muted font-app-brand font-medium uppercase tracking-wide truncate mb-0.5">
                                                 {appSubtitle}
                                             </p>
                                         </div>
@@ -210,7 +222,7 @@ export default function MainLayout({ children, userRole }) {
                                             return `px-4 py-2 rounded-xl text-sm font-medium transition-colors border ${
                                                 isActive
                                                     ? accent.active
-                                                    : `t-muted border-transparent ${accent.hover}`
+                                                    : `${accent.idle} ${accent.hover}`
                                             }`;
                                         }}
                                     >

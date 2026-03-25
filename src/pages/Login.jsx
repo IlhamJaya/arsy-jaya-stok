@@ -54,8 +54,8 @@ export default function Login() {
                     <div className="flex items-center gap-5 mb-8 pb-6 border-b border-theme border-dashed">
                         <img src="/Logo.svg" alt="ARSY JAYA Logo" className="w-[4.4rem] h-[4.4rem] object-contain drop-shadow-[0_0_12px_rgba(6,182,212,0.6)] shrink-0" />
                         <div className="flex flex-col justify-center">
-                            <h1 className="text-2xl font-extrabold tracking-tight t-primary uppercase leading-none mb-1">{appTitle}</h1>
-                            <p className="t-muted text-[10px] font-mono uppercase tracking-widest leading-none">{appSubtitle}</p>
+                            <h1 className="text-2xl font-extrabold tracking-tight t-primary uppercase leading-none mb-1 font-app-brand">{appTitle}</h1>
+                            <p className="t-muted text-[11px] font-app-brand font-medium uppercase tracking-wide leading-none">{appSubtitle}</p>
                             <span className="inline-block mt-2 text-xs font-semibold t-secondary bg-accent-base/10 text-accent-base px-2 py-0.5 rounded-md w-max">PORTAL MASUK</span>
                         </div>
                     </div>

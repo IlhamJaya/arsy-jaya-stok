@@ -1260,29 +1260,30 @@ export default function ReportsDashboard({ userRole }) {
         {/* ========== KERUSAKAN (trx_reports type Damage) ========== */}
         {activeTab === 'kerusakan' && (
           <>
-            <div className="glass-card p-6 flex flex-col justify-between relative overflow-hidden">
-              <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-brand-red/5 rounded-full blur-2xl pointer-events-none" />
+            <div className="glass-card p-6 flex flex-col justify-between group cursor-default relative overflow-hidden">
+              <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-brand-red/5 rounded-full blur-2xl pointer-events-none transition-all group-hover:bg-brand-red/10" />
               <div className="flex items-start justify-between mb-4 relative z-10">
-                <div className="p-3 bg-brand-red/10 rounded-2xl text-brand-red border border-brand-red/20">
+                <div className="p-3 bg-brand-red/10 rounded-2xl text-brand-red border border-brand-red/20 group-hover:bg-brand-red/20 transition-colors">
                   <AlertTriangle className="w-6 h-6" />
                 </div>
               </div>
               <div className="relative z-10">
                 <h3 className="t-secondary text-sm font-medium mb-1 uppercase tracking-wider">Total qty kerusakan</h3>
-                <div className="text-4xl font-mono font-bold t-primary text-brand-red">{totalDamage}</div>
+                <div className="text-4xl font-mono font-bold t-primary text-brand-red group-hover:text-brand-red transition-colors">{totalDamage}</div>
                 <p className="text-[11px] t-muted mt-2">Material yang dilaporkan rusak (approved).</p>
               </div>
             </div>
 
-            <div className="glass-card p-6 flex flex-col justify-between relative overflow-hidden">
+            <div className="glass-card p-6 flex flex-col justify-between group cursor-default relative overflow-hidden">
+              <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-brand-red/5 rounded-full blur-2xl pointer-events-none transition-all group-hover:bg-brand-red/10" />
               <div className="flex items-start justify-between mb-4 relative z-10">
-                <div className="p-3 bg-brand-amber/10 rounded-2xl text-brand-amber border border-brand-amber/20">
+                <div className="p-3 bg-brand-red/10 rounded-2xl text-brand-red border border-brand-red/20 group-hover:bg-brand-red/20 transition-colors">
                   <FileText className="w-6 h-6" />
                 </div>
               </div>
               <div className="relative z-10">
                 <h3 className="t-secondary text-sm font-medium mb-1 uppercase tracking-wider">Jumlah laporan</h3>
-                <div className="text-4xl font-mono font-bold t-primary">{damageReports.length}</div>
+                <div className="text-4xl font-mono font-bold t-primary group-hover:text-brand-red transition-colors">{damageReports.length}</div>
                 <p className="text-[11px] t-muted mt-2">Frekuensi kejadian kerusakan.</p>
               </div>
             </div>
@@ -1405,15 +1406,15 @@ export default function ReportsDashboard({ userRole }) {
           <>
             {/* 1x1 Card: Total Stok Masuk */}
             <div className="glass-card p-6 flex flex-col justify-between group cursor-default relative overflow-hidden">
-              <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-accent-base/5 rounded-full blur-2xl pointer-events-none transition-all group-hover:bg-accent-base/10"></div>
+              <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none transition-all group-hover:bg-emerald-500/10"></div>
               <div className="flex items-start justify-between mb-4 relative z-10">
-                <div className="p-3 bg-accent-base/10 rounded-2xl text-accent-base/80 border border-accent-base/20 group-hover:bg-accent-base/20 group-hover:text-accent-base transition-colors">
+                <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-500 border border-emerald-500/20 group-hover:bg-emerald-500/20 group-hover:text-emerald-500 transition-colors">
                   <ArrowUpCircle className="w-6 h-6" />
                 </div>
               </div>
               <div className="relative z-10">
                 <h3 className="t-secondary text-sm font-medium mb-1 uppercase tracking-wider">Total Stok Masuk</h3>
-                <div className="text-4xl font-mono font-bold t-secondary group-hover:text-accent-base transition-colors">{`+${stockLogStats.totalIn}`}</div>
+                <div className="text-4xl font-mono font-bold t-secondary group-hover:text-emerald-500 transition-colors">{`+${stockLogStats.totalIn}`}</div>
               </div>
             </div>
 
@@ -1600,29 +1601,29 @@ export default function ReportsDashboard({ userRole }) {
 
             {/* 1x1 Card: Total Cut */}
             <div className="glass-card p-6 flex flex-col justify-between group cursor-default relative overflow-hidden">
-              <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-accent-base/5 rounded-full blur-2xl pointer-events-none transition-all group-hover:bg-accent-base/10"></div>
+              <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-blue-500/5 rounded-full blur-2xl pointer-events-none transition-all group-hover:bg-blue-500/10"></div>
               <div className="flex items-start justify-between mb-4 relative z-10">
-                <div className="p-3 bg-accent-base/10 rounded-2xl text-accent-base border border-accent-base/20 group-hover:bg-accent-base/20 transition-colors">
+                <div className="p-3 bg-blue-500/10 rounded-2xl text-blue-500 border border-blue-500/20 group-hover:bg-blue-500/20 transition-colors">
                   <Scissors className="w-6 h-6" />
                 </div>
               </div>
               <div className="relative z-10">
                 <h3 className="t-secondary text-sm font-medium mb-1 uppercase tracking-wider">Total Lembar Di-Cut</h3>
-                <div className="text-4xl font-mono font-bold t-primary group-hover:text-accent-base transition-colors">{cuttingLogStats.totalCut}</div>
+                <div className="text-4xl font-mono font-bold t-primary group-hover:text-blue-500 transition-colors">{cuttingLogStats.totalCut}</div>
               </div>
             </div>
 
             {/* 1x1 Card: Avg / Hari */}
             <div className="glass-card p-6 flex flex-col justify-between group cursor-default relative overflow-hidden">
-              <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-indigo-500/5 rounded-full blur-2xl pointer-events-none transition-all group-hover:bg-indigo-500/10"></div>
+              <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-blue-500/5 rounded-full blur-2xl pointer-events-none transition-all group-hover:bg-blue-500/10"></div>
               <div className="flex items-start justify-between mb-4 relative z-10">
-                <div className="p-3 bg-indigo-500/10 rounded-2xl text-indigo-500 border border-indigo-500/20 group-hover:bg-indigo-500/20 transition-colors">
+                <div className="p-3 bg-blue-500/10 rounded-2xl text-blue-500 border border-blue-500/20 group-hover:bg-blue-500/20 transition-colors">
                   <Clock className="w-6 h-6" />
                 </div>
               </div>
               <div className="relative z-10">
                 <h3 className="t-secondary text-sm font-medium mb-1 uppercase tracking-wider">Rata-rata / Hari</h3>
-                <div className="text-4xl font-mono font-bold t-primary transition-colors">
+                <div className="text-4xl font-mono font-bold t-primary group-hover:text-blue-500 transition-colors">
                   {cuttingPeriodDays > 0 ? Math.round(cuttingAvgPerDay) : 0}
                 </div>
                 <p className="text-[11px] t-muted mt-2 font-mono">
@@ -1798,23 +1799,25 @@ export default function ReportsDashboard({ userRole }) {
         {/* ========== KENDALA QC (trx_defects) ========== */}
         {activeTab === 'kendala' && (
           <>
-            <div className="glass-card p-6 flex flex-col justify-between relative overflow-hidden">
-              <div className="p-3 bg-orange-500/10 rounded-2xl text-orange-500 border border-orange-500/20 w-fit mb-4">
+            <div className="glass-card p-6 flex flex-col justify-between group cursor-default relative overflow-hidden">
+              <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-orange-500/5 rounded-full blur-2xl pointer-events-none transition-all group-hover:bg-orange-500/10"></div>
+              <div className="p-3 bg-orange-500/10 rounded-2xl text-orange-500 border border-orange-500/20 w-fit mb-4 relative z-10 group-hover:bg-orange-500/20 transition-colors">
                 <AlertTriangle className="w-6 h-6" />
               </div>
-              <div>
+              <div className="relative z-10">
                 <h3 className="t-secondary text-sm font-medium mb-1 uppercase tracking-wider">Total qty gagal (laporan)</h3>
-                <div className="text-4xl font-mono font-bold text-orange-500">{defectTotals.qty}</div>
+                <div className="text-4xl font-mono font-bold t-primary group-hover:text-orange-500 transition-colors">{defectTotals.qty}</div>
                 <p className="text-[11px] t-muted mt-2">Penjumlahan field quantity per baris.</p>
               </div>
             </div>
-            <div className="glass-card p-6 flex flex-col justify-between">
-              <div className="p-3 bg-input rounded-2xl border border-theme w-fit mb-4">
-                <FileText className="w-6 h-6 t-secondary" />
+            <div className="glass-card p-6 flex flex-col justify-between group cursor-default relative overflow-hidden">
+              <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-brand-red/5 rounded-full blur-2xl pointer-events-none transition-all group-hover:bg-brand-red/10"></div>
+              <div className="p-3 bg-brand-red/10 rounded-2xl text-brand-red border border-brand-red/20 w-fit mb-4 relative z-10 group-hover:bg-brand-red/20 transition-colors">
+                <FileText className="w-6 h-6" />
               </div>
-              <div>
+              <div className="relative z-10">
                 <h3 className="t-secondary text-sm font-medium mb-1 uppercase tracking-wider">Jumlah laporan</h3>
-                <div className="text-4xl font-mono font-bold t-primary">{defectTotals.rows}</div>
+                <div className="text-4xl font-mono font-bold t-primary group-hover:text-brand-red transition-colors">{defectTotals.rows}</div>
                 <p className="text-[11px] t-muted mt-2">Frekuensi pelaporan kendala.</p>
               </div>
             </div>

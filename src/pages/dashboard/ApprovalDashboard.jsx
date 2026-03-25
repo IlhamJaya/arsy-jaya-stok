@@ -305,45 +305,48 @@ export default function ApprovalDashboard() {
     return (
         <div className="w-full animate-in fade-in py-4">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
-                <div className="glass-card p-3 sm:p-4 flex items-center gap-3 sm:gap-4 group cursor-default col-span-2 lg:col-span-1">
-                    <div className="p-2.5 sm:p-3 bg-accent-base/10 rounded-xl text-accent-base border border-accent-base/20 group-hover:bg-accent-base/20 transition-colors shrink-0">
+                <div className="glass-card p-3 sm:p-4 flex items-center gap-3 sm:gap-4 group cursor-default col-span-2 lg:col-span-1 relative overflow-hidden">
+                    <div className="absolute -bottom-6 -right-6 w-28 h-28 sm:w-32 sm:h-32 bg-cyan-500/5 rounded-full blur-2xl pointer-events-none transition-all group-hover:bg-cyan-500/15"></div>
+                    <div className="p-2.5 sm:p-3 bg-cyan-500/10 rounded-xl text-cyan-400 border border-cyan-500/25 group-hover:bg-cyan-500/20 group-hover:text-cyan-300 group-hover:border-cyan-400/45 transition-colors shrink-0 relative z-10">
                         <CalendarDays className="w-5 h-5 sm:w-6 sm:h-6" />
                     </div>
-                    <div className="min-w-0">
+                    <div className="min-w-0 relative z-10">
                         <h3 className="t-secondary text-[10px] sm:text-xs font-semibold mb-0.5 uppercase tracking-wider">
                             Aktivitas hari ini
                         </h3>
-                        <div className="text-xl sm:text-2xl font-mono font-bold t-primary group-hover:text-accent-base transition-colors leading-none">
+                        <div className="text-xl sm:text-2xl font-mono font-bold t-primary group-hover:text-cyan-400 transition-colors leading-none">
                             {isLoading ? '…' : totalToday}
                         </div>
                         <p className="text-[10px] t-muted mt-1 truncate">Semua jenis kejadian</p>
                     </div>
                 </div>
 
-                <div className="glass-card p-3 sm:p-4 flex items-center gap-3 sm:gap-4 group cursor-default">
-                    <div className="p-2.5 sm:p-3 bg-slate-500/10 rounded-xl t-secondary border border-theme group-hover:bg-slate-500/15 transition-colors shrink-0">
+                <div className="glass-card p-3 sm:p-4 flex items-center gap-3 sm:gap-4 group cursor-default relative overflow-hidden">
+                    <div className="absolute -bottom-6 -right-6 w-28 h-28 sm:w-32 sm:h-32 bg-sky-500/5 rounded-full blur-2xl pointer-events-none transition-all group-hover:bg-sky-500/10"></div>
+                    <div className="p-2.5 sm:p-3 bg-sky-500/10 rounded-xl text-sky-400 border border-sky-500/20 group-hover:bg-sky-500/20 group-hover:text-sky-300 transition-colors shrink-0 relative z-10">
                         <FileText className="w-5 h-5 sm:w-6 sm:h-6" />
                     </div>
-                    <div className="min-w-0">
+                    <div className="min-w-0 relative z-10">
                         <h3 className="t-secondary text-[10px] sm:text-xs font-semibold mb-0.5 uppercase tracking-wider">
                             Laporan stok
                         </h3>
-                        <div className="text-xl sm:text-2xl font-mono font-bold t-primary leading-none">
+                        <div className="text-xl sm:text-2xl font-mono font-bold t-primary group-hover:text-sky-400 transition-colors leading-none">
                             {isLoading ? '…' : stats.countReports}
                         </div>
                         <p className="text-[10px] t-muted mt-1">Pakai & rusak</p>
                     </div>
                 </div>
 
-                <div className="glass-card p-3 sm:p-4 flex items-center gap-3 sm:gap-4 group cursor-default">
-                    <div className="p-2.5 sm:p-3 bg-violet-500/10 rounded-xl text-violet-400 border border-violet-500/20 shrink-0">
+                <div className="glass-card p-3 sm:p-4 flex items-center gap-3 sm:gap-4 group cursor-default relative overflow-hidden">
+                    <div className="absolute -bottom-6 -right-6 w-28 h-28 sm:w-32 sm:h-32 bg-violet-500/5 rounded-full blur-2xl pointer-events-none transition-all group-hover:bg-violet-500/10"></div>
+                    <div className="p-2.5 sm:p-3 bg-violet-500/10 rounded-xl text-violet-400 border border-violet-500/20 group-hover:bg-violet-500/20 group-hover:text-violet-300 transition-colors shrink-0 relative z-10">
                         <Scissors className="w-5 h-5 sm:w-6 sm:h-6" />
                     </div>
-                    <div className="min-w-0">
+                    <div className="min-w-0 relative z-10">
                         <h3 className="t-secondary text-[10px] sm:text-xs font-semibold mb-0.5 uppercase tracking-wider">
                             Cutting
                         </h3>
-                        <div className="text-xl sm:text-2xl font-mono font-bold t-primary leading-none">
+                        <div className="text-xl sm:text-2xl font-mono font-bold t-primary group-hover:text-violet-400 transition-colors leading-none">
                             {isLoading ? '…' : stats.countCutting}
                         </div>
                         <p className="text-[10px] t-muted mt-1">Tracking potong</p>
