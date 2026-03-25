@@ -2,10 +2,10 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../../supabaseClient';
 import {
-  FileText, Calendar, Filter, Download,
+  FileText, Calendar, Download,
   BarChart3, PieChart as PieChartIcon, CheckCircle2, User, Package, AlertTriangle,
-  ArrowUpCircle, ArrowDownCircle, Settings2, History, Scissors, Trash2, Edit2, Layers, TrendingUp,
-  Database, FileWarning, ChevronDown
+  ArrowUpCircle, ArrowDownCircle, Settings2, History, Scissors, Trash2, Edit2, TrendingUp,
+  Database, FileWarning
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell,
@@ -38,96 +38,6 @@ function transformReportRow(d) {
     reason: d.notes,
     finalStock: d.item?.stock
   };
-}
-
-function TypeFilterDropdown({ activeTab, selectedType, onChange, disabled }) {
-  const options = useMemo(() => {
-    if (activeTab === 'pemakaian' || activeTab === 'kerusakan') {
-      return [
-        { value: 'ALL', label: 'Semua operator' },
-        { value: 'CETAK', label: 'Cetak' },
-        { value: 'CUTTING', label: 'Cutting' },
-      ];
-    }
-
-    if (activeTab === 'stok') {
-      return [
-        { value: 'ALL', label: 'Semua pergerakan' },
-        { value: 'MASUK', label: 'Stok masuk' },
-        { value: 'KELUAR', label: 'Stok keluar (laporan)' },
-        { value: 'AUDIT', label: 'Audit / opname' },
-      ];
-    }
-
-    return [{ value: 'ALL', label: '—' }];
-  }, [activeTab]);
-
-  const [open, setOpen] = useState(false);
-  const wrapperRef = React.useRef(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDocDown = (e) => {
-      if (!wrapperRef.current) return;
-      if (!wrapperRef.current.contains(e.target)) setOpen(false);
-    };
-    document.addEventListener('mousedown', onDocDown);
-    return () => document.removeEventListener('mousedown', onDocDown);
-  }, [open]);
-
-  const current = options.find((o) => o.value === selectedType) || options[0];
-
-  return (
-    <div ref={wrapperRef} className="relative w-full min-w-[8rem]">
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => !disabled && setOpen((v) => !v)}
-        className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl transition-colors border border-theme ${
-          disabled
-            ? 'bg-input opacity-70 cursor-not-allowed'
-            : 'bg-input hover:bg-accent-base/10'
-        }`}
-        style={{ color: 'var(--text-primary)' }}
-      >
-        <span className="text-sm font-medium truncate">{current.label}</span>
-        <ChevronDown className={`w-4 h-4 shrink-0 ${open ? 'rotate-180 text-accent-base' : 'text-accent-base/80'}`} />
-      </button>
-
-      {open && !disabled && (
-        <div
-          className="absolute z-[200] left-0 right-0 mt-2 rounded-xl border border-theme shadow-2xl overflow-hidden"
-          style={{ background: 'var(--bg-panel)' }}
-        >
-          <div className="px-3 py-2 text-[10px] t-muted uppercase tracking-wider border-b border-theme/50">
-            Filter
-          </div>
-          <div className="py-1 max-h-[260px] overflow-y-auto">
-            {options.map((opt) => {
-              const isActive = opt.value === selectedType;
-              return (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => {
-                    onChange(opt.value);
-                    setOpen(false);
-                  }}
-                  className={`w-full text-left px-3 py-2 text-sm font-medium transition-colors ${
-                    isActive
-                      ? 'bg-accent-base/20 text-accent-base'
-                      : 't-primary hover:bg-accent-base/10'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-    </div>
-  );
 }
 
 export default function ReportsDashboard({ userRole }) {
@@ -172,7 +82,6 @@ export default function ReportsDashboard({ userRole }) {
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [cuttingLogs, setCuttingLogs] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isExportingPack, setIsExportingPack] = useState(false);
 
   // State untuk Edit/Hapus Laporan Pemakaian (Khusus SPV)
   const [editingUsageReport, setEditingUsageReport] = useState(null);
@@ -692,211 +601,6 @@ export default function ReportsDashboard({ userRole }) {
     }
   };
 
-  const handleExportFullPackage = async () => {
-    setIsExportingPack(true);
-    try {
-      const { start, end } = getTimeFilter();
-      const applyRange = (q) => {
-        if (start) q = q.gte('created_at', start);
-        if (end) q = q.lte('created_at', end);
-        return q;
-      };
-
-      let qU = supabase
-        .from('trx_reports')
-        .select(
-          `id, type, quantity, notes, created_at, item:mst_items(name, unit, stock), operator:profiles!trx_reports_operator_id_fkey(full_name, role)`
-        )
-        .eq('status', 'Approved')
-        .eq('type', 'Usage')
-        .order('created_at', { ascending: false })
-        .limit(8000);
-      qU = applyRange(qU);
-
-      let qD = supabase
-        .from('trx_reports')
-        .select(
-          `id, type, quantity, notes, created_at, item:mst_items(name, unit, stock), operator:profiles!trx_reports_operator_id_fkey(full_name, role)`
-        )
-        .eq('status', 'Approved')
-        .eq('type', 'Damage')
-        .order('created_at', { ascending: false })
-        .limit(8000);
-      qD = applyRange(qD);
-
-      let qS = supabase
-        .from('trx_stock_log')
-        .select(
-          `id, change_amount, previous_stock, final_stock, source, notes, created_at, item:mst_items(name, unit)`
-        )
-        .order('created_at', { ascending: false })
-        .limit(8000);
-      qS = applyRange(qS);
-
-      let qC = supabase
-        .from('trx_cutting_log')
-        .select('id, order_name, qty_cut, notes, created_at, operator_id, item_id')
-        .order('created_at', { ascending: false })
-        .limit(8000);
-      qC = applyRange(qC);
-
-      let qK = supabase
-        .from('trx_defects')
-        .select(
-          `id, order_name, error_source, error_category, quantity, notes, created_at, status, profiles!trx_defects_reporter_id_fkey(full_name)`
-        )
-        .order('created_at', { ascending: false })
-        .limit(8000);
-      qK = applyRange(qK);
-
-      const [
-        { data: dataU, error: eU },
-        { data: dataD, error: eD },
-        { data: dataS, error: eS },
-        { data: logsC, error: eC },
-        { data: dataK, error: eK },
-      ] = await Promise.all([qU, qD, qS, qC, qK]);
-
-      if (eU) throw eU;
-      if (eD) throw eD;
-      if (eS) throw eS;
-      if (eC) throw eC;
-      if (eK) throw eK;
-
-      let enrichedCut = [];
-      if (logsC && logsC.length > 0) {
-        const operatorIds = [...new Set(logsC.map((l) => l.operator_id))];
-        const { data: profiles } = await supabase.from('profiles').select('id, full_name').in('id', operatorIds);
-        const profileMap = {};
-        (profiles || []).forEach((p) => {
-          profileMap[p.id] = p.full_name;
-        });
-        const itemIds = [...new Set(logsC.map((l) => l.item_id).filter(Boolean))];
-        let itemMap = {};
-        if (itemIds.length > 0) {
-          const { data: items } = await supabase.from('mst_items').select('id, name').in('id', itemIds);
-          (items || []).forEach((it) => {
-            itemMap[it.id] = it.name;
-          });
-        }
-        enrichedCut = logsC.map((l) => ({
-          ...l,
-          operator_name: profileMap[l.operator_id] || '-',
-          bahan: l.item_id ? itemMap[l.item_id] || '-' : '-',
-        }));
-      }
-
-      const rowsU = (dataU || []).map(transformReportRow);
-      const rowsD = (dataD || []).map(transformReportRow);
-      const totalU = rowsU.reduce((a, r) => a + r.qtyUsed, 0);
-      const totalD = rowsD.reduce((a, r) => a + r.qtyDamage, 0);
-      const slug = getExportSlug();
-      const ts = Date.now();
-      const wb = XLSX.utils.book_new();
-
-      const summaryRows = [
-        { Keterangan: 'Periode', Nilai: getPeriodDescription() },
-        { Keterangan: 'Baris pemakaian', Nilai: rowsU.length },
-        { Keterangan: 'Total qty pemakaian', Nilai: totalU },
-        { Keterangan: 'Baris kerusakan', Nilai: rowsD.length },
-        { Keterangan: 'Total qty kerusakan', Nilai: totalD },
-        { Keterangan: 'Baris pergerakan stok', Nilai: (dataS || []).length },
-        { Keterangan: 'Baris cutting', Nilai: enrichedCut.length },
-        { Keterangan: 'Baris kendala', Nilai: (dataK || []).length },
-      ];
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryRows), safeSheetName('Ringkasan'));
-
-      XLSX.utils.book_append_sheet(
-        wb,
-        XLSX.utils.json_to_sheet(
-          rowsU.map((r) => ({
-            Tanggal: r.date,
-            Operator: r.operatorName,
-            Peran: r.operatorRole,
-            Item: r.itemName,
-            Satuan: r.itemUnit,
-            Qty_pemakaian: r.qtyUsed,
-            Catatan: r.reason || '-',
-            Stok_akhir: r.finalStock,
-          }))
-        ),
-        safeSheetName('Pemakaian')
-      );
-
-      XLSX.utils.book_append_sheet(
-        wb,
-        XLSX.utils.json_to_sheet(
-          rowsD.map((r) => ({
-            Tanggal: r.date,
-            Operator: r.operatorName,
-            Peran: r.operatorRole,
-            Item: r.itemName,
-            Satuan: r.itemUnit,
-            Qty_kerusakan: r.qtyDamage,
-            Catatan: r.reason || '-',
-            Stok_akhir: r.finalStock,
-          }))
-        ),
-        safeSheetName('Kerusakan')
-      );
-
-      XLSX.utils.book_append_sheet(
-        wb,
-        XLSX.utils.json_to_sheet(
-          (dataS || []).map((l) => ({
-            Tanggal: new Date(l.created_at).toLocaleString('id-ID'),
-            Item: l.item?.name || '-',
-            Proses: SOURCE_LABELS[l.source]?.label || l.source,
-            Perubahan: l.change_amount,
-            Stok_awal: l.previous_stock,
-            Stok_akhir: l.final_stock,
-            Catatan: l.notes || '-',
-          }))
-        ),
-        safeSheetName('Pergerakan_stok')
-      );
-
-      XLSX.utils.book_append_sheet(
-        wb,
-        XLSX.utils.json_to_sheet(
-          enrichedCut.map((l) => ({
-            Tanggal: new Date(l.created_at).toLocaleString('id-ID'),
-            Order: l.order_name,
-            Bahan: l.bahan,
-            Lembar_di_cut: l.qty_cut,
-            Operator: l.operator_name,
-            Catatan: l.notes || '-',
-          }))
-        ),
-        safeSheetName('Cutting')
-      );
-
-      XLSX.utils.book_append_sheet(
-        wb,
-        XLSX.utils.json_to_sheet(
-          (dataK || []).map((d) => ({
-            Tanggal: new Date(d.created_at).toLocaleString('id-ID'),
-            Order: d.order_name,
-            Pihak: d.error_source,
-            Kategori: d.error_category,
-            Qty_gagal: d.quantity,
-            Pelapor: d.profiles?.full_name || '-',
-            Status: d.status || '-',
-            Catatan: d.notes || '-',
-          }))
-        ),
-        safeSheetName('Kendala')
-      );
-
-      XLSX.writeFile(wb, `ArsyStok_PaketSemuaProses_${slug}_${ts}.xlsx`);
-    } catch (err) {
-      console.error('Export paket:', err);
-      alert(`Gagal mengekspor paket: ${err.message}`);
-    } finally {
-      setIsExportingPack(false);
-    }
-  };
-
   // Hapus Cutting Log (Hanya SPV)
   const handleDeleteCutting = async (id) => {
     if (userRole !== 'SPV') return;
@@ -1196,66 +900,54 @@ export default function ReportsDashboard({ userRole }) {
                 </div>
               )}
 
-              {/* Informative label */}
-              <p className="text-[10px] t-muted font-mono px-1">
+              {/* Periode (ringkas) */}
+              <p className="text-[10px] t-muted font-mono px-1 whitespace-nowrap overflow-hidden text-ellipsis max-w-[260px]">
+                Periode:{' '}
                 {(() => {
-                  const fmt = (d) => d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+                  const fmt = (d) =>
+                    d.toLocaleDateString('id-ID', {
+                      day: '2-digit',
+                      month: 'short',
+                      year: 'numeric',
+                    });
                   const now = new Date();
-                  if (dateRange === 'today') return `📅 ${fmt(now)}`;
-                  if (dateRange === 'week') { const s = new Date(); s.setDate(s.getDate() - 7); return `📅 ${fmt(s)} – ${fmt(now)}`; }
-                  if (dateRange === 'month') { const s = new Date(); s.setDate(s.getDate() - 30); return `📅 ${fmt(s)} – ${fmt(now)}`; }
+                  if (dateRange === 'today') return fmt(now);
+                  if (dateRange === 'week') {
+                    const s = new Date();
+                    s.setDate(s.getDate() - 7);
+                    return `${fmt(s)} – ${fmt(now)}`;
+                  }
+                  if (dateRange === 'month') {
+                    const s = new Date();
+                    s.setDate(s.getDate() - 30);
+                    return `${fmt(s)} – ${fmt(now)}`;
+                  }
                   if (dateRange === 'bulan' && selectedMonth) {
                     const [y, m] = selectedMonth.split('-').map(Number);
                     const start = new Date(y, m - 1, 1);
                     const end = new Date(y, m, 0);
-                    return `📅 ${fmt(start)} – ${fmt(end)}`;
+                    return `${fmt(start)} – ${fmt(end)}`;
                   }
                   if (dateRange === 'custom') {
-                    if (customStart && customEnd) return `📅 ${fmt(new Date(customStart))} – ${fmt(new Date(customEnd))}`;
-                    if (customStart) return `📅 Mulai ${fmt(new Date(customStart))}`;
-                    return '📅 Pilih tanggal mulai';
+                    if (customStart && customEnd) {
+                      return `${fmt(new Date(customStart))} – ${fmt(new Date(customEnd))}`;
+                    }
+                    if (customStart) return `Mulai ${fmt(new Date(customStart))}`;
+                    return 'Pilih tanggal mulai';
                   }
-                  if (dateRange === 'all') return '📅 Semua waktu (bisa berat)';
-                  return '📅 Semua data yang tersedia';
+                  if (dateRange === 'all') return 'Semua data';
+                  return '—';
                 })()}
               </p>
             </div>
 
-            <div className="hidden lg:flex flex-col justify-end min-w-[200px] max-w-sm">
-              <p className="text-[10px] font-semibold t-muted uppercase tracking-wider mb-1">Proses aktif</p>
-              <p className="text-xs t-secondary leading-snug">
-                {activeTab === 'pemakaian' && 'Laporan tipe Usage (sudah disetujui). Filter peran = divisi operator.'}
-                {activeTab === 'kerusakan' && 'Laporan tipe Damage. Cocok untuk analisis reject & waste per item/operator.'}
-                {activeTab === 'stok' && 'Log sistem: stok masuk, keluar dari laporan, dan koreksi audit.'}
-                {activeTab === 'cutting' && 'Order cutting & lembar terpotong per operator.'}
-                {activeTab === 'kendala' && 'QC: sumber error, kategori, dan estimasi qty gagal.'}
-              </p>
-            </div>
-
-            <div className="flex items-center gap-3 p-2 rounded-xl border" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}>
-              <Filter className="w-5 h-5 text-accent-base ml-2 shrink-0" />
-              <TypeFilterDropdown
-                activeTab={activeTab}
-                selectedType={selectedType}
-                onChange={(v) => setSelectedType(v)}
-                disabled={activeTab === 'cutting' || activeTab === 'kendala'}
-              />
-            </div>
+            {/* Filter operator di header export dihapus (biar layout lebih clean) */}
           </div>
 
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full flex-1">
             <button type="button" onClick={handleExportExcel}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 w-full sm:w-auto min-w-0 px-4 py-2.5 bg-accent-base/10 text-accent-base font-medium border border-accent-base/20 rounded-xl hover:bg-accent-base hover:t-on-accent transition-colors text-sm">
+              className="flex-1 flex items-center justify-center gap-2 w-full min-w-0 px-4 py-2.5 bg-accent-base/10 text-accent-base font-medium border border-accent-base/20 rounded-xl hover:bg-accent-base hover:t-on-accent transition-colors text-sm">
               <Download className="w-4 h-4 shrink-0" /> Excel (tab ini)
-            </button>
-            <button type="button" onClick={handleExportFullPackage} disabled={isExportingPack}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 w-full sm:w-auto min-w-0 px-4 py-2.5 bg-brand-amber/10 text-brand-amber font-medium border border-brand-amber/25 rounded-xl hover:bg-brand-amber/20 transition-colors text-sm disabled:opacity-50 whitespace-normal sm:whitespace-nowrap">
-              {isExportingPack ? (
-                <span className="w-4 h-4 border-2 border-brand-amber border-t-transparent rounded-full animate-spin shrink-0" />
-              ) : (
-                <Layers className="w-4 h-4 shrink-0" />
-              )}
-              Paket semua proses
             </button>
           </div>
         </div>
@@ -1352,7 +1044,7 @@ export default function ReportsDashboard({ userRole }) {
             </div>
 
             <div className="glass-card overflow-hidden flex flex-col md:col-span-2 lg:col-span-3 xl:col-span-4 min-h-[400px]">
-              <div className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-2" style={{ borderBottom: '1px solid var(--border-glass)' }}>
+              <div className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <h3 className="font-bold t-primary flex items-center gap-2">
                   <ArrowDownCircle className="w-5 h-5 text-sky-400" /> Detail laporan pemakaian
                 </h3>
@@ -1514,7 +1206,7 @@ export default function ReportsDashboard({ userRole }) {
             </div>
 
             <div className="glass-card overflow-hidden flex flex-col md:col-span-2 lg:col-span-3 xl:col-span-4 min-h-[400px]">
-              <div className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-2" style={{ borderBottom: '1px solid var(--border-glass)' }}>
+              <div className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <h3 className="font-bold t-primary flex items-center gap-2">
                   <AlertTriangle className="w-5 h-5 text-brand-red" /> Detail laporan kerusakan
                 </h3>
@@ -1532,7 +1224,7 @@ export default function ReportsDashboard({ userRole }) {
                 ) : (
                   <div className="flex flex-col gap-3 pb-2 px-1">
                     {damageReports.slice(0, visibleReportsCount).map((r, i) => (
-                      <div key={r.id || i} className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-2xl bg-surface border border-theme hover:border-brand-red/25 transition-all">
+                      <div key={r.id || i} className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-2xl bg-surface border border-theme hover:border-brand-red/30 transition-all">
                         <div className="flex items-center gap-4 md:w-1/3">
                           <div className="w-12 h-12 rounded-2xl bg-brand-red/10 border border-brand-red/20 flex flex-col items-center justify-center shrink-0">
                             <span className="text-xs font-bold t-primary">{r.date.split(',')[0].split(' ')[0]}</span>
@@ -1543,6 +1235,7 @@ export default function ReportsDashboard({ userRole }) {
                               <User className="w-3.5 h-3.5 t-muted" /> {r.operatorName}
                             </p>
                             <span className="text-[10px] font-mono text-brand-amber uppercase mt-1 inline-block">{r.operatorRole}</span>
+                            <p className="text-[10px] font-mono t-muted mt-0.5">{r.date.split(',')[1]}</p>
                           </div>
                         </div>
                         <div className="flex-1 min-w-0">
@@ -1550,7 +1243,7 @@ export default function ReportsDashboard({ userRole }) {
                             <Package className="w-4 h-4" /> {r.itemName}
                           </p>
                           {r.reason ? (
-                            <p className="text-[11px] t-secondary italic line-clamp-3">{r.reason}</p>
+                            <p className="text-[11px] t-secondary italic line-clamp-2">{r.reason}</p>
                           ) : (
                             <p className="text-[11px] t-muted">Tanpa catatan</p>
                           )}
@@ -1558,7 +1251,7 @@ export default function ReportsDashboard({ userRole }) {
                         <div className="flex items-center gap-6 justify-between md:justify-end">
                           <div className="text-center">
                             <p className="text-[9px] uppercase font-bold text-brand-red mb-1">Qty rusak</p>
-                            <span className="text-2xl font-mono font-bold text-brand-red">{r.qtyDamage}</span>
+                            <span className="text-xl font-mono font-bold text-brand-red">{r.qtyDamage}</span>
                             <span className="text-xs t-muted ml-1">{r.itemUnit}</span>
                           </div>
                           <div className="text-right min-w-[72px]">
@@ -1589,13 +1282,13 @@ export default function ReportsDashboard({ userRole }) {
             <div className="glass-card p-6 flex flex-col justify-between group cursor-default relative overflow-hidden">
               <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-accent-base/5 rounded-full blur-2xl pointer-events-none transition-all group-hover:bg-accent-base/10"></div>
               <div className="flex items-start justify-between mb-4 relative z-10">
-                <div className="p-3 bg-accent-base/10 rounded-2xl text-accent-base border border-accent-base/20 group-hover:bg-accent-base/20 transition-colors">
+                <div className="p-3 bg-accent-base/10 rounded-2xl text-accent-base/80 border border-accent-base/20 group-hover:bg-accent-base/20 group-hover:text-accent-base transition-colors">
                   <ArrowUpCircle className="w-6 h-6" />
                 </div>
               </div>
               <div className="relative z-10">
                 <h3 className="t-secondary text-sm font-medium mb-1 uppercase tracking-wider">Total Stok Masuk</h3>
-                <div className="text-4xl font-mono font-bold t-primary group-hover:text-accent-base transition-colors">+{stockLogStats.totalIn}</div>
+                <div className="text-4xl font-mono font-bold t-secondary group-hover:text-accent-base transition-colors">{`+${stockLogStats.totalIn}`}</div>
               </div>
             </div>
 
@@ -1661,7 +1354,7 @@ export default function ReportsDashboard({ userRole }) {
 
             {/* Stock Log Table - Full Width */}
             <div className="glass-card overflow-hidden flex flex-col md:col-span-2 lg:col-span-3 xl:col-span-4 min-h-[400px]">
-              <div className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-2" style={{ borderBottom: '1px solid var(--border-glass)' }}>
+              <div className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <h3 className="font-bold t-primary flex items-center gap-2">
                   <History className="w-5 h-5 text-brand-amber" /> Detail pergerakan stok
                 </h3>
@@ -1690,7 +1383,7 @@ export default function ReportsDashboard({ userRole }) {
                         const isPositive = log.change_amount > 0;
                         
                         return (
-                          <div key={log.id || i} className="group flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-2xl bg-surface border border-theme hover:border-brand-amber/40 hover:shadow-md transition-all duration-300">
+                          <div key={log.id || i} className="group flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-2xl bg-surface border border-theme hover:border-brand-amber/30 transition-all">
                              {/* Left: Time */}
                              <div className="flex items-center gap-4 md:w-1/4 min-w-[150px]">
                                 <div className={`w-12 h-12 rounded-2xl bg-input border border-theme flex flex-col items-center justify-center shrink-0 group-hover:scale-105 transition-transform ${isPositive ? 'text-accent-base border-accent-base/20' : 'text-brand-red border-brand-red/20'}`}>
@@ -1708,7 +1401,7 @@ export default function ReportsDashboard({ userRole }) {
                              {/* Middle: Item Details */}
                              <div className="flex-1 min-w-[180px]">
                                 <p className="text-sm font-bold t-primary flex items-center gap-1.5"><Package className="w-4 h-4 text-accent-base opacity-90" /> {log.item?.name || '-'}</p>
-                                <p className="text-[11px] t-secondary mt-1 tracking-wide" title={log.notes}>{log.notes || '-'}</p>
+                                <p className="text-[11px] t-secondary mt-1 tracking-wide line-clamp-2" title={log.notes}>{log.notes || '-'}</p>
                              </div>
 
                              {/* Right: Quantity changes */}
@@ -1823,7 +1516,7 @@ export default function ReportsDashboard({ userRole }) {
 
             {/* Cutting Log Table - Full Width */}
             <div className="glass-card overflow-hidden flex flex-col md:col-span-2 lg:col-span-3 xl:col-span-4 min-h-[400px]">
-              <div className="p-6 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border-glass)' }}>
+              <div className="p-6 flex items-center justify-between">
                 <h3 className="font-bold t-primary flex items-center gap-2">
                   <Scissors className="w-5 h-5 text-blue-500" /> Detail Pergerakan Cutting
                 </h3>
@@ -1845,78 +1538,73 @@ export default function ReportsDashboard({ userRole }) {
                   </div>
                 ) : (
                   <>
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="text-xs font-semibold t-muted uppercase tracking-wider" style={{ background: 'var(--bg-input)', borderBottom: '1px solid var(--border-glass)' }}>
-                          <th className="px-6 py-4">Waktu</th>
-                          <th className="px-6 py-4">Nama Order</th>
-                          <th className="px-6 py-4">Bahan</th>
-                          <th className="px-6 py-4">Operator</th>
-                          <th className="px-6 py-4 text-center">Lembar Di-Cut</th>
-                          <th className="px-6 py-4">Catatan</th>
-                          {userRole === 'SPV' && <th className="px-6 py-4 text-center">Aksi (SPV)</th>}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {cuttingLogs.slice(0, visibleCuttingCount).map((log, i) => {
-                          return (
-                            <tr key={log.id || i} className="hover:bg-blue-500/5 transition-colors" style={{ borderBottom: '1px solid var(--border-glass)' }}>
-                              <td className="px-6 py-4">
-                                <p className="text-sm font-medium t-secondary">{new Date(log.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })}</p>
-                                <p className="text-xs t-muted font-mono mt-0.5">{new Date(log.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</p>
-                              </td>
-                              <td className="px-6 py-4">
-                                <p className="text-sm font-semibold t-primary">
-                                  {log.order_name}
-                                </p>
-                              </td>
-                              <td className="px-6 py-4">
-                                {log.item ? (
-                                  <p className="text-sm font-medium text-brand-amber flex items-center gap-1.5">
-                                    <Package className="w-3.5 h-3.5" /> {log.item.name}
-                                  </p>
-                                ) : (
-                                  <p className="text-xs t-muted flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-slate-600"></span> Tanpa Data Bahan</p>
-                                )}
-                              </td>
-                              <td className="px-6 py-4">
-                                <p className="text-sm font-medium t-secondary flex items-center gap-1.5">
+                    <div className="flex flex-col gap-3 pb-2 px-1">
+                      {cuttingLogs.slice(0, visibleCuttingCount).map((log, i) => {
+                        const dt = new Date(log.created_at);
+                        const day = dt.toLocaleDateString('id-ID', { day: '2-digit' });
+                        const mon = dt.toLocaleDateString('id-ID', { month: 'short' });
+                        const time = dt.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+
+                        return (
+                          <div key={log.id || i} className="group flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-2xl bg-surface border border-theme hover:border-blue-500/30 transition-all">
+                            <div className="flex items-center gap-4 md:w-1/3">
+                              <div className="w-12 h-12 rounded-2xl bg-input border border-theme flex flex-col items-center justify-center shrink-0">
+                                <span className="text-xs font-bold t-primary">{day}</span>
+                                <span className="text-[10px] font-mono t-muted">{mon.substring(0, 3)}</span>
+                              </div>
+                              <div>
+                                <p className="text-sm font-bold t-primary flex items-center gap-1.5">
                                   <User className="w-3.5 h-3.5 t-muted" /> {log.operator?.full_name || '-'}
                                 </p>
-                              </td>
-                              <td className="px-6 py-4 text-center">
-                                <span className="text-lg font-mono font-bold text-accent-base">
-                                  {log.qty_cut}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4">
-                                <p className="text-xs t-muted max-w-[250px] truncate">{log.notes || '-'}</p>
-                              </td>
-                              {userRole === 'SPV' && (
-                                <td className="px-6 py-4 text-center">
-                                  <div className="flex items-center justify-center gap-2">
-                                    <button
-                                      onClick={() => handleEditCutting(log)}
-                                      className="p-1.5 rounded-lg text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500 hover:text-white transition-colors"
-                                      title="Edit Log"
-                                    >
-                                      <Edit2 className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                      onClick={() => handleDeleteCutting(log.id)}
-                                      className="p-1.5 rounded-lg text-brand-red bg-brand-red/10 border border-brand-red/20 hover:bg-brand-red hover:text-white transition-colors"
-                                      title="Hapus Log"
-                                    >
-                                      <Trash2 className="w-4 h-4" />
-                                    </button>
-                                  </div>
-                                </td>
+                                <p className="text-[10px] font-mono t-muted mt-0.5">{time}</p>
+                              </div>
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-bold text-blue-500 flex items-center gap-1.5 mb-1">
+                                <FileText className="w-4 h-4" /> {log.order_name}
+                              </p>
+                              <p className="text-[11px] t-secondary line-clamp-2">{log.notes || '-'}</p>
+                              {log.item ? (
+                                <p className="text-[11px] t-muted mt-1 flex items-center gap-1.5">
+                                  <Package className="w-3.5 h-3.5 t-muted" /> {log.item.name}
+                                </p>
+                              ) : (
+                                <p className="text-[11px] t-muted mt-1">Tanpa Data Bahan</p>
                               )}
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                            </div>
+
+                            <div className="flex items-center gap-6 justify-between md:justify-end border-t md:border-t-0 pt-3 md:pt-0 border-theme w-full md:w-auto">
+                              <div className="text-center">
+                                <p className="text-[9px] uppercase font-bold t-muted mb-1">Lembar</p>
+                                <span className="text-xl font-mono font-bold text-blue-500">{log.qty_cut}</span>
+                              </div>
+                            </div>
+
+                            {userRole === 'SPV' && (
+                              <div className="flex justify-end gap-2 mt-3">
+                                <button
+                                  type="button"
+                                  onClick={() => handleEditCutting(log)}
+                                  className="p-1.5 rounded-lg text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500 hover:text-white transition-colors"
+                                  title="Edit Log"
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteCutting(log.id)}
+                                  className="p-1.5 rounded-lg text-brand-red bg-brand-red/10 border border-brand-red/20 hover:bg-brand-red hover:text-white transition-colors"
+                                  title="Hapus Log"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                     
                     {/* Load More Button Cutting Logs */}
                     {visibleCuttingCount < cuttingLogs.length && (
@@ -1999,9 +1687,9 @@ export default function ReportsDashboard({ userRole }) {
             </div>
 
             <div className="glass-card overflow-hidden flex flex-col md:col-span-2 lg:col-span-3 xl:col-span-4 min-h-[400px]">
-            <div className="p-6 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border-glass)' }}>
+            <div className="p-6 flex items-center justify-between">
               <h3 className="font-bold t-primary flex items-center gap-2 text-orange-500">
-                <FileWarning className="w-5 h-5" /> Tabel laporan kendala
+                <FileWarning className="w-5 h-5" /> Detail laporan kendala
               </h3>
               <span className="text-xs t-muted font-mono">
                 {defectsLogs.length} baris
@@ -2023,68 +1711,73 @@ export default function ReportsDashboard({ userRole }) {
                 </div>
               ) : (
                 <>
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="text-xs font-semibold t-muted uppercase tracking-wider" style={{ background: 'var(--bg-input)', borderBottom: '1px solid var(--border-glass)' }}>
-                        <th className="px-6 py-4">Waktu</th>
-                        <th className="px-6 py-4">Nama Order</th>
-                        <th className="px-6 py-4">Kategori & Pihak</th>
-                        <th className="px-6 py-4 text-center">Qty Gagal</th>
-                        <th className="px-6 py-4">Catatan</th>
-                        {userRole === 'SPV' && <th className="px-6 py-4 text-center">Aksi (SPV)</th>}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {defectsLogs.slice(0, visibleDefectsCount).map((log, i) => (
-                        <tr key={log.id || i} className="hover:bg-orange-500/5 transition-colors gap-2" style={{ borderBottom: '1px solid var(--border-glass)' }}>
-                          <td className="px-6 py-4">
-                            <p className="text-sm font-medium t-secondary">{new Date(log.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })}</p>
-                            <p className="text-xs t-muted font-mono mt-0.5">{new Date(log.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</p>
-                            <p className="text-[10px] t-muted mt-1 uppercase">Oleh: {log.profiles?.full_name}</p>
-                          </td>
-                          <td className="px-6 py-4">
-                            <p className="text-sm font-semibold t-primary">
-                              {log.order_name}
-                            </p>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-500/10 text-orange-500 mb-1">
-                              {log.error_category}
+                  <div className="flex flex-col gap-3 pb-2 px-1">
+                    {defectsLogs.slice(0, visibleDefectsCount).map((log, i) => {
+                      const dt = new Date(log.created_at);
+                      const day = dt.toLocaleDateString('id-ID', { day: '2-digit' });
+                      const mon = dt.toLocaleDateString('id-ID', { month: 'short' });
+                      const time = dt.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+
+                      return (
+                        <div
+                          key={log.id || i}
+                          className="group flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-2xl bg-surface border border-theme hover:border-orange-500/30 transition-all"
+                        >
+                          <div className="flex items-center gap-4 md:w-1/3">
+                            <div className="w-12 h-12 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex flex-col items-center justify-center shrink-0">
+                              <span className="text-xs font-bold t-primary">{day}</span>
+                              <span className="text-[10px] font-mono t-muted">{mon.substring(0, 3)}</span>
                             </div>
-                            <div className="text-xs t-secondary">Via: <span className="font-semibold text-brand-red">{log.error_source}</span></div>
-                          </td>
-                          <td className="px-6 py-4 text-center">
-                            <span className="text-lg font-mono font-bold text-accent-base">
-                              {log.quantity}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4">
-                            <p className="text-xs t-muted max-w-[250px] truncate">{log.notes || '-'}</p>
-                          </td>
+
+                            <div>
+                              <p className="text-sm font-bold t-primary flex items-center gap-1.5">
+                                <User className="w-3.5 h-3.5 t-muted" /> {log.profiles?.full_name || '-'}
+                              </p>
+                              <p className="text-[10px] font-mono t-muted mt-0.5">{time}</p>
+                            </div>
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-orange-500 flex items-center gap-1.5 mb-1">
+                              <AlertTriangle className="w-4 h-4" /> {log.error_category}
+                            </p>
+                            <p className="text-[11px] t-secondary line-clamp-2">{log.notes || '-'}</p>
+                            <div className="mt-1 text-[11px] t-muted">
+                              Via: <span className="font-semibold text-brand-red">{log.error_source}</span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-6 justify-between md:justify-end border-t md:border-t-0 pt-3 md:pt-0 border-theme w-full md:w-auto">
+                            <div className="text-center">
+                              <p className="text-[9px] uppercase font-bold t-muted mb-1">Qty gagal</p>
+                              <span className="text-xl font-mono font-bold text-orange-500">{log.quantity}</span>
+                            </div>
+                          </div>
+
                           {userRole === 'SPV' && (
-                            <td className="px-6 py-4 text-center">
-                              <div className="flex items-center justify-center gap-2">
-                                <button
-                                  onClick={() => handleEditDefect(log)}
-                                  className="p-1.5 rounded-lg text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500 hover:text-white transition-colors"
-                                  title="Edit Log"
-                                >
-                                  <Edit2 className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteDefect(log.id)}
-                                  className="p-1.5 rounded-lg text-brand-red bg-brand-red/10 border border-brand-red/20 hover:bg-brand-red hover:text-white transition-colors"
-                                  title="Hapus Log"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </div>
-                            </td>
+                            <div className="flex justify-end gap-2 mt-3">
+                              <button
+                                type="button"
+                                onClick={() => handleEditDefect(log)}
+                                className="p-1.5 rounded-lg text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500 hover:text-white transition-colors"
+                                title="Edit Log"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteDefect(log.id)}
+                                className="p-1.5 rounded-lg text-brand-red bg-brand-red/10 border border-brand-red/20 hover:bg-brand-red hover:text-white transition-colors"
+                                title="Hapus Log"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
                           )}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                        </div>
+                      );
+                    })}
+                  </div>
                   
                   {/* Load More Button Defects Logs */}
                   {visibleDefectsCount < defectsLogs.length && (
