@@ -1280,26 +1280,27 @@ export default function ReportsDashboard({ userRole }) {
             <div className="glass-card p-6 flex flex-col justify-between group cursor-default relative overflow-hidden">
               <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-accent-base/5 rounded-full blur-2xl pointer-events-none transition-all group-hover:bg-accent-base/10" />
               <div className="flex items-start justify-between mb-4 relative z-10">
-                <div className="p-3 bg-accent-base/10 rounded-2xl text-accent-base border border-accent-base/20">
+                <div className="p-3 bg-sky-500/10 rounded-2xl text-sky-400 border border-sky-500/20 group-hover:bg-sky-500/20 group-hover:text-sky-300 transition-colors">
                   <FileText className="w-6 h-6" />
                 </div>
               </div>
               <div className="relative z-10">
                 <h3 className="t-secondary text-sm font-medium mb-1 uppercase tracking-wider">Jumlah entri</h3>
-                <div className="text-4xl font-mono font-bold t-primary">{usageReports.length}</div>
+                <div className="text-4xl font-mono font-bold t-primary group-hover:text-sky-400 transition-colors">{usageReports.length}</div>
                 <p className="text-[11px] t-muted mt-2">Baris laporan pada filter ini.</p>
               </div>
             </div>
 
             <div className="glass-card p-6 flex flex-col justify-between group cursor-default relative overflow-hidden">
+              <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-sky-500/5 rounded-full blur-2xl pointer-events-none transition-all group-hover:bg-sky-500/10" />
               <div className="flex items-start justify-between mb-4 relative z-10">
-                <div className="p-3 bg-input rounded-2xl border border-theme">
-                  <Package className="w-6 h-6 t-secondary" />
+                <div className="p-3 bg-sky-500/10 rounded-2xl border border-sky-500/20 group-hover:bg-sky-500/20 transition-colors">
+                  <Package className="w-6 h-6 text-sky-400 group-hover:text-sky-300 transition-colors" />
                 </div>
               </div>
               <div className="relative z-10">
                 <h3 className="t-secondary text-sm font-medium mb-1 uppercase tracking-wider">Rata-rata / entri</h3>
-                <div className="text-4xl font-mono font-bold t-primary">
+                <div className="text-4xl font-mono font-bold t-primary group-hover:text-sky-400 transition-colors">
                   {usageReports.length > 0 ? (totalUsed / usageReports.length).toFixed(2) : '—'}
                 </div>
                 <p className="text-[11px] t-muted mt-2">Membantu melihat intensitas per transaksi.</p>
