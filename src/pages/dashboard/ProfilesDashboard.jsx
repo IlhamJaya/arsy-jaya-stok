@@ -5,11 +5,13 @@ import {
     Settings, CheckCircle2, AlertTriangle, AlertCircle, Trash2
  } from 'lucide-react';
 import { capitalizeWords, handleNumberInput } from '../../utils/formatters.js';
+import useAppStore from '../../store/useAppStore';
 
 export default function ProfilesDashboard() {
     const [profiles, setProfiles] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
+    const theme = useAppStore((s) => s.theme);
 
     // Modals state
     const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
@@ -225,6 +227,19 @@ export default function ProfilesDashboard() {
         }
     };
 
+    const getRoleBadgeStyle = (role) => {
+        const r = (role || '').toString().trim().toUpperCase();
+        if (r === 'OP_CETAK') {
+            // Inline style agar warna tidak "ketimpa" / tidak kebaca di light mode.
+            return {
+                color: '#059669', // emerald-600
+                backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                borderColor: 'rgba(16, 185, 129, 0.65)',
+            };
+        }
+        return undefined;
+    };
+
     return (
         <div className="w-full animate-in fade-in py-2">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
@@ -293,7 +308,10 @@ export default function ProfilesDashboard() {
                                             </p>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className={`inline-flex items-center gap-2 text-xs font-mono px-2 py-0.5 rounded border ${getRoleColorClass(profile.role)}`}>
+                                            <span
+                                                className={`inline-flex items-center gap-2 text-xs font-mono px-2 py-0.5 rounded border ${getRoleColorClass(profile.role)}`}
+                                                style={getRoleBadgeStyle(profile.role)}
+                                            >
                                                 {getRoleIcon(profile.role)}
                                                 <span>{getRoleLabel(profile.role)}</span>
                                             </span>
@@ -526,7 +544,10 @@ export default function ProfilesDashboard() {
                     />
                     <div
                         className="glass-card w-full max-w-lg p-6 relative z-10 animate-in zoom-in-95 duration-200"
-                        style={{ border: '1px solid var(--border-glass)' }}
+                        style={{
+                            border: '1px solid var(--border-glass)',
+                            backgroundColor: theme === 'light' ? '#ffffff' : undefined,
+                        }}
                     >
                         <h3 className="text-xl font-bold t-primary mb-2 flex items-center gap-2">
                             <Trash2 className="w-5 h-5 text-brand-red" />

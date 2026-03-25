@@ -1,17 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import {  Settings, Save, Smartphone, BellRing, Database, AppWindow, MessageSquare, AlertTriangle  } from 'lucide-react';
-import { capitalizeWords, handleNumberInput } from '../../utils/formatters.js';
+import { Settings, Save, Smartphone, BellRing, MessageSquare, AlertTriangle } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
-import useAppStore from '../../store/useAppStore';
 
 export default function SettingsDashboard() {
     const [settings, setSettings] = useState({
         wa_threshold: 10,
         spv_wa_number: '628159440003',
         spv_wa_group: '',
-        app_title: '',
-        app_subtitle: '',
-        app_logo_svg: '',
         wa_template_damage: '',
         wa_template_usage: '',
         wa_template_stockin: '',
@@ -21,12 +16,9 @@ export default function SettingsDashboard() {
         defect_categories: ''
     });
 
-    const updateGlobalBranding = useAppStore((state) => state.updateBranding);
-
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '' });
-    const [hasBrandingCols, setHasBrandingCols] = useState(true);
     const [hasTemplateCols, setHasTemplateCols] = useState(true);
     const [hasDefectCols, setHasDefectCols] = useState(false);
     const [hasDefectTemplate, setHasDefectTemplate] = useState(false);
@@ -41,12 +33,10 @@ export default function SettingsDashboard() {
             const { data, error } = await supabase.from('app_settings').select('*').eq('id', 1).single();
             if (error) throw error;
             if (data) {
-                const brandingExists = 'app_title' in data;
                 const templatesExist = 'wa_template_damage' in data;
                 const defectsExist = 'defect_sources' in data;
                 const defectTemplateExists = 'wa_template_defect' in data;
 
-                setHasBrandingCols(brandingExists);
                 setHasTemplateCols(templatesExist);
                 setHasDefectCols(defectsExist);
                 setHasDefectTemplate(defectTemplateExists);
@@ -55,9 +45,6 @@ export default function SettingsDashboard() {
                     wa_threshold: data.wa_threshold,
                     spv_wa_number: data.spv_wa_number,
                     spv_wa_group: 'spv_wa_group' in data ? (data.spv_wa_group || '') : '',
-                    app_title: brandingExists ? (data.app_title || '') : '',
-                    app_subtitle: brandingExists ? (data.app_subtitle || '') : '',
-                    app_logo_svg: brandingExists ? (data.app_logo_svg || '') : '',
                     wa_template_damage: templatesExist ? (data.wa_template_damage || '') : '',
                     wa_template_usage: templatesExist ? (data.wa_template_usage || '') : '',
                     wa_template_stockin: templatesExist ? (data.wa_template_stockin || '') : '',
@@ -90,12 +77,6 @@ export default function SettingsDashboard() {
                 payload.spv_wa_group = settings.spv_wa_group;
             }
 
-            if (hasBrandingCols) {
-                payload.app_title = settings.app_title;
-                payload.app_subtitle = settings.app_subtitle;
-                payload.app_logo_svg = settings.app_logo_svg;
-            }
-
             if (hasTemplateCols) {
                 payload.wa_template_damage = settings.wa_template_damage;
                 payload.wa_template_usage = settings.wa_template_usage;
@@ -118,14 +99,6 @@ export default function SettingsDashboard() {
                 .eq('id', 1);
 
             if (error) throw error;
-
-            if (hasBrandingCols) {
-                updateGlobalBranding({
-                    appTitle: settings.app_title,
-                    appSubtitle: settings.app_subtitle,
-                    appLogoSvg: settings.app_logo_svg
-                });
-            }
 
             setMessage({ type: 'success', text: 'Pengaturan berhasil disimpan!' });
             setTimeout(() => setMessage({ type: '', text: '' }), 3000);
@@ -152,7 +125,7 @@ export default function SettingsDashboard() {
                     <Settings className="w-8 h-8 t-secondary" />
                     Pengaturan Sistem
                 </h2>
-                <p className="t-secondary">Konfigurasi notifikasi WhatsApp, identitas aplikasi, dan preferensi tampilan.</p>
+                <p className="t-secondary">Konfigurasi notifikasi WhatsApp dan template laporan.</p>
             </div>
 
             {message.text && (
@@ -218,36 +191,6 @@ export default function SettingsDashboard() {
                             </div>
                         </div>
 
-                        {/* App Identity Section */}
-                        <div className="pt-6" style={{ borderTop: '1px solid var(--border-glass)' }}>
-                            <h3 className="text-xl font-bold t-primary mb-6 flex items-center gap-2">
-                                <AppWindow className="w-5 h-5 text-blue-400" />
-                                Identitas Aplikasi
-                            </h3>
-                            <div className="space-y-6">
-                                <div>
-                                    <label className="block text-xs font-semibold t-secondary uppercase tracking-wider mb-2">Judul Aplikasi</label>
-                                    <input type="text"
-                                        value={settings.app_title}
-                                        onChange={(e) => setSettings({ ...settings, app_title: e.target.value })}
-                                        disabled={!hasBrandingCols}
-                                        className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/50 transition-all font-mono t-primary disabled:opacity-50"
-                                        style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-semibold t-secondary uppercase tracking-wider mb-2">Deskripsi (Subtitle)</label>
-                                    <input type="text"
-                                        value={settings.app_subtitle}
-                                        onChange={(e) => setSettings({ ...settings, app_subtitle: e.target.value })}
-                                        disabled={!hasBrandingCols}
-                                        className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/50 transition-all font-mono t-primary disabled:opacity-50"
-                                        style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
                         {/* Defect Settings Section */}
                         <div className="pt-6" style={{ borderTop: '1px solid var(--border-glass)' }}>
                             <h3 className="text-xl font-bold text-orange-400 mb-6 flex items-center gap-2">
@@ -288,7 +231,7 @@ export default function SettingsDashboard() {
                         {/* Save Button */}
                         <div className="pt-4" style={{ borderTop: '1px solid var(--border-glass)' }}>
                             <button type="submit" disabled={isSaving}
-                                className="flex items-center gap-2 px-6 py-2.5 bg-accent-base hover:bg-cyan-500 t-on-accent font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_15px_rgba(34,197,94,0.2)]">
+                                className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_15px_rgba(59,130,246,0.2)] border border-blue-500/30">
                                 {isSaving ? (
                                     <><div className="w-4 h-4 border-t-2 border-slate-950 rounded-full animate-spin"></div> Menyimpan...</>
                                 ) : (
@@ -321,31 +264,31 @@ export default function SettingsDashboard() {
                         <div className="space-y-5">
                             <div>
                                 <label className="block text-xs font-semibold text-brand-red uppercase tracking-wider mb-2">Template Laporan Kerusakan</label>
-                                <textarea rows="4" value={settings.wa_template_damage} onChange={(e) => setSettings({ ...settings, wa_template_damage: e.target.value })} disabled={!hasTemplateCols} className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/50 transition-all font-mono text-xs t-primary resize-none disabled:opacity-50" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }} />
+                                <textarea rows="4" value={settings.wa_template_damage} onChange={(e) => setSettings({ ...settings, wa_template_damage: e.target.value })} disabled={!hasTemplateCols} className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/50 transition-all font-mono text-xs t-primary resize-y disabled:opacity-50" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }} />
                             </div>
 
                             <div>
                                 <label className="block text-xs font-semibold text-accent-base uppercase tracking-wider mb-2">Template Laporan Pemakaian</label>
-                                <textarea rows="4" value={settings.wa_template_usage} onChange={(e) => setSettings({ ...settings, wa_template_usage: e.target.value })} disabled={!hasTemplateCols} className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:border-accent-base focus:ring-1 focus:ring-accent-base/50 transition-all font-mono text-xs t-primary resize-none disabled:opacity-50" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }} />
+                                <textarea rows="4" value={settings.wa_template_usage} onChange={(e) => setSettings({ ...settings, wa_template_usage: e.target.value })} disabled={!hasTemplateCols} className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:border-accent-base focus:ring-1 focus:ring-accent-base/50 transition-all font-mono text-xs t-primary resize-y disabled:opacity-50" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }} />
                             </div>
 
                             <div>
                                 <label className="block text-xs font-semibold text-blue-400 uppercase tracking-wider mb-2">Template Stok Masuk</label>
-                                <textarea rows="5" value={settings.wa_template_stockin} onChange={(e) => setSettings({ ...settings, wa_template_stockin: e.target.value })} disabled={!hasTemplateCols} className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/50 transition-all font-mono text-xs t-primary resize-none disabled:opacity-50" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }} />
+                                <textarea rows="5" value={settings.wa_template_stockin} onChange={(e) => setSettings({ ...settings, wa_template_stockin: e.target.value })} disabled={!hasTemplateCols} className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/50 transition-all font-mono text-xs t-primary resize-y disabled:opacity-50" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }} />
                             </div>
 
                             <div>
                                 <label className="block text-xs font-semibold text-brand-amber uppercase tracking-wider mb-2">Template Tracking Cutting</label>
-                                <textarea rows="4" value={settings.wa_template_cutting} onChange={(e) => setSettings({ ...settings, wa_template_cutting: e.target.value })} disabled={!hasTemplateCols} className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:border-brand-amber focus:ring-1 focus:ring-brand-amber/50 transition-all font-mono text-xs t-primary resize-none disabled:opacity-50" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }} />
+                                <textarea rows="4" value={settings.wa_template_cutting} onChange={(e) => setSettings({ ...settings, wa_template_cutting: e.target.value })} disabled={!hasTemplateCols} className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:border-brand-amber focus:ring-1 focus:ring-brand-amber/50 transition-all font-mono text-xs t-primary resize-y disabled:opacity-50" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }} />
                             </div>
 
                             <div>
                                 <label className="block text-xs font-semibold text-orange-400 uppercase tracking-wider mb-2">Template Laporan Kendala (QC)</label>
-                                <textarea rows="4" value={settings.wa_template_defect} onChange={(e) => setSettings({ ...settings, wa_template_defect: e.target.value })} disabled={!hasDefectTemplate} className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400/50 transition-all font-mono text-xs t-primary resize-none disabled:opacity-50" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }} />
+                                <textarea rows="4" value={settings.wa_template_defect} onChange={(e) => setSettings({ ...settings, wa_template_defect: e.target.value })} disabled={!hasDefectTemplate} className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400/50 transition-all font-mono text-xs t-primary resize-y disabled:opacity-50" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }} />
                             </div>
 
                             <button type="button" onClick={handleSaveSettings} disabled={isSaving || !hasTemplateCols}
-                                className="w-full flex justify-center items-center gap-2 px-6 py-2 bg-slate-700 hover:bg-slate-600 t-primary font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm border border-theme text-sm">
+                                className="w-full flex justify-center items-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm border border-blue-500/30 text-sm">
                                 {isSaving ? 'Menyimpan...' : 'Simpan Semua Perubahan'}
                             </button>
                         </div>
