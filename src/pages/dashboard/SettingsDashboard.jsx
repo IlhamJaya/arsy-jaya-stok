@@ -285,10 +285,6 @@ export default function SettingsDashboard() {
 
                             <div>
                                 <label className="block text-xs font-semibold text-amber-500 uppercase tracking-wider mb-2">Template Peringatan Restok (pemakaian + stok kritis)</label>
-                                <p className="text-[11px] t-muted mb-2 leading-relaxed">
-                                    Dikirim lewat webhook <b>trx_stock_log</b> (log pemakaian), sebagai pesan terpisah dari WA pemakaian. Aktif jika <b>Min. Stok</b> pada barang &gt; 0 dan sisa stok setelah pemakaian ≤ batas minimal. Pastikan webhook Database untuk <b>trx_stock_log</b> mengarah ke <code className="font-mono">fonnte-alert</code>.
-                                    Placeholder: {'{item}'}, {'{stock}'}, {'{min_stock}'}, {'{unit}'}, {'{operator}'}, {'{qty}'}, {'{notes}'}, {'{date}'}, {'{time}'}.
-                                </p>
                                 {!hasRestockTemplate && (
                                     <div className="p-2 mb-2 bg-brand-amber/10 border border-brand-amber/20 rounded-lg text-[11px] text-brand-amber">
                                         Jalankan migrasi SQL <code className="font-mono">20260328120000_wa_template_restock_and_submit_order.sql</code> di Supabase agar kolom ini tersedia.
