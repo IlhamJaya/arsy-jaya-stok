@@ -182,10 +182,14 @@ export default function SettingsDashboard() {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-xs font-semibold t-secondary uppercase tracking-wider mb-2">Nomor Target SPV</label>
-                                        <p className="text-[10px] t-muted mb-3 block h-8">Format angka negara (6281...)</p>
+                                        <p className="text-[10px] t-muted mb-3 block h-8">Otomatis diubah menjadi 628...</p>
                                         <input type="text"
                                             value={settings.spv_wa_number}
-                                            onChange={(e) => setSettings({ ...settings, spv_wa_number: e.target.value })}
+                                            onChange={(e) => {
+                                                let val = e.target.value.replace(/\D/g, '');
+                                                if (val.startsWith('0')) val = '62' + val.substring(1);
+                                                setSettings({ ...settings, spv_wa_number: val });
+                                            }}
                                             className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:border-accent-base focus:ring-1 focus:ring-accent-base/50 transition-all font-mono t-primary"
                                             style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}
                                             placeholder="6281..."
@@ -193,10 +197,10 @@ export default function SettingsDashboard() {
                                     </div>
                                     <div>
                                         <label className="block text-xs font-semibold t-secondary uppercase tracking-wider mb-2">ID Grup (Opsional)</label>
-                                        <p className="text-[10px] t-muted mb-3 block h-8">Contoh: 12036...430@g.us</p>
+                                        <p className="text-[10px] t-muted mb-3 block h-8">Wajib diakhiri dengan @g.us<br/>Contoh: 12036...430@g.us</p>
                                         <input type="text"
                                             value={settings.spv_wa_group}
-                                            onChange={(e) => setSettings({ ...settings, spv_wa_group: e.target.value })}
+                                            onChange={(e) => setSettings({ ...settings, spv_wa_group: e.target.value.trim() })}
                                             className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:border-accent-base focus:ring-1 focus:ring-accent-base/50 transition-all font-mono t-primary"
                                             style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}
                                             placeholder="Kosongkan jika tidak ada"
