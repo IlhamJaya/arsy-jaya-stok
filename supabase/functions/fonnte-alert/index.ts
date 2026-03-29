@@ -19,9 +19,8 @@ serve(async (req) => {
         // Connect to Supabase
         const supabaseUrl = Deno.env.get('SUPABASE_URL')
         const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-        const fonnteToken = Deno.env.get('FONNTE_API_TOKEN')
 
-        if (!supabaseUrl || !supabaseKey || !fonnteToken) {
+        if (!supabaseUrl || !supabaseKey) {
             throw new Error("Missing critical environment variables.")
         }
 
@@ -36,6 +35,12 @@ serve(async (req) => {
             .single()
 
         if (settingsError) throw new Error('Error fetching app settings')
+
+        // Fallback Fonnte API Token: prioritize DB, then ENV
+        const fonnteToken = settingsData.fonnte_api_token || Deno.env.get('FONNTE_API_TOKEN')
+        if (!fonnteToken) {
+            throw new Error("Missing Fonnte API Token.")
+        }
 
         // Combine targets (comma separated for Fonnte API)
         const targets = [];

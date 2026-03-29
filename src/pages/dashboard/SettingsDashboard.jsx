@@ -14,6 +14,7 @@ export default function SettingsDashboard() {
         wa_template_defect: '',
         wa_template_restock_usage: '',
         wa_template_bot_stock: '',
+        fonnte_api_token: '',
         defect_sources: '',
         defect_categories: ''
     });
@@ -26,6 +27,28 @@ export default function SettingsDashboard() {
     const [hasDefectTemplate, setHasDefectTemplate] = useState(false);
     const [hasRestockTemplate, setHasRestockTemplate] = useState(false);
     const [hasBotStockTemplate, setHasBotStockTemplate] = useState(false);
+    const [hasFonnteTokenCol, setHasFonnteTokenCol] = useState(false);
+    const [deviceStatus, setDeviceStatus] = useState({ status: 'idle', info: null });
+    const [showToken, setShowToken] = useState(false);
+
+    const checkFonnteDevice = async (token) => {
+        if (!token) return;
+        setDeviceStatus({ status: 'loading', info: null });
+        try {
+            const res = await fetch('https://api.fonnte.com/device', {
+                method: 'POST',
+                headers: { 'Authorization': token }
+            });
+            const result = await res.json();
+            if (result.status === true && result.device_status === 'connect') {
+                setDeviceStatus({ status: 'connected', info: `${result.name || 'WA'} (${result.device || 'OK'})` });
+            } else {
+                setDeviceStatus({ status: 'disconnected', info: result.reason || result.detail || 'Device Not Connected' });
+            }
+        } catch (err) {
+            setDeviceStatus({ status: 'error', info: err.message });
+        }
+    };
 
     useEffect(() => {
         fetchSettings();
@@ -42,12 +65,14 @@ export default function SettingsDashboard() {
                 const defectTemplateExists = 'wa_template_defect' in data;
                 const restockTemplateExists = 'wa_template_restock_usage' in data;
                 const botStockTemplateExists = 'wa_template_bot_stock' in data;
+                const fonnteTokenColExists = 'fonnte_api_token' in data;
 
                 setHasTemplateCols(templatesExist);
                 setHasDefectCols(defectsExist);
                 setHasDefectTemplate(defectTemplateExists);
                 setHasRestockTemplate(restockTemplateExists);
                 setHasBotStockTemplate(botStockTemplateExists);
+                setHasFonnteTokenCol(fonnteTokenColExists);
 
                 setSettings({
                     wa_threshold: data.wa_threshold,
@@ -60,9 +85,14 @@ export default function SettingsDashboard() {
                     wa_template_defect: defectTemplateExists ? (data.wa_template_defect || '') : '',
                     wa_template_restock_usage: restockTemplateExists ? (data.wa_template_restock_usage || '') : '',
                     wa_template_bot_stock: botStockTemplateExists ? (data.wa_template_bot_stock || '📊 *LAPORAN SISA STOK ARSY JAYA* 📊\n\n{stock_list}\n\n_Diperbarui pada: {date} {time}_') : '',
+                    fonnte_api_token: fonnteTokenColExists ? (data.fonnte_api_token || '') : '',
                     defect_sources: defectsExist && Array.isArray(data.defect_sources) ? data.defect_sources.join(', ') : '',
                     defect_categories: defectsExist && Array.isArray(data.defect_categories) ? data.defect_categories.join(', ') : ''
                 });
+
+                if (fonnteTokenColExists && data.fonnte_api_token) {
+                    checkFonnteDevice(data.fonnte_api_token);
+                }
             }
         } catch (err) {
             console.error("Error fetching settings:", err.message);
@@ -102,6 +132,10 @@ export default function SettingsDashboard() {
                 payload.wa_template_bot_stock = settings.wa_template_bot_stock;
             }
 
+            if (hasFonnteTokenCol) {
+                payload.fonnte_api_token = settings.fonnte_api_token;
+            }
+
             if (hasDefectTemplate) {
                 payload.wa_template_defect = settings.wa_template_defect;
             }
@@ -125,6 +159,7 @@ export default function SettingsDashboard() {
             setMessage({ type: 'error', text: 'Gagal menyimpan: ' + err.message });
         } finally {
             setIsSaving(false);
+            if (hasFonnteTokenCol && settings.fonnte_api_token) checkFonnteDevice(settings.fonnte_api_token);
         }
     };
 
@@ -162,11 +197,59 @@ export default function SettingsDashboard() {
                 <div className="glass-card p-6 md:p-8">
                     <form onSubmit={handleSaveSettings} className="space-y-8">
 
-                        {/* WhatsApp Section */}
-                        <div>
+                        {/* Fonnte WhatsApp Gateway Configuration */}
+                        <div className="mb-10">
                             <h3 className="text-xl font-bold t-primary mb-6 flex items-center gap-2">
                                 <Smartphone className="w-5 h-5 text-accent-base" />
-                                Konfigurasi WhatsApp API
+                                Fonnte Device & API Token
+                            </h3>
+                            <div className="space-y-6">
+                                <div>
+                                    <label className="block text-xs font-semibold t-secondary uppercase tracking-wider mb-2">Fonnte API Token</label>
+                                    <p className="text-xs t-muted mb-3">Jika dikosongkan, sistem memakai default <code className="px-1 text-emerald-400 bg-emerald-500/10 rounded">.env</code>: {import.meta.env.VITE_FONNTE_TOKEN ? 'Tersedia' : 'Tidak Ada'}.</p>
+                                    {!hasFonnteTokenCol && (
+                                        <div className="p-2 mb-2 bg-brand-amber/10 border border-brand-amber/20 rounded-lg text-[11px] text-brand-amber">
+                                            Jalankan migrasi SQL <code className="font-mono">20260329113000</code> agar token bisa disimpan.
+                                        </div>
+                                    )}
+                                    <div className="flex gap-3">
+                                        <div className="relative flex-1 max-w-md">
+                                            <input 
+                                                type={showToken ? "text" : "password"}
+                                                value={settings.fonnte_api_token}
+                                                onChange={(e) => setSettings({ ...settings, fonnte_api_token: e.target.value })}
+                                                className="w-full border rounded-xl px-4 py-3 pr-24 focus:outline-none focus:border-accent-base focus:ring-1 focus:ring-accent-base/50 transition-all font-mono t-primary"
+                                                style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}
+                                                placeholder="Token API Fonnte..."
+                                                disabled={!hasFonnteTokenCol}
+                                            />
+                                            <button type="button" onClick={() => setShowToken(!showToken)}
+                                                className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] uppercase font-bold text-accent-base/70 hover:text-accent-base">
+                                                {showToken ? 'Sembunyikan' : 'Tampilkan'}
+                                            </button>
+                                        </div>
+                                        <button type="button" onClick={() => checkFonnteDevice(settings.fonnte_api_token || import.meta.env.VITE_FONNTE_TOKEN)} 
+                                                className="px-4 py-3 bg-brand-navy/50 hover:bg-brand-navy border border-[var(--border-glass)] text-xs font-bold rounded-xl t-primary transition-all whitespace-nowrap">
+                                            Cek Koneksi
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-3 p-4 rounded-xl border flex-wrap" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}>
+                                    <div className="text-sm font-semibold t-secondary">Status WhatsApp:</div>
+                                    {deviceStatus.status === 'idle' && <span className="text-xs px-2 py-1 rounded bg-gray-500/20 text-gray-400">Belum Dicek</span>}
+                                    {deviceStatus.status === 'loading' && <span className="text-xs px-2 py-1 rounded bg-blue-500/20 text-blue-400 animate-pulse">Memeriksa...</span>}
+                                    {deviceStatus.status === 'connected' && <span className="text-xs px-2 py-1 rounded bg-emerald-500/20 text-emerald-400 font-bold">✅ Terhubung ({deviceStatus.info})</span>}
+                                    {deviceStatus.status === 'disconnected' && <span className="text-xs px-2 py-1 rounded bg-brand-red/20 text-brand-red font-bold">❌ Terputus ({deviceStatus.info})</span>}
+                                    {deviceStatus.status === 'error' && <span className="text-xs px-2 py-1 rounded bg-orange-500/20 text-orange-400 font-bold">⚠️ Error API ({deviceStatus.info})</span>}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* WhatsApp Section */}
+                        <div className="pt-6" style={{ borderTop: '1px solid var(--border-glass)' }}>
+                            <h3 className="text-xl font-bold t-primary mb-6 flex items-center gap-2">
+                                Target Penerima (SPV & Grup)
                             </h3>
                             <div className="space-y-6">
                                 <div>

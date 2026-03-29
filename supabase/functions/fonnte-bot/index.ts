@@ -37,14 +37,22 @@ serve(async (req) => {
       // Connect to Supabase
       const supabaseUrl = Deno.env.get('SUPABASE_URL')
       const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-      const fonnteToken = Deno.env.get('FONNTE_API_TOKEN')
 
-      if (!supabaseUrl || !supabaseKey || !fonnteToken) {
+      if (!supabaseUrl || !supabaseKey) {
         console.error("Missing critical environment variables.");
         return new Response("Server error", { status: 500 });
       }
 
       const supabase = createClient(supabaseUrl, supabaseKey)
+
+      // Fetch settings for template
+      const { data: settings } = await supabase.from('app_settings').select('wa_template_bot_stock, fonnte_api_token').eq('id', 1).single();
+
+      const fonnteToken = settings?.fonnte_api_token || Deno.env.get('FONNTE_API_TOKEN');
+      if (!fonnteToken) {
+        console.error("Missing Fonnte API Token.");
+        return new Response("Server error", { status: 500 });
+      }
 
       console.log("Fetching stock from mst_items...");
       // Query current stock levels
@@ -57,24 +65,32 @@ serve(async (req) => {
         throw new Error("Failed to fetch stock: " + error.message);
       }
 
-      // Build formatting string
-      let replyText = "📊 *LAPORAN SISA STOK ARSY JAYA* 📊\n\n";
+      const templateText = settings?.wa_template_bot_stock || `📊 *LAPORAN SISA STOK ARSY JAYA* 📊\n\n{stock_list}\n\n_Diperbarui pada: {date} {time}_`;
+
+      // Build formatting string for {stock_list}
+      let stockListText = "";
       if (!items || items.length === 0) {
-        replyText += "Belum ada data barang di sistem.";
+        stockListText = "Belum ada data barang di sistem.";
       } else {
         items.forEach((item, index) => {
-          replyText += `${index + 1}. *${item.name}*: ${item.stock} ${item.unit}\n`;
+          stockListText += `${index + 1}. *${item.name}*: ${item.stock} ${item.unit}\n`;
         });
       }
 
       const now = new Date();
+      const jakartaDate = new Intl.DateTimeFormat('id-ID', {
+        timeZone: 'Asia/Makassar',
+        day: '2-digit', month: '2-digit', year: 'numeric'
+      }).format(now);
       const jakartaTime = new Intl.DateTimeFormat('id-ID', {
         timeZone: 'Asia/Makassar',
-        day: '2-digit', month: 'short', year: 'numeric',
-        hour: '2-digit', minute: '2-digit'
+        hour: '2-digit', minute: '2-digit', hour12: false
       }).format(now) + ' WITA';
 
-      replyText += `\n_Diperbarui pada: ${jakartaTime}_`;
+      const replyText = templateText
+        .replace('{stock_list}', stockListText.trim())
+        .replace('{date}', jakartaDate)
+        .replace('{time}', jakartaTime);
 
       // Enqueue reply back via Fonnte
       console.log("Sending reply to: " + replyTarget);
