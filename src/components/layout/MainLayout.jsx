@@ -342,6 +342,13 @@ export default function MainLayout({ children, userRole }) {
                 <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 lg:pt-10">
                     {children}
                 </div>
+
+                {/* Global Footer */}
+                <footer className="mt-4 pb-8 pt-6 border-t border-theme mx-4 sm:mx-8 text-center flex flex-col items-center justify-center">
+                    <p className="text-[11px] t-muted font-medium tracking-wide">
+                        <span className="font-bold t-primary">1lhmjya.</span> Dibuat dengan logika, dedikasi, & secangkir kopi. &copy; 2026
+                    </p>
+                </footer>
             </main>
 
             <PWAInstallPrompt />
