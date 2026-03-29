@@ -46,7 +46,12 @@ serve(async (req) => {
       const supabase = createClient(supabaseUrl, supabaseKey)
 
       // Fetch settings for template
-      const { data: settings } = await supabase.from('app_settings').select('wa_template_bot_stock, fonnte_api_token').eq('id', 1).single();
+      const { data: settings } = await supabase.from('app_settings').select('wa_template_bot_stock, fonnte_api_token, is_active_bot').eq('id', 1).single();
+
+      if (settings?.is_active_bot === false) {
+        console.log("Bot reply is disabled in app_settings.");
+        return new Response(JSON.stringify({ success: true, message: "Fitur bot laporan stok sedang dinonaktifkan." }), { headers: { 'Content-Type': 'application/json' }, status: 200 });
+      }
 
       const fonnteToken = settings?.fonnte_api_token || Deno.env.get('FONNTE_API_TOKEN');
       if (!fonnteToken) {

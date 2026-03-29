@@ -139,9 +139,13 @@ serve(async (req) => {
             }
 
             if (isDamage) {
-                message = formatMessage(settingsData.wa_template_damage || `🚨 Laporan Kerusakan: {qty} {unit} {item} oleh {operator}. Alasan: {notes}`, templateData);
+                if (settingsData.is_active_damage !== false) {
+                    message = formatMessage(settingsData.wa_template_damage || `🚨 Laporan Kerusakan: {qty} {unit} {item} oleh {operator}. Alasan: {notes}`, templateData);
+                }
             } else if (isUsage) {
-                message = formatMessage(settingsData.wa_template_usage || `✅ Laporan Pemakaian: {qty} {unit} {item} oleh {operator}.`, templateData);
+                if (settingsData.is_active_usage !== false) {
+                    message = formatMessage(settingsData.wa_template_usage || `✅ Laporan Pemakaian: {qty} {unit} {item} oleh {operator}.`, templateData);
+                }
             }
         }
 
@@ -205,8 +209,13 @@ Operator: {operator}
 Qty dipakai (laporan ini): {qty} {unit}
 Waktu: {date} {time}`
                 const restockTpl = (settingsData as Record<string, string | undefined>).wa_template_restock_usage
-                message = formatMessage(restockTpl || defaultRestock, restockData)
-                sentRestockAlert = true
+                
+                if (settingsData.is_active_restock !== false) {
+                    message = formatMessage(restockTpl || defaultRestock, restockData)
+                    sentRestockAlert = true
+                } else {
+                    console.log(`[fonnte-alert] Restock WA skipped: is_active_restock is false`)
+                }
             } else if (src === 'stock_in') {
                 const { data: itemData } = await supabase.from('mst_items').select('name, unit').eq('id', record.item_id).single()
                 const { data: opData } = await supabase.from('profiles').select('full_name').eq('id', record.changed_by).single()
@@ -220,7 +229,9 @@ Waktu: {date} {time}`
                     notes: record.notes
                 }
 
-                message = formatMessage(settingsData.wa_template_stockin || `📦 Stok Masuk: {qty} {unit} {item} oleh {operator}. Stok Akhir: {final_stock} {unit}. Catatan: {notes}`, templateData);
+                if (settingsData.is_active_stockin !== false) {
+                    message = formatMessage(settingsData.wa_template_stockin || `📦 Stok Masuk: {qty} {unit} {item} oleh {operator}. Stok Akhir: {final_stock} {unit}. Catatan: {notes}`, templateData);
+                }
             } else {
                 return new Response(JSON.stringify({ success: true, message: `trx_stock_log ignored (source: ${record.source}).` }), { headers: { "Content-Type": "application/json" }, status: 200 })
             }
@@ -245,7 +256,9 @@ Waktu: {date} {time}`
                 notes: record.notes
             }
 
-            message = formatMessage(settingsData.wa_template_cutting || `✂️ Log Cutting: {qty} lembar {item} untuk order {order} oleh {operator}. Catatan: {notes}`, templateData);
+            if (settingsData.is_active_cutting !== false) {
+                message = formatMessage(settingsData.wa_template_cutting || `✂️ Log Cutting: {qty} lembar {item} untuk order {order} oleh {operator}. Catatan: {notes}`, templateData);
+            }
         }
 
         else if (table === 'trx_defects') {
@@ -263,7 +276,9 @@ Waktu: {date} {time}`
                 notes: record.notes || '-'
             }
 
-            message = formatMessage(settingsData.wa_template_defect || `⚠️ *LAPORAN KENDALA PRODUKSI* ⚠️\nOrder: {order}\nKategori: {category}\nTerdakwa: {source}\nQty Gagal: {qty}\nCatatan: {notes}\nPelapor: {reporter}`, templateData);
+            if (settingsData.is_active_defect !== false) {
+                message = formatMessage(settingsData.wa_template_defect || `⚠️ *LAPORAN KENDALA PRODUKSI* ⚠️\nOrder: {order}\nKategori: {category}\nTerdakwa: {source}\nQty Gagal: {qty}\nCatatan: {notes}\nPelapor: {reporter}`, templateData);
+            }
         }
 
         else {
