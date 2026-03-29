@@ -13,6 +13,7 @@ export default function SettingsDashboard() {
         wa_template_cutting: '',
         wa_template_defect: '',
         wa_template_restock_usage: '',
+        wa_template_bot_stock: '',
         defect_sources: '',
         defect_categories: ''
     });
@@ -24,6 +25,7 @@ export default function SettingsDashboard() {
     const [hasDefectCols, setHasDefectCols] = useState(false);
     const [hasDefectTemplate, setHasDefectTemplate] = useState(false);
     const [hasRestockTemplate, setHasRestockTemplate] = useState(false);
+    const [hasBotStockTemplate, setHasBotStockTemplate] = useState(false);
 
     useEffect(() => {
         fetchSettings();
@@ -39,11 +41,13 @@ export default function SettingsDashboard() {
                 const defectsExist = 'defect_sources' in data;
                 const defectTemplateExists = 'wa_template_defect' in data;
                 const restockTemplateExists = 'wa_template_restock_usage' in data;
+                const botStockTemplateExists = 'wa_template_bot_stock' in data;
 
                 setHasTemplateCols(templatesExist);
                 setHasDefectCols(defectsExist);
                 setHasDefectTemplate(defectTemplateExists);
                 setHasRestockTemplate(restockTemplateExists);
+                setHasBotStockTemplate(botStockTemplateExists);
 
                 setSettings({
                     wa_threshold: data.wa_threshold,
@@ -55,6 +59,7 @@ export default function SettingsDashboard() {
                     wa_template_cutting: templatesExist ? (data.wa_template_cutting || '') : '',
                     wa_template_defect: defectTemplateExists ? (data.wa_template_defect || '') : '',
                     wa_template_restock_usage: restockTemplateExists ? (data.wa_template_restock_usage || '') : '',
+                    wa_template_bot_stock: botStockTemplateExists ? (data.wa_template_bot_stock || '📊 *LAPORAN SISA STOK ARSY JAYA* 📊\n\n{stock_list}\n\n_Diperbarui pada: {date} {time}_') : '',
                     defect_sources: defectsExist && Array.isArray(data.defect_sources) ? data.defect_sources.join(', ') : '',
                     defect_categories: defectsExist && Array.isArray(data.defect_categories) ? data.defect_categories.join(', ') : ''
                 });
@@ -91,6 +96,10 @@ export default function SettingsDashboard() {
 
             if (hasRestockTemplate) {
                 payload.wa_template_restock_usage = settings.wa_template_restock_usage;
+            }
+
+            if (hasBotStockTemplate) {
+                payload.wa_template_bot_stock = settings.wa_template_bot_stock;
             }
 
             if (hasDefectTemplate) {
@@ -296,6 +305,27 @@ export default function SettingsDashboard() {
                                     onChange={(e) => setSettings({ ...settings, wa_template_restock_usage: e.target.value })}
                                     disabled={!hasTemplateCols || !hasRestockTemplate}
                                     className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50 transition-all font-mono text-xs t-primary resize-y disabled:opacity-50"
+                                    style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-semibold text-emerald-500 uppercase tracking-wider mb-2">Template Laporan Sisa Stok (Fonnte Bot)</label>
+                                <p className="text-[11px] t-muted mb-2 leading-relaxed">
+                                    Dikirim lewat autobalas bot Whatsapp (keyword "laporkan sisa stok").
+                                    Placeholder: {'{stock_list}'}, {'{date}'}, {'{time}'}.
+                                </p>
+                                {!hasBotStockTemplate && (
+                                    <div className="p-2 mb-2 bg-brand-amber/10 border border-brand-amber/20 rounded-lg text-[11px] text-brand-amber">
+                                        Jalankan migrasi SQL <code className="font-mono">20260329110000_fonnte_bot_stock_template.sql</code> di Supabase agar kolom ini tersedia.
+                                    </div>
+                                )}
+                                <textarea
+                                    rows="8"
+                                    value={settings.wa_template_bot_stock}
+                                    onChange={(e) => setSettings({ ...settings, wa_template_bot_stock: e.target.value })}
+                                    disabled={!hasBotStockTemplate}
+                                    className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50 transition-all font-mono text-xs t-primary resize-y disabled:opacity-50"
                                     style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}
                                 />
                             </div>
