@@ -26,6 +26,32 @@ serve(async (req) => {
 
         const supabase = createClient(supabaseUrl, supabaseKey)
 
+        // ==========================================
+        // DEDUPLICATION LOGIC
+        // ==========================================
+        const eventKey = `${table}:${record.id}:${payload.type}`
+        
+        // 1. Cleanup old events first (keep it light, delete events older than 1 minute)
+        await supabase.from('processed_events').delete().lt('created_at', new Date(Date.now() - 60000).toISOString())
+
+        // 2. Try to insert current event
+        const { data: eventMark, error: eventError } = await supabase
+            .from('processed_events')
+            .insert({ event_key: eventKey })
+            .select()
+            .single()
+
+        if (eventError) {
+            console.log(`[fonnte-alert] Duplicate event detected for ${eventKey}. Skipping.`)
+            return new Response(JSON.stringify({ 
+                success: true, 
+                message: "Duplicate event detected and ignored.",
+                key: eventKey 
+            }), { headers: { "Content-Type": "application/json" }, status: 200 })
+        }
+
+        console.log(`[fonnte-alert] Processing new event: ${eventKey}`)
+
         // Fetch Global Settings (Phone & Templates)
         const { data: settingsData, error: settingsError } = await supabase
             .from('app_settings')
