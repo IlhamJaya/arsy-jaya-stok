@@ -2,6 +2,34 @@ import React, { useState, useEffect } from 'react';
 import { Settings, Save, Smartphone, BellRing, MessageSquare, AlertTriangle } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 
+const ToggleSwitch = ({ label, checked, onChange, disabled }) => (
+    <label className={`flex items-center ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+        <div className="relative">
+            <input type="checkbox" className="sr-only" checked={checked} onChange={onChange} disabled={disabled} />
+            <div className={`block w-10 h-6 rounded-full transition-colors ${checked ? 'bg-emerald-500' : 'bg-[var(--border-glass)]'}`}></div>
+            <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${checked ? 'transform translate-x-4' : ''}`}></div>
+        </div>
+        {label && <div className="ml-3 text-sm font-semibold t-primary">{label}</div>}
+    </label>
+);
+
+const AccordionCard = ({ title, isActive, onToggleActive, children, isOpen, onToggleOpen, disabledToggle }) => (
+    <div className="border rounded-xl transition-all overflow-hidden mb-4" style={{ borderColor: 'var(--border-glass)', background: 'var(--bg-card)' }}>
+        <div className={`p-4 flex items-center justify-between cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors`} onClick={onToggleOpen}>
+            <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
+                <ToggleSwitch checked={isActive} onChange={(e) => { onToggleActive(e.target.checked); }} disabled={disabledToggle} />
+                <span className={`font-bold text-sm ${isActive ? 't-primary' : 't-muted'}`}>{title}</span>
+            </div>
+            <div className="text-xs font-semibold t-muted bg-black/5 dark:bg-white/5 px-3 py-1 rounded-full">{isOpen ? 'Tutup' : 'Edit Template'}</div>
+        </div>
+        {isOpen && (
+            <div className={`p-4 border-t transition-opacity ${!isActive ? 'opacity-40 pointer-events-none' : 'opacity-100'}`} style={{ borderColor: 'var(--border-glass)', background: 'var(--bg-input)' }}>
+                {children}
+            </div>
+        )}
+    </div>
+);
+
 export default function SettingsDashboard() {
     const [settings, setSettings] = useState({
         wa_threshold: 10,
@@ -38,34 +66,6 @@ export default function SettingsDashboard() {
     const [openAccordion, setOpenAccordion] = useState(null);
     const [deviceStatus, setDeviceStatus] = useState({ status: 'idle', info: null });
     const [showToken, setShowToken] = useState(false);
-
-    const ToggleSwitch = ({ label, checked, onChange, disabled }) => (
-        <label className={`flex items-center ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
-            <div className="relative">
-                <input type="checkbox" className="sr-only" checked={checked} onChange={onChange} disabled={disabled} />
-                <div className={`block w-10 h-6 rounded-full transition-colors ${checked ? 'bg-emerald-500' : 'bg-[var(--border-glass)]'}`}></div>
-                <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${checked ? 'transform translate-x-4' : ''}`}></div>
-            </div>
-            {label && <div className="ml-3 text-sm font-semibold t-primary">{label}</div>}
-        </label>
-    );
-
-    const AccordionCard = ({ title, isActive, onToggleActive, children, isOpen, onToggleOpen, disabledToggle }) => (
-        <div className="border rounded-xl transition-all overflow-hidden mb-4" style={{ borderColor: 'var(--border-glass)', background: 'var(--bg-card)' }}>
-            <div className={`p-4 flex items-center justify-between cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors`} onClick={onToggleOpen}>
-                <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
-                    <ToggleSwitch checked={isActive} onChange={(e) => { onToggleActive(e.target.checked); }} disabled={disabledToggle} />
-                    <span className={`font-bold text-sm ${isActive ? 't-primary' : 't-muted'}`}>{title}</span>
-                </div>
-                <div className="text-xs font-semibold t-muted bg-black/5 dark:bg-white/5 px-3 py-1 rounded-full">{isOpen ? 'Tutup' : 'Edit Template'}</div>
-            </div>
-            {isOpen && (
-                <div className={`p-4 border-t transition-opacity ${!isActive ? 'opacity-40 pointer-events-none' : 'opacity-100'}`} style={{ borderColor: 'var(--border-glass)', background: 'var(--bg-input)' }}>
-                    {children}
-                </div>
-            )}
-        </div>
-    );
 
     const checkFonnteDevice = async (token) => {
         if (!token) return;
