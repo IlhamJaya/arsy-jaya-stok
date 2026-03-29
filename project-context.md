@@ -11,7 +11,7 @@
 | **Nama Aplikasi** | ARSY JAYA |
 | **Subtitle** | Stock & Tracking Sistem |
 | **Versi** | 1.1.0 |
-| **Supabase Project** | `ylypksowjlypuknmtztv` |
+| **Supabase Project** | `osyfdkwqsssyjvrxtrht` |
 | **Purpose** | Inventory management + Tracking + QC Defect system untuk percetakan A3+ (stiker/kertas) |
 | **Target Users** | Supervisor (SPV), Operator Cetak, Operator Cutting, Sales, HRD |
 
@@ -86,7 +86,7 @@
 **`trx_stock_log`** — Final stock movement history
 - `id`, `item_id`, `report_id` (nullable), `changed_by`
 - `change_amount`, `previous_stock`, `final_stock`
-- `source`: `'report_approved'` | `'stock_in'` | `'audit'` | `'correction'`
+- `source`: `'REPORT_USAGE'` | `'REPORT_DAMAGE'` | `'stock_in'` | `'audit'` | `'correction'`
 
 **`trx_cutting_log`** — Tracking cutting stiker harian
 - `id`, `operator_id`, `order_name`, `qty_cut`, `notes`
@@ -118,12 +118,26 @@ Hanya untuk evaluasi kinerja (Salah desain, mesin rusak, dll) agar bisa dilacak 
 ### 4. Notifikasi WhatsApp (Fonnte Edge Function)
 Semua modul di atas dihubungkan ke Webhook Supabase trigger `INSERT` menuju Edge Function `fonnte-alert`.
 Function `fonnte-alert` men-support 4 payload routing:
-- `trx_reports` (Usage/Damage) → *Alert Damage hanya dikirim jika QTY >= wa_threshold*.
-- `trx_stock_log` (Stock In)
+- `trx_reports` (Usage/Damage) → *Alert Damage hanya dikirim jika QTY >= wa_threshold*. **Usage** → hanya template pemakaian.
+- `trx_stock_log`:
+  - **`source = stock_in`** → template stok masuk.
+  - **`source = report_usage` atau `report_damage`** → jika `final_stock ≤ min_stock` dan **`min_stock > 0`** → WA **peringatan restok** (`wa_template_restock_usage`). Setiap pemakaian/kerusakan di zona kritis → kirim WA (tanpa cooldown).
+  - Webhook **Stok Masuk** harus tetap aktif untuk seluruh INSERT `trx_stock_log`.
 - `trx_cutting_log` (Log Cutting)
 - `trx_defects` (Defect/Kendala Baru)
 
 *Pesan dikirim serentak ke `spv_wa_number` dan `spv_wa_group` (bisa multi target) memakai template text dinamis yang dapat diedit di menu Settings.*
+
+*RPC `submit_report_direct` meng-update `mst_items.stock` **sebelum** `INSERT trx_reports` agar trigger WA membaca sisa stok akhir yang benar (lihat migrasi `20260328120000_wa_template_restock_and_submit_order.sql`).*
+
+*Penting: webhook/trigger pada `trx_reports` harus memanggil `fonnte-alert` untuk **Usage** dan **Damage**. Jika hanya Damage (mis. nama webhook “Kerusakan Stok” dengan filter tipe Damage), notifikasi pemakaian dan restok kritis tidak akan terkirim. Lihat migrasi `20260328140000_fonnte_trx_reports_include_usage.sql` dan edit Database Webhook di dashboard Supabase.*
+
+**Troubleshooting WA tidak jalan (webhook sudah ke `trx_reports`):**
+1. **JWT:** Edge Function `fonnte-alert` harus **`verify_jwt = false`** (lihat `supabase/config.toml`). Deploy: `supabase functions deploy fonnte-alert --no-verify-jwt`. Tanpa ini, Database Webhook sering dapat **401** dan body tidak pernah diproses.
+2. **Filter webhook:** Buka detail webhook `trx_reports` → pastikan tidak ada **condition** yang membatasi hanya `Damage`.
+3. **Migrasi:** Jalankan `20260328120000_...` (urutan `submit_report_direct` + kolom template restok) agar `mst_items.stock` saat dibaca function = sisa stok setelah pemakaian.
+4. **Secrets:** `FONNTE_API_TOKEN`, `SUPABASE_SERVICE_ROLE_KEY` terpasang di Edge Function secrets.
+5. **Logs:** Supabase Dashboard → Edge Functions → `fonnte-alert` → Logs, saat submit pemakaian.
 
 ---
 
@@ -146,28 +160,33 @@ src/
 ├── index.css                        # Theme System
 ├── store/
 │   └── useAppStore.js               # Global state (Theme, Branding config)
-├── layout/
+├── components/layout/
 │   ├── Sidebar.jsx              
 │   └── MainLayout.jsx           
 └── pages/dashboard/
     ├── ApprovalDashboard.jsx    # Riwayat Laporan (list semua report)
     ├── InventoryDashboard.jsx   # Tab stok, masuk, supplier, correction
     ├── InputReportDashboard.jsx # Tab Laporan Cetak & Tracking Cutting
-    ├── DefectsDashboard.jsx     # NEW: UI Lapor Kendala produksi (Non-stok)
+    ├── DefectsDashboard.jsx     # UI Lapor Kendala produksi (Non-stok)
+    ├── SuppliersDashboard.jsx   # Data supplier & kontak
     ├── ReportsDashboard.jsx     # Chart & Excel Export
     ├── ProfilesDashboard.jsx    # SPV: User management
-    └── SettingsDashboard.jsx    # SPV: Branding, WA Template, Drodown Defects config
+    └── SettingsDashboard.jsx    # SPV: WA Template, Defect config
 
 supabase/
+├── config.toml                      # Supabase CLI config (fonnte-alert verify_jwt=false)
 ├── functions/
-│   └── fonnte-alert/index.ts        # Edge Function Fonnte Webhooks
-├── approve_rpc.sql                  
-├── audit_rpc.sql                    
-├── stok_masuk_rpc.sql               
-├── add_defects.sql                  # Schema: trx_defects & Dropdowns
-├── add_defect_webhook.sql           # Schema: defect triggers
-├── add_wa_templates.sql             
-└── add_wa_group.sql                 
+│   ├── fonnte-alert/index.ts        # Edge Function: WA notifikasi (pemakaian, restok, stok masuk, cutting, defect)
+│   └── fonnte-bot/index.ts          # Edge Function: WA bot auto-reply
+├── migrations/                      # Version-tracked SQL migrations
+├── submit_report_direct.sql         # RPC: submit laporan + potong stok atomik
+├── approve_rpc.sql                  # RPC: approve report + update stock
+├── audit_rpc.sql                    # RPC: audit/koreksi stok
+├── stok_masuk_rpc.sql               # RPC: stok masuk + log
+├── add_defects.sql                  # Schema: trx_defects & dropdowns
+├── add_defect_webhook.sql           # Webhook setup: defect triggers
+├── add_wa_templates.sql             # Schema: WA template columns
+└── add_wa_group.sql                 # Schema: WA group column
 ```
 
 ## 9. Environment Variables (.env)

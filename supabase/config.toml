@@ -1,3 +1,8 @@
+# Webhook Database memanggil URL ini tanpa JWT user — harus false agar INSERT trx_reports diterima.
+[functions.fonnte-alert]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/fonnte-alert/index.ts"
 
 [functions.fonnte-bot]
 enabled = true

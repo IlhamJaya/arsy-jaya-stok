@@ -12,6 +12,7 @@ export default function SettingsDashboard() {
         wa_template_stockin: '',
         wa_template_cutting: '',
         wa_template_defect: '',
+        wa_template_restock_usage: '',
         defect_sources: '',
         defect_categories: ''
     });
@@ -22,6 +23,7 @@ export default function SettingsDashboard() {
     const [hasTemplateCols, setHasTemplateCols] = useState(true);
     const [hasDefectCols, setHasDefectCols] = useState(false);
     const [hasDefectTemplate, setHasDefectTemplate] = useState(false);
+    const [hasRestockTemplate, setHasRestockTemplate] = useState(false);
 
     useEffect(() => {
         fetchSettings();
@@ -36,10 +38,12 @@ export default function SettingsDashboard() {
                 const templatesExist = 'wa_template_damage' in data;
                 const defectsExist = 'defect_sources' in data;
                 const defectTemplateExists = 'wa_template_defect' in data;
+                const restockTemplateExists = 'wa_template_restock_usage' in data;
 
                 setHasTemplateCols(templatesExist);
                 setHasDefectCols(defectsExist);
                 setHasDefectTemplate(defectTemplateExists);
+                setHasRestockTemplate(restockTemplateExists);
 
                 setSettings({
                     wa_threshold: data.wa_threshold,
@@ -50,6 +54,7 @@ export default function SettingsDashboard() {
                     wa_template_stockin: templatesExist ? (data.wa_template_stockin || '') : '',
                     wa_template_cutting: templatesExist ? (data.wa_template_cutting || '') : '',
                     wa_template_defect: defectTemplateExists ? (data.wa_template_defect || '') : '',
+                    wa_template_restock_usage: restockTemplateExists ? (data.wa_template_restock_usage || '') : '',
                     defect_sources: defectsExist && Array.isArray(data.defect_sources) ? data.defect_sources.join(', ') : '',
                     defect_categories: defectsExist && Array.isArray(data.defect_categories) ? data.defect_categories.join(', ') : ''
                 });
@@ -82,6 +87,10 @@ export default function SettingsDashboard() {
                 payload.wa_template_usage = settings.wa_template_usage;
                 payload.wa_template_stockin = settings.wa_template_stockin;
                 payload.wa_template_cutting = settings.wa_template_cutting;
+            }
+
+            if (hasRestockTemplate) {
+                payload.wa_template_restock_usage = settings.wa_template_restock_usage;
             }
 
             if (hasDefectTemplate) {
@@ -251,7 +260,9 @@ export default function SettingsDashboard() {
                             <MessageSquare className="w-5 h-5 text-accent-base" />
                             Template Pesan WhatsApp
                         </h3>
-                        <p className="text-sm t-secondary mb-4">Gunakan variabel dalam tanda kurung kurawal. Contoh: {'{operator}'}, {'{item}'}, {'{qty}'}, {'{unit}'}, {'{notes}'}, {'{final_stock}'}, {'{order}'}</p>
+                        <p className="text-sm t-secondary mb-4">
+                            Gunakan variabel dalam tanda kurung kurawal. Contoh: {'{operator}'}, {'{item}'}, {'{qty}'}, {'{unit}'}, {'{notes}'}, {'{final_stock}'}, {'{stock}'}, {'{min_stock}'}, {'{order}'}, {'{date}'}, {'{time}'}
+                        </p>
 
                         {
                             !hasTemplateCols && (
@@ -270,6 +281,27 @@ export default function SettingsDashboard() {
                             <div>
                                 <label className="block text-xs font-semibold text-accent-base uppercase tracking-wider mb-2">Template Laporan Pemakaian</label>
                                 <textarea rows="4" value={settings.wa_template_usage} onChange={(e) => setSettings({ ...settings, wa_template_usage: e.target.value })} disabled={!hasTemplateCols} className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:border-accent-base focus:ring-1 focus:ring-accent-base/50 transition-all font-mono text-xs t-primary resize-y disabled:opacity-50" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }} />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-semibold text-amber-500 uppercase tracking-wider mb-2">Template Peringatan Restok (pemakaian + stok kritis)</label>
+                                <p className="text-[11px] t-muted mb-2 leading-relaxed">
+                                    Dikirim lewat webhook <b>trx_stock_log</b> (log pemakaian), sebagai pesan terpisah dari WA pemakaian. Aktif jika <b>Min. Stok</b> pada barang &gt; 0 dan sisa stok setelah pemakaian ≤ batas minimal. Pastikan webhook Database untuk <b>trx_stock_log</b> mengarah ke <code className="font-mono">fonnte-alert</code>.
+                                    Placeholder: {'{item}'}, {'{stock}'}, {'{min_stock}'}, {'{unit}'}, {'{operator}'}, {'{qty}'}, {'{notes}'}, {'{date}'}, {'{time}'}.
+                                </p>
+                                {!hasRestockTemplate && (
+                                    <div className="p-2 mb-2 bg-brand-amber/10 border border-brand-amber/20 rounded-lg text-[11px] text-brand-amber">
+                                        Jalankan migrasi SQL <code className="font-mono">20260328120000_wa_template_restock_and_submit_order.sql</code> di Supabase agar kolom ini tersedia.
+                                    </div>
+                                )}
+                                <textarea
+                                    rows="8"
+                                    value={settings.wa_template_restock_usage}
+                                    onChange={(e) => setSettings({ ...settings, wa_template_restock_usage: e.target.value })}
+                                    disabled={!hasTemplateCols || !hasRestockTemplate}
+                                    className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50 transition-all font-mono text-xs t-primary resize-y disabled:opacity-50"
+                                    style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}
+                                />
                             </div>
 
                             <div>
