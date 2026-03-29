@@ -113,7 +113,6 @@ Aplikasi ini dikembangkan untuk penggunaan skala instansi terbatas. Walau demiki
 
 ---
 
-> <br>
-> **1lhmjya.**  
-> *Dibuat dengan logika, dedikasi, & secangkir kopi. &copy; 2026*
-> <br><br>
+<br>
+Dibuat dengan logika, dedikasi, & secangkir kopi. &copy; 2026
+<br><br>
