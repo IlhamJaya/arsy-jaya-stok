@@ -121,6 +121,7 @@ export default function SettingsDashboard() {
                     wa_template_stockin: templatesExist ? (data.wa_template_stockin || '') : '',
                     wa_template_cutting: templatesExist ? (data.wa_template_cutting || '') : '',
                     wa_template_defect: defectTemplateExists ? (data.wa_template_defect || '') : '',
+                    wa_template_restock_usage: restockTemplateExists ? (data.wa_template_restock_usage || '') : '',
                     wa_template_bot_stock: botStockTemplateExists ? (data.wa_template_bot_stock || '📊 *LAPORAN SISA STOK ARSY JAYA* 📊\n\n{stock_list}\n\n_Diperbarui pada: {date} {time}_') : '',
                     fonnte_api_token: fonnteTokenColExists ? (data.fonnte_api_token || '') : '',
                     is_active_usage: toggleExists ? data.is_active_usage : true,
