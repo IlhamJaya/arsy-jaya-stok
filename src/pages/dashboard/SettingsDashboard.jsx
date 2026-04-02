@@ -461,7 +461,11 @@ export default function SettingsDashboard() {
 
                             <AccordionCard title="🤖 Bot Konfirmasi Laporan Stok" isActive={settings.is_active_bot} onToggleActive={(val) => setSettings({...settings, is_active_bot: val})} isOpen={openAccordion === 'bot'} onToggleOpen={() => setOpenAccordion(openAccordion === 'bot' ? null : 'bot')} disabledToggle={!hasBotStockTemplate || !hasToggles}>
                                 <label className="block text-xs font-semibold text-emerald-500 uppercase tracking-wider mb-2">Pesan Otomatis Gateway</label>
-                                <p className="text-[11px] t-muted mb-2">Dikirim lewat bot Whatsapp (keyword "laporkan sisa stok"). Placeholder: {'{stock_list}'}, {'{date}'}, {'{time}'}</p>
+                                <p className="text-[11px] t-muted mb-2">
+                                    Bot WhatsApp (Edge Function <code className="font-mono text-[10px]">fonnte-bot</code>): keyword <strong className="t-secondary">laporkan sisa stok</strong> (template di bawah).
+                                    Rekap otomatis (format sama dengan halaman Rekap Mingguan): <strong className="t-secondary">rekap minggu ini</strong> atau <strong className="t-secondary">rekap april 2026</strong> (nama bulan Indonesia/Inggris + tahun).
+                                    Placeholder template stok: {'{stock_list}'}, {'{date}'}, {'{time}'}
+                                </p>
                                 {!hasBotStockTemplate && (
                                     <div className="p-2 mb-2 bg-brand-amber/10 border border-brand-amber/20 rounded-lg text-[11px] text-brand-amber">
                                         Jalankan migrasi SQL <code className="font-mono">..._fonnte_bot_stock_template.sql</code> untuk fitur ini.
