@@ -129,7 +129,7 @@ export default function Login() {
                     </form>
 
                     <div className="mt-8 text-center text-xs t-muted">
-                        Versi 1.0.0 &copy; {new Date().getFullYear()} Arsy Jaya System
+                        Versi 1.0.0 &copy; {new Date().getFullYear()} Arsy Jaya Printing
                     </div>
                 </div>
 

@@ -2,6 +2,34 @@ import React, { useState, useEffect } from 'react';
 import { Settings, Save, Smartphone, BellRing, MessageSquare, AlertTriangle } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 
+const ToggleSwitch = ({ label, checked, onChange, disabled }) => (
+    <label className={`flex items-center ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+        <div className="relative">
+            <input type="checkbox" className="sr-only" checked={checked} onChange={onChange} disabled={disabled} />
+            <div className={`block w-10 h-6 rounded-full transition-colors ${checked ? 'bg-emerald-500' : 'bg-[var(--border-glass)]'}`}></div>
+            <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${checked ? 'transform translate-x-4' : ''}`}></div>
+        </div>
+        {label && <div className="ml-3 text-sm font-semibold t-primary">{label}</div>}
+    </label>
+);
+
+const AccordionCard = ({ title, isActive, onToggleActive, children, isOpen, onToggleOpen, disabledToggle }) => (
+    <div className="border rounded-xl transition-all overflow-hidden mb-4" style={{ borderColor: 'var(--border-glass)', background: 'var(--bg-card)' }}>
+        <div className={`p-4 flex items-center justify-between cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors`} onClick={onToggleOpen}>
+            <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
+                <ToggleSwitch checked={isActive} onChange={(e) => { onToggleActive(e.target.checked); }} disabled={disabledToggle} />
+                <span className={`font-bold text-sm ${isActive ? 't-primary' : 't-muted'}`}>{title}</span>
+            </div>
+            <div className="text-xs font-semibold t-muted bg-black/5 dark:bg-white/5 px-3 py-1 rounded-full">{isOpen ? 'Tutup' : 'Edit Template'}</div>
+        </div>
+        {isOpen && (
+            <div className={`p-4 border-t transition-opacity ${!isActive ? 'opacity-40 pointer-events-none' : 'opacity-100'}`} style={{ borderColor: 'var(--border-glass)', background: 'var(--bg-input)' }}>
+                {children}
+            </div>
+        )}
+    </div>
+);
+
 export default function SettingsDashboard() {
     const [settings, setSettings] = useState({
         wa_threshold: 10,
@@ -11,7 +39,16 @@ export default function SettingsDashboard() {
         wa_template_usage: '',
         wa_template_stockin: '',
         wa_template_cutting: '',
-        wa_template_defect: '',
+        wa_template_restock_usage: '',
+        wa_template_bot_stock: '',
+        fonnte_api_token: '',
+        is_active_usage: true,
+        is_active_damage: true,
+        is_active_stockin: true,
+        is_active_cutting: true,
+        is_active_defect: true,
+        is_active_restock: true,
+        is_active_bot: true,
         defect_sources: '',
         defect_categories: ''
     });
@@ -22,6 +59,32 @@ export default function SettingsDashboard() {
     const [hasTemplateCols, setHasTemplateCols] = useState(true);
     const [hasDefectCols, setHasDefectCols] = useState(false);
     const [hasDefectTemplate, setHasDefectTemplate] = useState(false);
+    const [hasRestockTemplate, setHasRestockTemplate] = useState(false);
+    const [hasBotStockTemplate, setHasBotStockTemplate] = useState(false);
+    const [hasFonnteTokenCol, setHasFonnteTokenCol] = useState(false);
+    const [hasToggles, setHasToggles] = useState(false);
+    const [openAccordion, setOpenAccordion] = useState(null);
+    const [deviceStatus, setDeviceStatus] = useState({ status: 'idle', info: null });
+    const [showToken, setShowToken] = useState(false);
+
+    const checkFonnteDevice = async (token) => {
+        if (!token) return;
+        setDeviceStatus({ status: 'loading', info: null });
+        try {
+            const res = await fetch('https://api.fonnte.com/device', {
+                method: 'POST',
+                headers: { 'Authorization': token }
+            });
+            const result = await res.json();
+            if (result.status === true && result.device_status === 'connect') {
+                setDeviceStatus({ status: 'connected', info: `${result.name || 'WA'} (${result.device || 'OK'})` });
+            } else {
+                setDeviceStatus({ status: 'disconnected', info: result.reason || result.detail || 'Device Not Connected' });
+            }
+        } catch (err) {
+            setDeviceStatus({ status: 'error', info: err.message });
+        }
+    };
 
     useEffect(() => {
         fetchSettings();
@@ -36,10 +99,18 @@ export default function SettingsDashboard() {
                 const templatesExist = 'wa_template_damage' in data;
                 const defectsExist = 'defect_sources' in data;
                 const defectTemplateExists = 'wa_template_defect' in data;
+                const restockTemplateExists = 'wa_template_restock_usage' in data;
+                const botStockTemplateExists = 'wa_template_bot_stock' in data;
+                const fonnteTokenColExists = 'fonnte_api_token' in data;
+                const toggleExists = 'is_active_usage' in data;
 
                 setHasTemplateCols(templatesExist);
                 setHasDefectCols(defectsExist);
                 setHasDefectTemplate(defectTemplateExists);
+                setHasRestockTemplate(restockTemplateExists);
+                setHasBotStockTemplate(botStockTemplateExists);
+                setHasFonnteTokenCol(fonnteTokenColExists);
+                setHasToggles(toggleExists);
 
                 setSettings({
                     wa_threshold: data.wa_threshold,
@@ -50,9 +121,23 @@ export default function SettingsDashboard() {
                     wa_template_stockin: templatesExist ? (data.wa_template_stockin || '') : '',
                     wa_template_cutting: templatesExist ? (data.wa_template_cutting || '') : '',
                     wa_template_defect: defectTemplateExists ? (data.wa_template_defect || '') : '',
+                    wa_template_restock_usage: restockTemplateExists ? (data.wa_template_restock_usage || '') : '',
+                    wa_template_bot_stock: botStockTemplateExists ? (data.wa_template_bot_stock || '📊 *LAPORAN SISA STOK ARSY JAYA* 📊\n\n{stock_list}\n\n_Diperbarui pada: {date} {time}_') : '',
+                    fonnte_api_token: fonnteTokenColExists ? (data.fonnte_api_token || '') : '',
+                    is_active_usage: toggleExists ? data.is_active_usage : true,
+                    is_active_damage: toggleExists ? data.is_active_damage : true,
+                    is_active_stockin: toggleExists ? data.is_active_stockin : true,
+                    is_active_cutting: toggleExists ? data.is_active_cutting : true,
+                    is_active_defect: toggleExists ? data.is_active_defect : true,
+                    is_active_restock: toggleExists ? data.is_active_restock : true,
+                    is_active_bot: toggleExists ? data.is_active_bot : true,
                     defect_sources: defectsExist && Array.isArray(data.defect_sources) ? data.defect_sources.join(', ') : '',
                     defect_categories: defectsExist && Array.isArray(data.defect_categories) ? data.defect_categories.join(', ') : ''
                 });
+
+                if (fonnteTokenColExists && data.fonnte_api_token) {
+                    checkFonnteDevice(data.fonnte_api_token);
+                }
             }
         } catch (err) {
             console.error("Error fetching settings:", err.message);
@@ -84,6 +169,28 @@ export default function SettingsDashboard() {
                 payload.wa_template_cutting = settings.wa_template_cutting;
             }
 
+            if (hasRestockTemplate) {
+                payload.wa_template_restock_usage = settings.wa_template_restock_usage;
+            }
+
+            if (hasBotStockTemplate) {
+                payload.wa_template_bot_stock = settings.wa_template_bot_stock;
+            }
+
+            if (hasToggles) {
+                payload.is_active_usage = settings.is_active_usage;
+                payload.is_active_damage = settings.is_active_damage;
+                payload.is_active_stockin = settings.is_active_stockin;
+                payload.is_active_cutting = settings.is_active_cutting;
+                payload.is_active_defect = settings.is_active_defect;
+                payload.is_active_restock = settings.is_active_restock;
+                payload.is_active_bot = settings.is_active_bot;
+            }
+
+            if (hasFonnteTokenCol) {
+                payload.fonnte_api_token = settings.fonnte_api_token;
+            }
+
             if (hasDefectTemplate) {
                 payload.wa_template_defect = settings.wa_template_defect;
             }
@@ -107,6 +214,7 @@ export default function SettingsDashboard() {
             setMessage({ type: 'error', text: 'Gagal menyimpan: ' + err.message });
         } finally {
             setIsSaving(false);
+            if (hasFonnteTokenCol && settings.fonnte_api_token) checkFonnteDevice(settings.fonnte_api_token);
         }
     };
 
@@ -144,11 +252,59 @@ export default function SettingsDashboard() {
                 <div className="glass-card p-6 md:p-8">
                     <form onSubmit={handleSaveSettings} className="space-y-8">
 
-                        {/* WhatsApp Section */}
-                        <div>
+                        {/* Fonnte WhatsApp Gateway Configuration */}
+                        <div className="mb-10">
                             <h3 className="text-xl font-bold t-primary mb-6 flex items-center gap-2">
                                 <Smartphone className="w-5 h-5 text-accent-base" />
-                                Konfigurasi WhatsApp API
+                                Fonnte Device & API Token
+                            </h3>
+                            <div className="space-y-6">
+                                <div>
+                                    <label className="block text-xs font-semibold t-secondary uppercase tracking-wider mb-2">Fonnte API Token</label>
+                                    <p className="text-xs t-muted mb-3">Jika dikosongkan, sistem memakai default <code className="px-1 text-emerald-400 bg-emerald-500/10 rounded">.env</code>: {import.meta.env.VITE_FONNTE_TOKEN ? 'Tersedia' : 'Tidak Ada'}.</p>
+                                    {!hasFonnteTokenCol && (
+                                        <div className="p-2 mb-2 bg-brand-amber/10 border border-brand-amber/20 rounded-lg text-[11px] text-brand-amber">
+                                            Jalankan migrasi SQL <code className="font-mono">20260329113000</code> agar token bisa disimpan.
+                                        </div>
+                                    )}
+                                    <div className="flex gap-3">
+                                        <div className="relative flex-1 max-w-md">
+                                            <input 
+                                                type={showToken ? "text" : "password"}
+                                                value={settings.fonnte_api_token}
+                                                onChange={(e) => setSettings({ ...settings, fonnte_api_token: e.target.value })}
+                                                className="w-full border rounded-xl px-4 py-3 pr-24 focus:outline-none focus:border-accent-base focus:ring-1 focus:ring-accent-base/50 transition-all font-mono t-primary"
+                                                style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}
+                                                placeholder="Token API Fonnte..."
+                                                disabled={!hasFonnteTokenCol}
+                                            />
+                                            <button type="button" onClick={() => setShowToken(!showToken)}
+                                                className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] uppercase font-bold text-accent-base/70 hover:text-accent-base">
+                                                {showToken ? 'Sembunyikan' : 'Tampilkan'}
+                                            </button>
+                                        </div>
+                                        <button type="button" onClick={() => checkFonnteDevice(settings.fonnte_api_token || import.meta.env.VITE_FONNTE_TOKEN)} 
+                                                className="px-4 py-3 bg-brand-navy/50 hover:bg-brand-navy border border-[var(--border-glass)] text-xs font-bold rounded-xl t-primary transition-all whitespace-nowrap">
+                                            Cek Koneksi
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-3 p-4 rounded-xl border flex-wrap" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}>
+                                    <div className="text-sm font-semibold t-secondary">Status WhatsApp:</div>
+                                    {deviceStatus.status === 'idle' && <span className="text-xs px-2 py-1 rounded bg-gray-500/20 text-gray-400">Belum Dicek</span>}
+                                    {deviceStatus.status === 'loading' && <span className="text-xs px-2 py-1 rounded bg-blue-500/20 text-blue-400 animate-pulse">Memeriksa...</span>}
+                                    {deviceStatus.status === 'connected' && <span className="text-xs px-2 py-1 rounded bg-emerald-500/20 text-emerald-400 font-bold">✅ Terhubung ({deviceStatus.info})</span>}
+                                    {deviceStatus.status === 'disconnected' && <span className="text-xs px-2 py-1 rounded bg-brand-red/20 text-brand-red font-bold">❌ Terputus ({deviceStatus.info})</span>}
+                                    {deviceStatus.status === 'error' && <span className="text-xs px-2 py-1 rounded bg-orange-500/20 text-orange-400 font-bold">⚠️ Error API ({deviceStatus.info})</span>}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* WhatsApp Section */}
+                        <div className="pt-6" style={{ borderTop: '1px solid var(--border-glass)' }}>
+                            <h3 className="text-xl font-bold t-primary mb-6 flex items-center gap-2">
+                                Target Penerima (SPV & Grup)
                             </h3>
                             <div className="space-y-6">
                                 <div>
@@ -164,10 +320,14 @@ export default function SettingsDashboard() {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-xs font-semibold t-secondary uppercase tracking-wider mb-2">Nomor Target SPV</label>
-                                        <p className="text-[10px] t-muted mb-3 block h-8">Format angka negara (6281...)</p>
+                                        <p className="text-[10px] t-muted mb-3 block h-8">Otomatis diubah menjadi 628...</p>
                                         <input type="text"
                                             value={settings.spv_wa_number}
-                                            onChange={(e) => setSettings({ ...settings, spv_wa_number: e.target.value })}
+                                            onChange={(e) => {
+                                                let val = e.target.value.replace(/\D/g, '');
+                                                if (val.startsWith('0')) val = '62' + val.substring(1);
+                                                setSettings({ ...settings, spv_wa_number: val });
+                                            }}
                                             className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:border-accent-base focus:ring-1 focus:ring-accent-base/50 transition-all font-mono t-primary"
                                             style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}
                                             placeholder="6281..."
@@ -175,10 +335,10 @@ export default function SettingsDashboard() {
                                     </div>
                                     <div>
                                         <label className="block text-xs font-semibold t-secondary uppercase tracking-wider mb-2">ID Grup (Opsional)</label>
-                                        <p className="text-[10px] t-muted mb-3 block h-8">Contoh: 12036...430@g.us</p>
+                                        <p className="text-[10px] t-muted mb-3 block h-8">Wajib diakhiri dengan @g.us<br/>Contoh: 12036...430@g.us</p>
                                         <input type="text"
                                             value={settings.spv_wa_group}
-                                            onChange={(e) => setSettings({ ...settings, spv_wa_group: e.target.value })}
+                                            onChange={(e) => setSettings({ ...settings, spv_wa_group: e.target.value.trim() })}
                                             className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:border-accent-base focus:ring-1 focus:ring-accent-base/50 transition-all font-mono t-primary"
                                             style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}
                                             placeholder="Kosongkan jika tidak ada"
@@ -251,7 +411,9 @@ export default function SettingsDashboard() {
                             <MessageSquare className="w-5 h-5 text-accent-base" />
                             Template Pesan WhatsApp
                         </h3>
-                        <p className="text-sm t-secondary mb-4">Gunakan variabel dalam tanda kurung kurawal. Contoh: {'{operator}'}, {'{item}'}, {'{qty}'}, {'{unit}'}, {'{notes}'}, {'{final_stock}'}, {'{order}'}</p>
+                        <p className="text-sm t-secondary mb-4">
+                            Gunakan variabel dalam tanda kurung kurawal. Contoh: {'{operator}'}, {'{item}'}, {'{qty}'}, {'{unit}'}, {'{notes}'}, {'{final_stock}'}, {'{stock}'}, {'{min_stock}'}, {'{order}'}, {'{date}'}, {'{time}'}
+                        </p>
 
                         {
                             !hasTemplateCols && (
@@ -261,41 +423,67 @@ export default function SettingsDashboard() {
                             )
                         }
 
-                        <div className="space-y-5">
-                            <div>
-                                <label className="block text-xs font-semibold text-brand-red uppercase tracking-wider mb-2">Template Laporan Kerusakan</label>
-                                <textarea rows="4" value={settings.wa_template_damage} onChange={(e) => setSettings({ ...settings, wa_template_damage: e.target.value })} disabled={!hasTemplateCols} className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/50 transition-all font-mono text-xs t-primary resize-y disabled:opacity-50" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }} />
-                            </div>
+                        <div className="space-y-4">
+                            <AccordionCard title="📱 Laporan Pemakaian" isActive={settings.is_active_usage} onToggleActive={(val) => setSettings({...settings, is_active_usage: val})} isOpen={openAccordion === 'usage'} onToggleOpen={() => setOpenAccordion(openAccordion === 'usage' ? null : 'usage')} disabledToggle={!hasTemplateCols || !hasToggles}>
+                                <label className="block text-xs font-semibold text-accent-base uppercase tracking-wider mb-2">Pesan Pemakaian Bahan</label>
+                                <textarea rows="3" value={settings.wa_template_usage} onChange={(e) => setSettings({ ...settings, wa_template_usage: e.target.value })} disabled={!hasTemplateCols} className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:border-accent-base focus:ring-1 transition-all font-mono text-xs t-primary resize-y" style={{ background: 'var(--bg-base)', borderColor: 'var(--border-glass)' }} />
+                            </AccordionCard>
 
-                            <div>
-                                <label className="block text-xs font-semibold text-accent-base uppercase tracking-wider mb-2">Template Laporan Pemakaian</label>
-                                <textarea rows="4" value={settings.wa_template_usage} onChange={(e) => setSettings({ ...settings, wa_template_usage: e.target.value })} disabled={!hasTemplateCols} className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:border-accent-base focus:ring-1 focus:ring-accent-base/50 transition-all font-mono text-xs t-primary resize-y disabled:opacity-50" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }} />
-                            </div>
+                            <AccordionCard title="🔥 Laporan Kerusakan (Damage)" isActive={settings.is_active_damage} onToggleActive={(val) => setSettings({...settings, is_active_damage: val})} isOpen={openAccordion === 'damage'} onToggleOpen={() => setOpenAccordion(openAccordion === 'damage' ? null : 'damage')} disabledToggle={!hasTemplateCols || !hasToggles}>
+                                <label className="block text-xs font-semibold text-brand-red uppercase tracking-wider mb-2">Pesan Barang Rusak</label>
+                                <textarea rows="3" value={settings.wa_template_damage} onChange={(e) => setSettings({ ...settings, wa_template_damage: e.target.value })} disabled={!hasTemplateCols} className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:border-brand-red focus:ring-1 transition-all font-mono text-xs t-primary resize-y" style={{ background: 'var(--bg-base)', borderColor: 'var(--border-glass)' }} />
+                            </AccordionCard>
 
-                            <div>
-                                <label className="block text-xs font-semibold text-blue-400 uppercase tracking-wider mb-2">Template Stok Masuk</label>
-                                <textarea rows="5" value={settings.wa_template_stockin} onChange={(e) => setSettings({ ...settings, wa_template_stockin: e.target.value })} disabled={!hasTemplateCols} className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/50 transition-all font-mono text-xs t-primary resize-y disabled:opacity-50" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }} />
-                            </div>
+                            <AccordionCard title="📦 Stok Masuk" isActive={settings.is_active_stockin} onToggleActive={(val) => setSettings({...settings, is_active_stockin: val})} isOpen={openAccordion === 'stockin'} onToggleOpen={() => setOpenAccordion(openAccordion === 'stockin' ? null : 'stockin')} disabledToggle={!hasTemplateCols || !hasToggles}>
+                                <label className="block text-xs font-semibold text-blue-400 uppercase tracking-wider mb-2">Pesan Stok Masuk</label>
+                                <textarea rows="3" value={settings.wa_template_stockin} onChange={(e) => setSettings({ ...settings, wa_template_stockin: e.target.value })} disabled={!hasTemplateCols} className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:border-blue-400 focus:ring-1 transition-all font-mono text-xs t-primary resize-y" style={{ background: 'var(--bg-base)', borderColor: 'var(--border-glass)' }} />
+                            </AccordionCard>
 
-                            <div>
-                                <label className="block text-xs font-semibold text-brand-amber uppercase tracking-wider mb-2">Template Tracking Cutting</label>
-                                <textarea rows="4" value={settings.wa_template_cutting} onChange={(e) => setSettings({ ...settings, wa_template_cutting: e.target.value })} disabled={!hasTemplateCols} className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:border-brand-amber focus:ring-1 focus:ring-brand-amber/50 transition-all font-mono text-xs t-primary resize-y disabled:opacity-50" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }} />
-                            </div>
+                            <AccordionCard title="✂️ Tracking Cutting" isActive={settings.is_active_cutting} onToggleActive={(val) => setSettings({...settings, is_active_cutting: val})} isOpen={openAccordion === 'cutting'} onToggleOpen={() => setOpenAccordion(openAccordion === 'cutting' ? null : 'cutting')} disabledToggle={!hasTemplateCols || !hasToggles}>
+                                <label className="block text-xs font-semibold text-amber-500 uppercase tracking-wider mb-2">Pesan Log Cutting</label>
+                                <textarea rows="3" value={settings.wa_template_cutting} onChange={(e) => setSettings({ ...settings, wa_template_cutting: e.target.value })} disabled={!hasTemplateCols} className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:border-amber-500 focus:ring-1 transition-all font-mono text-xs t-primary resize-y" style={{ background: 'var(--bg-base)', borderColor: 'var(--border-glass)' }} />
+                            </AccordionCard>
 
-                            <div>
-                                <label className="block text-xs font-semibold text-orange-400 uppercase tracking-wider mb-2">Template Laporan Kendala (QC)</label>
-                                <textarea rows="4" value={settings.wa_template_defect} onChange={(e) => setSettings({ ...settings, wa_template_defect: e.target.value })} disabled={!hasDefectTemplate} className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400/50 transition-all font-mono text-xs t-primary resize-y disabled:opacity-50" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }} />
-                            </div>
+                            <AccordionCard title="⚠️ Kendala Produksi (QC)" isActive={settings.is_active_defect} onToggleActive={(val) => setSettings({...settings, is_active_defect: val})} isOpen={openAccordion === 'defect'} onToggleOpen={() => setOpenAccordion(openAccordion === 'defect' ? null : 'defect')} disabledToggle={!hasDefectCols || !hasToggles}>
+                                <label className="block text-xs font-semibold text-orange-400 uppercase tracking-wider mb-2">Pesan Kendala Mesin / Cetakan</label>
+                                <textarea rows="4" value={settings.wa_template_defect} onChange={(e) => setSettings({ ...settings, wa_template_defect: e.target.value })} disabled={!hasDefectTemplate} className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:border-orange-400 focus:ring-1 transition-all font-mono text-xs t-primary resize-y" style={{ background: 'var(--bg-base)', borderColor: 'var(--border-glass)' }} />
+                            </AccordionCard>
 
+                            <AccordionCard title="📛 Peringatan Restok (Batas Kritis)" isActive={settings.is_active_restock} onToggleActive={(val) => setSettings({...settings, is_active_restock: val})} isOpen={openAccordion === 'restock'} onToggleOpen={() => setOpenAccordion(openAccordion === 'restock' ? null : 'restock')} disabledToggle={!hasTemplateCols || !hasRestockTemplate || !hasToggles}>
+                                <label className="block text-xs font-semibold text-brand-red uppercase tracking-wider mb-2">Pesan Bila Bahan Menyentuh Batas</label>
+                                {!hasRestockTemplate && (
+                                    <div className="p-2 mb-2 bg-brand-amber/10 border border-brand-amber/20 rounded-lg text-[11px] text-brand-amber">
+                                        Jalankan migrasi SQL <code className="font-mono">..._wa_template_restock...</code> untuk fitur ini.
+                                    </div>
+                                )}
+                                <textarea rows="6" value={settings.wa_template_restock_usage} onChange={(e) => setSettings({ ...settings, wa_template_restock_usage: e.target.value })} disabled={!hasTemplateCols || !hasRestockTemplate} className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:border-brand-red focus:ring-1 transition-all font-mono text-xs t-primary resize-y" style={{ background: 'var(--bg-base)', borderColor: 'var(--border-glass)' }} />
+                            </AccordionCard>
+
+                            <AccordionCard title="🤖 Bot Konfirmasi Laporan Stok" isActive={settings.is_active_bot} onToggleActive={(val) => setSettings({...settings, is_active_bot: val})} isOpen={openAccordion === 'bot'} onToggleOpen={() => setOpenAccordion(openAccordion === 'bot' ? null : 'bot')} disabledToggle={!hasBotStockTemplate || !hasToggles}>
+                                <label className="block text-xs font-semibold text-emerald-500 uppercase tracking-wider mb-2">Pesan Otomatis Gateway</label>
+                                <p className="text-[11px] t-muted mb-2">Dikirim lewat bot Whatsapp (keyword "laporkan sisa stok"). Placeholder: {'{stock_list}'}, {'{date}'}, {'{time}'}</p>
+                                {!hasBotStockTemplate && (
+                                    <div className="p-2 mb-2 bg-brand-amber/10 border border-brand-amber/20 rounded-lg text-[11px] text-brand-amber">
+                                        Jalankan migrasi SQL <code className="font-mono">..._fonnte_bot_stock_template.sql</code> untuk fitur ini.
+                                    </div>
+                                )}
+                                <textarea rows="6" value={settings.wa_template_bot_stock} onChange={(e) => setSettings({ ...settings, wa_template_bot_stock: e.target.value })} disabled={!hasBotStockTemplate} className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:border-emerald-500 focus:ring-1 transition-all font-mono text-xs t-primary resize-y" style={{ background: 'var(--bg-base)', borderColor: 'var(--border-glass)' }} />
+                            </AccordionCard>
+                        </div>
+
+                        {/* Save Button explicitly placed at the bottom for Template edits */}
+                        <div className="pt-4" style={{ borderTop: '1px solid var(--border-glass)' }}>
                             <button type="button" onClick={handleSaveSettings} disabled={isSaving || !hasTemplateCols}
-                                className="w-full flex justify-center items-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm border border-blue-500/30 text-sm">
-                                {isSaving ? 'Menyimpan...' : 'Simpan Semua Perubahan'}
+                                className="w-full flex justify-center items-center gap-2 px-6 py-4 bg-accent-base hover:bg-accent-hover text-white font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_15px_rgba(16,185,129,0.2)] border border-accent-base/30 text-sm">
+                                {isSaving ? (
+                                    <><div className="w-4 h-4 border-t-2 border-white rounded-full animate-spin"></div> Menyimpan...</>
+                                ) : (
+                                    <><Save className="w-4 h-4" /> Simpan Semua Perubahan</>
+                                )}
                             </button>
                         </div>
+
                     </div >
-
-                    {/* Mode tampilan dihapus: sudah ada toggle di tempat lain */}
-
                 </div >
             </div >
         </div >

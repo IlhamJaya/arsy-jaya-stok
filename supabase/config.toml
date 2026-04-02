@@ -1,5 +1,5 @@
-# Webhook Database → Edge Function memanggil tanpa JWT user.
-# Pastikan deploy function memakai --no-verify-jwt jika tidak memakai CLI dari repo ini.
+# Webhook Database → Edge Function memanggil tanpa JWT user (verify_jwt harus false).
+# Deploy: supabase functions deploy fonnte-alert --no-verify-jwt (atau setara di dashboard).
 [functions.fonnte-alert]
 enabled = true
 verify_jwt = false

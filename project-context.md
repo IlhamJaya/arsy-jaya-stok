@@ -11,7 +11,7 @@
 | **Nama Aplikasi** | ARSY JAYA |
 | **Subtitle** | Stock & Tracking Sistem |
 | **Versi** | 1.1.0 |
-| **Supabase Project** | `ylypksowjlypuknmtztv` |
+| **Supabase Project** | `osyfdkwqsssyjvrxtrht` |
 | **Purpose** | Inventory management + Tracking + QC Defect system untuk percetakan A3+ (stiker/kertas) |
 | **Target Users** | Supervisor (SPV), Operator Cetak, Operator Cutting, Sales, HRD |
 
@@ -92,7 +92,7 @@
 **`trx_stock_log`** — Final stock movement history
 - `id`, `item_id`, `report_id` (nullable), `changed_by`
 - `change_amount`, `previous_stock`, `final_stock`
-- `source` (nilai dari RPC, contoh): `'REPORT_USAGE'`, `'REPORT_DAMAGE'`, `'STOCK_IN'`, `'AUDIT'` (perbandingan di `fonnte-alert` untuk stok masuk memakai `toLowerCase()` → `stock_in`)
+- `source` (nilai dari RPC, contoh): `'REPORT_USAGE'`, `'REPORT_DAMAGE'`, `'STOCK_IN'`, `'AUDIT'` — di `fonnte-alert` dibandingkan dengan `toLowerCase()` (mis. `stock_in`, `report_usage` untuk WA restok vs stok masuk).
 
 **`processed_events`** — Dedup webhook Fonnte (`event_key` = `table:record.id:INSERT`)
 
@@ -124,16 +124,29 @@ Hanya untuk evaluasi kinerja (Salah desain, mesin rusak, dll) agar bisa dilacak 
 - Dropdown "Pihak Terlapor" dan "Kategori Kendala" bersifat dinamis dari Settings (JSONB array di `app_settings`).
 
 ### 4. Notifikasi WhatsApp (Fonnte Edge Function)
-Webhook / trigger `INSERT` menuju Edge Function `fonnte-alert` (deploy dengan **JWT verification off** untuk panggilan dari Database Webhook; di repo: `supabase/config.toml` → `[functions.fonnte-alert] verify_jwt = false`).
+Webhook / trigger `INSERT` menuju Edge Function `fonnte-alert`. Deploy dengan **JWT verification off** (`supabase/config.toml` → `[functions.fonnte-alert] verify_jwt = false`).
 
-`fonnte-alert` memproses:
-- `trx_reports` (Usage/Damage, perbandingan tipe case-insensitive) → *Damage hanya dikirim jika QTY >= `wa_threshold`*.
-- `trx_stock_log` → **hanya** `source` yang setara `stock_in` (bukan baris `REPORT_USAGE` / audit).
-- `trx_cutting_log`, `trx_defects`.
+**Routing `fonnte-alert` (ringkas):**
+- **`trx_reports`** (Usage/Damage, tipe case-insensitive; baris tipe tidak dikenal diabaikan) → Damage hanya jika QTY >= `wa_threshold`; template pemakaian/kerusakan; toggle `is_active_usage` / `is_active_damage` di `app_settings`.
+- **`trx_stock_log`**:
+  - `source` setara **`stock_in`** → template stok masuk (`is_active_stockin`).
+  - `source` setara **`report_usage`** / **`report_damage`** → jika `final_stock ≤ min_stock` dan `min_stock > 0` → WA **peringatan restok** (`wa_template_restock_usage`, `is_active_restock`).
+- **`trx_cutting_log`**, **`trx_defects`** (dengan toggle `is_active_*` yang sesuai).
 
-Sebelum kirim Fonnte, event didedup lewat insert ke `processed_events` (duplikat = abaikan; error lain = gagal eksplisit agar terlihat di log).
+**Dedup:** insert ke `processed_events` (duplikat = abaikan; error selain unik = gagal terlihat di log).
 
-*Pesan dikirim ke `spv_wa_number` dan `spv_wa_group` (multi target) memakai template di Settings.*
+**Token Fonnte:** env `FONNTE_API_TOKEN` dan/atau kolom `fonnte_api_token` di `app_settings` (prioritas di function).
+
+**RPC `submit_report_direct`:** meng-update `mst_items.stock` **sebelum** `INSERT trx_reports` agar webhook membaca stok konsisten (lihat juga `supabase/migrations/20260328120000_wa_template_restock_and_submit_order.sql` dan `supabase/schema/04_rpc_functions.sql`).
+
+**Webhook `trx_reports`:** harus mencakup **Usage** dan **Damage** (bukan filter hanya Damage); lihat `20260328140000_fonnte_trx_reports_include_usage.sql`.
+
+**Troubleshooting WA tidak jalan (webhook sudah ke `trx_reports`):**
+1. **JWT:** Edge Function `fonnte-alert` harus **`verify_jwt = false`** (lihat `supabase/config.toml`). Deploy: `supabase functions deploy fonnte-alert --no-verify-jwt`. Tanpa ini, Database Webhook sering dapat **401** dan body tidak pernah diproses.
+2. **Filter webhook:** Buka detail webhook `trx_reports` → pastikan tidak ada **condition** yang membatasi hanya `Damage`.
+3. **Migrasi:** Jalankan `20260328120000_...` (urutan `submit_report_direct` + kolom template restok) agar `mst_items.stock` saat dibaca function = sisa stok setelah pemakaian.
+4. **Secrets:** `FONNTE_API_TOKEN`, `SUPABASE_SERVICE_ROLE_KEY` terpasang di Edge Function secrets.
+5. **Logs:** Supabase Dashboard → Edge Functions → `fonnte-alert` → Logs, saat submit pemakaian.
 
 ---
 
@@ -163,31 +176,29 @@ src/
 ├── index.css                        # Theme System
 ├── store/
 │   └── useAppStore.js               # Global state (Theme, Branding config)
-├── layout/
+├── components/layout/
 │   ├── Sidebar.jsx              
 │   └── MainLayout.jsx           
 └── pages/dashboard/
     ├── ApprovalDashboard.jsx    # Riwayat Laporan (list semua report)
     ├── InventoryDashboard.jsx   # Tab stok, masuk, supplier, correction
     ├── InputReportDashboard.jsx # Tab Laporan Cetak & Tracking Cutting
-    ├── DefectsDashboard.jsx     # NEW: UI Lapor Kendala produksi (Non-stok)
+    ├── DefectsDashboard.jsx     # UI Lapor Kendala produksi (Non-stok)
+    ├── SuppliersDashboard.jsx   # Data supplier & kontak
     ├── ReportsDashboard.jsx     # Chart & Excel Export
     ├── ProfilesDashboard.jsx    # SPV: User management
-    └── SettingsDashboard.jsx    # SPV: Branding, WA Template, Drodown Defects config
+    └── SettingsDashboard.jsx    # SPV: WA Template, Defect config
 
 supabase/
 ├── config.toml                      # fonnte-alert: verify_jwt = false
-├── schema/                          # Skema SQL berurutan (apply manual di SQL Editor)
-│   ├── 01_extensions_types.sql
-│   ├── 02_tables.sql
-│   ├── 03_policies_roles.sql
-│   ├── 04_rpc_functions.sql
-│   ├── 05_fonnte_triggers.sql
-│   ├── 06_seed_defaults.sql
-│   └── 99_patch_existing_database.sql   # Patch sekali jalan untuk DB yang sudah produksi
-└── functions/
-    ├── fonnte-alert/index.ts        # Webhook → Fonnte
-    └── fonnte-bot/                  # Bot terpisah (verify_jwt sesuai config)
+├── schema/                          # Skema berurutan (SQL Editor / baseline)
+│   ├── 01_extensions_types.sql … 06_seed_defaults.sql
+│   └── 99_patch_existing_database.sql
+├── migrations/                      # Migrasi ber-tanggal (restok, toggle, Fonnte token, dll.)
+├── functions/
+│   ├── fonnte-alert/index.ts        # Webhook → Fonnte (pemakaian, restok, stok masuk, cutting, defect)
+│   └── fonnte-bot/index.ts          # Bot auto-reply WA
+└── docs/                            # Serah terima / catatan ops (opsional)
 ```
 
 ## 9. Environment Variables (.env)
