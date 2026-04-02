@@ -54,8 +54,10 @@ const CustomItemSelect = ({ value, onChange, items, title }) => {
             </button>
 
             {isOpen && (
-                <div className="absolute z-50 w-full mt-2 bg-surface border border-theme rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2">
-                    <div className="p-2 border-b border-theme/50 bg-surface sticky top-0 z-10">
+                <div
+                    className="absolute z-50 w-full mt-2 border border-theme rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 bg-[var(--select-bg)] [backdrop-filter:none]"
+                >
+                    <div className="p-2 border-b border-theme/50 sticky top-0 z-10 bg-[var(--select-bg)]">
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 t-muted" />
                             <input
