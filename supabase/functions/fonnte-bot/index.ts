@@ -9,30 +9,49 @@ serve(async (req) => {
     const bodyText = await req.text()
     console.log("Raw payload received from Fonnte:", bodyText)
 
-    let payload;
+    let payload: Record<string, unknown>;
     try {
-      payload = JSON.parse(bodyText);
+      payload = JSON.parse(bodyText) as Record<string, unknown>;
     } catch (e) {
       // Fonnte might send x-www-form-urlencoded depending on settings
       const params = new URLSearchParams(bodyText);
-      payload = Object.fromEntries(params);
+      payload = Object.fromEntries(params) as Record<string, unknown>;
     }
 
-    // Validate sender and message
-    const messageText = (payload.message || payload.text || "").toString().trim().toLowerCase();
+    // Teks pesan: beberapa versi payload Fonnte memakai key berbeda
+    const rawMsg =
+      payload.message ??
+      payload.text ??
+      payload.msg ??
+      (typeof payload.body === "string" ? payload.body : null) ??
+      (payload.data && typeof payload.data === "object" && payload.data !== null
+        ? (payload.data as Record<string, unknown>).message ?? (payload.data as Record<string, unknown>).text
+        : null);
 
-    // Fonnte sends Private Chats via `sender`, and Group Chats via `sender` + webhook might contain `group` or a group-formatted `sender` id (ending with @g.us).
-    // Let's grab the actual target to reply to. If it's a group, the reply target should be the `sender` which actually contains the Group ID (e.g. 123456789-12345@g.us)
-    const replyTarget = payload.sender || payload.from;
+    const messageText = rawMsg?.toString().trim().toLowerCase().normalize("NFKC") ?? "";
 
-    if (!messageText || !replyTarget) {
-      return new Response(JSON.stringify({ success: false, reason: "Missing message or sender" }), { headers: { "Content-Type": "application/json" }, status: 200 })
+    // Target balasan: private / grup (@g.us)
+    const replyTarget = (payload.sender ?? payload.from ?? payload.chatId ?? payload.chat_id)?.toString().trim();
+
+    if (!replyTarget) {
+      console.warn("[fonnte-bot] Missing reply target. Keys:", Object.keys(payload));
+      return new Response(JSON.stringify({ success: false, reason: "Missing sender/from" }), { headers: { "Content-Type": "application/json" }, status: 200 });
     }
+
+    if (!messageText) {
+      console.warn("[fonnte-bot] Empty message. Keys:", Object.keys(payload));
+      return new Response(JSON.stringify({ success: false, reason: "Missing message text" }), { headers: { "Content-Type": "application/json" }, status: 200 });
+    }
+
+    // Perintah: "laporkan sisa stok" / "laporkan sisa stok bahan" / variasi (tanpa tergantung urutan ketat)
+    const isStockReportCommand =
+      messageText.includes("laporkan sisa stok") ||
+      (messageText.includes("laporkan") && messageText.includes("sisa stok"));
 
     // ==========================================
     // COMMAND ROUTER
     // ==========================================
-    if (messageText.includes("laporkan sisa stok")) {
+    if (isStockReportCommand) {
 
       // Connect to Supabase
       const supabaseUrl = Deno.env.get('SUPABASE_URL')
@@ -97,18 +116,16 @@ serve(async (req) => {
         .replace('{date}', jakartaDate)
         .replace('{time}', jakartaTime);
 
-      // Enqueue reply back via Fonnte
+      // Kirim balasan — sama seperti fonnte-alert (URLSearchParams + countryCode)
       console.log("Sending reply to: " + replyTarget);
-      const fonntePayload = new FormData();
-      fonntePayload.append("target", replyTarget);
-      fonntePayload.append("message", replyText);
-
       const fonnteResponse = await fetch(FONNTE_API_URL, {
-        method: 'POST',
-        headers: {
-          'Authorization': fonnteToken
-        },
-        body: fonntePayload
+        method: "POST",
+        headers: { Authorization: fonnteToken },
+        body: new URLSearchParams({
+          target: replyTarget,
+          message: replyText,
+          countryCode: "62",
+        }),
       });
 
       if (!fonnteResponse.ok) {

@@ -5,9 +5,10 @@ enabled = true
 verify_jwt = false
 entrypoint = "./functions/fonnte-alert/index.ts"
 
+# Webhook inbound dari Fonnte (pesan WA) tidak membawa JWT Supabase — harus false.
 [functions.fonnte-bot]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/fonnte-bot/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx

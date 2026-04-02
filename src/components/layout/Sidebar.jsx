@@ -8,7 +8,7 @@ import { supabase } from '../../supabaseClient';
 import useAppStore from '../../store/useAppStore';
 
 export default function Sidebar({ userRole }) {
-    const { appTitle, appSubtitle, appLogoSvg, theme, toggleTheme } = useAppStore();
+    const { appTitle, appSubtitle, theme, toggleTheme } = useAppStore();
     const [profile, setProfile] = React.useState({ name: 'Supervisor', role: 'SPV', initial: 'SP' });
     const [isOpen, setIsOpen] = useState(false);
     const location = useLocation();

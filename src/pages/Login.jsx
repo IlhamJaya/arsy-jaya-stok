@@ -6,7 +6,7 @@ import { Lock, Mail, AlertCircle, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { capitalizeWords, handleNumberInput } from '../utils/formatters.js';
 
 export default function Login() {
-    const { appTitle, appSubtitle, appLogoSvg } = useAppStore();
+    const { appTitle, appSubtitle } = useAppStore();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState(null);
