@@ -1,3 +1,9 @@
+# Webhook Database → Edge Function memanggil tanpa JWT user.
+# Pastikan deploy function memakai --no-verify-jwt jika tidak memakai CLI dari repo ini.
+[functions.fonnte-alert]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/fonnte-alert/index.ts"
 
 [functions.fonnte-bot]
 enabled = true

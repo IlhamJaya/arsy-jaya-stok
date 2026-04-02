@@ -34,20 +34,29 @@ serve(async (req) => {
         // 1. Cleanup old events first (keep it light, delete events older than 1 minute)
         await supabase.from('processed_events').delete().lt('created_at', new Date(Date.now() - 60000).toISOString())
 
-        // 2. Try to insert current event
-        const { data: eventMark, error: eventError } = await supabase
+        // 2. Try to insert current event (PK event_key = idempotency)
+        const { error: eventError } = await supabase
             .from('processed_events')
             .insert({ event_key: eventKey })
             .select()
             .single()
 
         if (eventError) {
-            console.log(`[fonnte-alert] Duplicate event detected for ${eventKey}. Skipping.`)
-            return new Response(JSON.stringify({ 
-                success: true, 
-                message: "Duplicate event detected and ignored.",
-                key: eventKey 
-            }), { headers: { "Content-Type": "application/json" }, status: 200 })
+            const errMsg = eventError.message ?? ''
+            const isDuplicate =
+                eventError.code === '23505' ||
+                errMsg.includes('duplicate key') ||
+                errMsg.includes('unique constraint')
+            if (isDuplicate) {
+                console.log(`[fonnte-alert] Duplicate event detected for ${eventKey}. Skipping.`)
+                return new Response(JSON.stringify({
+                    success: true,
+                    message: "Duplicate event detected and ignored.",
+                    key: eventKey,
+                }), { headers: { "Content-Type": "application/json" }, status: 200 })
+            }
+            console.error('[fonnte-alert] processed_events insert failed:', eventError)
+            throw new Error(`processed_events insert failed: ${errMsg}`)
         }
 
         console.log(`[fonnte-alert] Processing new event: ${eventKey}`)
@@ -114,9 +123,11 @@ serve(async (req) => {
 
         if (table === 'trx_reports') {
             // Laporan Pemakaian atau Kerusakan (Dari OP_CETAK / OP_CUTTING)
+            const reportType =
+                typeof record.type === 'string' ? record.type.toLowerCase() : ''
 
             // Filter: Hanya kirim Damage jika >= threshold. Pemakaian selalu kirim.
-            if (record.type === 'Damage' && record.quantity < waThreshold) {
+            if (reportType === 'damage' && record.quantity < waThreshold) {
                 return new Response(JSON.stringify({ success: true, message: `Damage quantity (${record.quantity}) < threshold (${waThreshold}). Ignored.` }), { headers: { "Content-Type": "application/json" }, status: 200 })
             }
 
@@ -132,9 +143,9 @@ serve(async (req) => {
                 notes: record.notes
             }
 
-            if (record.type === 'Damage') {
+            if (reportType === 'damage') {
                 message = formatMessage(settingsData.wa_template_damage || `🚨 Laporan Kerusakan: {qty} {unit} {item} oleh {operator}. Alasan: {notes}`, templateData);
-            } else if (record.type === 'Usage') {
+            } else if (reportType === 'usage') {
                 message = formatMessage(settingsData.wa_template_usage || `✅ Laporan Pemakaian: {qty} {unit} {item} oleh {operator}.`, templateData);
             }
         }

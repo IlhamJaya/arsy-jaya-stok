@@ -199,7 +199,7 @@ export default function SettingsDashboard() {
                             </h3>
                             {!hasDefectCols && (
                                 <div className="p-3 mb-4 bg-brand-amber/10 border border-brand-amber/20 rounded-lg text-sm text-brand-amber text-left">
-                                    Update schema database untuk membuka fitur ini (jalankan add_defects.sql).
+                                    Update schema database untuk membuka fitur ini (jalankan bagian app_settings di <code className="text-[10px]">supabase/schema/02_tables.sql</code> atau tambah kolom yang sama di SQL Editor).
                                 </div>
                             )}
                             <div className="space-y-6">
@@ -256,7 +256,7 @@ export default function SettingsDashboard() {
                         {
                             !hasTemplateCols && (
                                 <div className="p-3 mb-4 bg-brand-amber/10 border border-brand-amber/20 rounded-lg text-sm text-brand-amber">
-                                    Update schema database untuk membuka fitur ini (jalankan add_wa_templates.sql).
+                                    Update schema database untuk membuka fitur ini (kolom template WA di <code className="text-[10px]">supabase/schema/02_tables.sql</code>).
                                 </div>
                             )
                         }

@@ -1,6 +1,6 @@
 # Project Context: ARSY JAYA — Stock & Tracking Sistem
 
-> **Last Updated**: 2026-03-04 | **Build Status**: ✅ Passing
+> **Last Updated**: 2026-03-28 | **Build Status**: ✅ Passing
 
 ---
 
@@ -65,7 +65,11 @@
 ### Master Tables
 
 **`mst_items`** — Master data barang
-- `id`, `name`, `code`, `brand`, `category`, `unit`, `stock` (current), `min_stock_m` (minimum threshold), `width`, `price_per_roll`, `created_at`
+- `id`, `name`, `code`, `brand`, `category`, `unit`, `stock` (current), `min_stock` (minimum threshold; UI/legacy mungkin menyebut `min_stock_m`), `width`, `price_per_roll`, `created_at`
+
+**`mst_suppliers`** — Partner & Supplier (halaman `/suppliers`)
+- `id`, `name`, `contact_number`, `wa_template`, `address`, `created_at`, `updated_at`
+- **RLS:** SPV + HRD bisa baca; hanya SPV bisa insert/update/delete.
 
 **`profiles`** — User profiles (linked to auth.users)
 - `id` (FK → auth.users), `full_name`, `role`, `avatar_url`, `created_at`
@@ -73,7 +77,8 @@
 **`app_settings`** — Application config (single row, id=1)
 - `id`, `app_title`, `app_subtitle`, `app_logo_svg`
 - `wa_threshold` (min lembar rusak untuk WA), `spv_wa_number` (Target Pribadi), `spv_wa_group` (Target Grup JS Fonnte)
-- `wa_template_damage`, `wa_template_usage`, `wa_template_stockin`, `wa_template_cutting`, `wa_template_defect`
+- `wa_template_damage`, `wa_template_usage`, `wa_template_stockin`, `wa_template_cutting`, `wa_template_defect`, `wa_template_restock_usage` (tersedia di DB/Settings; Edge Function `fonnte-alert` saat ini **tidak** mengirim WA dari baris `trx_stock_log` selain `stock_in`)
+- Toggle notifikasi: `is_active_usage`, `is_active_damage`, `is_active_stockin`, `is_active_cutting`, `is_active_defect`, `is_active_restock`, `is_active_bot`
 - `defect_sources` & `defect_categories` (JSONB arrays editable by SPV for QC Dropdowns)
 
 ### Transaction Tables
@@ -82,14 +87,17 @@
 - `id`, `item_id` (FK), `operator_id` (FK)
 - `type`: `'Usage'` | `'Damage'`
 - `quantity`, `notes`, `status`: `'Pending'` | `'Approved'` | `'Rejected'`
+- **RLS:** tidak ada `INSERT` langsung dari klien (`WITH CHECK (false)`); baris dibuat lewat RPC `submit_report_direct` / alur `approve_pending_report` (SECURITY DEFINER).
 
 **`trx_stock_log`** — Final stock movement history
 - `id`, `item_id`, `report_id` (nullable), `changed_by`
 - `change_amount`, `previous_stock`, `final_stock`
-- `source`: `'report_approved'` | `'stock_in'` | `'audit'` | `'correction'`
+- `source` (nilai dari RPC, contoh): `'REPORT_USAGE'`, `'REPORT_DAMAGE'`, `'STOCK_IN'`, `'AUDIT'` (perbandingan di `fonnte-alert` untuk stok masuk memakai `toLowerCase()` → `stock_in`)
+
+**`processed_events`** — Dedup webhook Fonnte (`event_key` = `table:record.id:INSERT`)
 
 **`trx_cutting_log`** — Tracking cutting stiker harian
-- `id`, `operator_id`, `order_name`, `qty_cut`, `notes`
+- `id`, `operator_id`, `order_name`, `qty_cut`, `notes`, `item_id` (opsional)
 - *TIDAK mengubah `mst_items.stock`*. Murni untuk menghitung performa cutting.
 
 **`trx_defects`** — Laporan Kendala & Quality Control (NEW)
@@ -102,8 +110,8 @@
 
 ### 1. Modul Stok (OP_CETAK) - *MENGURANGI STOK*
 Hanya kesalahan/penggunaan bahan pada saat *Cetak* yang boleh mengurangi stok fisik.
-- OP_CETAK submit form → Panggil RPC `submit_report_direct()` → Insert ke `trx_reports` (status: Approved) + Kurangi `mst_items.stock` + Catat di `trx_stock_log` — semuanya atomik.
-- Validation: Tidak merender sisa stok menjadi negatif atau di bawah 0. Warning diberikan jika input melewati `min_stock_m`.
+- OP_CETAK submit form → RPC `submit_report_direct()` (**backend memverifikasi role = OP_CETAK**) → Insert `trx_reports` (status Approved) + kurangi `mst_items.stock` + `trx_stock_log` — atomik.
+- Validation: Tidak merender sisa stok menjadi negatif atau di bawah 0. Warning diberikan jika input melewati `min_stock` (minimum item).
 
 ### 2. Modul Cutting (OP_CUTTING) - *TIDAK MENGURANGI STOK*
 Hanya mencatat berapa lembar yang berhasil dipotong dari total yang sudah dicetak.
@@ -112,28 +120,37 @@ Hanya mencatat berapa lembar yang berhasil dipotong dari total yang sudah diceta
 
 ### 3. Modul Lapor Kendala / Defect QC - *TIDAK MENGURANGI STOK*
 Hanya untuk evaluasi kinerja (Salah desain, mesin rusak, dll) agar bisa dilacak terdakwanya.
-- Siapapun (All Roles) submit form → Insert ke `trx_defects`.
+- Semua role yang punya menu **Lapor Kendala** (sidebar menyembunyikan untuk `OP_CETAK`) → insert ke `trx_defects`.
 - Dropdown "Pihak Terlapor" dan "Kategori Kendala" bersifat dinamis dari Settings (JSONB array di `app_settings`).
 
 ### 4. Notifikasi WhatsApp (Fonnte Edge Function)
-Semua modul di atas dihubungkan ke Webhook Supabase trigger `INSERT` menuju Edge Function `fonnte-alert`.
-Function `fonnte-alert` men-support 4 payload routing:
-- `trx_reports` (Usage/Damage) → *Alert Damage hanya dikirim jika QTY >= wa_threshold*.
-- `trx_stock_log` (Stock In)
-- `trx_cutting_log` (Log Cutting)
-- `trx_defects` (Defect/Kendala Baru)
+Webhook / trigger `INSERT` menuju Edge Function `fonnte-alert` (deploy dengan **JWT verification off** untuk panggilan dari Database Webhook; di repo: `supabase/config.toml` → `[functions.fonnte-alert] verify_jwt = false`).
 
-*Pesan dikirim serentak ke `spv_wa_number` dan `spv_wa_group` (bisa multi target) memakai template text dinamis yang dapat diedit di menu Settings.*
+`fonnte-alert` memproses:
+- `trx_reports` (Usage/Damage, perbandingan tipe case-insensitive) → *Damage hanya dikirim jika QTY >= `wa_threshold`*.
+- `trx_stock_log` → **hanya** `source` yang setara `stock_in` (bukan baris `REPORT_USAGE` / audit).
+- `trx_cutting_log`, `trx_defects`.
+
+Sebelum kirim Fonnte, event didedup lewat insert ke `processed_events` (duplikat = abaikan; error lain = gagal eksplisit agar terlihat di log).
+
+*Pesan dikirim ke `spv_wa_number` dan `spv_wa_group` (multi target) memakai template di Settings.*
 
 ---
 
 ## 7. Supabase RPC Functions
 
-| Function | File | Purpose |
-|---|---|---|
-| `approve_report_with_stock()` | `approve_rpc.sql` | Approve report + update stock + insert log secara atomik |
-| `handle_stock_in()` | `stok_masuk_rpc.sql` | Stock-in + log secara atomik |
-| `handle_stock_audit()` | `audit_rpc.sql` | Audit base stock/Koreksi + log |
+Sumber skema terpusat: **`supabase/schema/04_rpc_functions.sql`** (urutan apply: `01` → `06`).
+
+| Function | Purpose |
+|---|---|
+| `get_my_role()` | Role user saat ini |
+| `cleanup_processed_events()` | Hapus baris dedup Fonnte > 10 menit |
+| `submit_report_direct(...)` | Submit laporan + stok + `trx_stock_log` atomik (**hanya `OP_CETAK`**) |
+| `approve_pending_report(...)` | Approve laporan pending + stok + log |
+| `add_incoming_stock(...)` | Stok masuk + log |
+| `audit_physical_stock(...)` | Audit / koreksi stok + log |
+| `spv_update_trx_report_notes(...)` | SPV ubah catatan laporan |
+| `spv_delete_trx_report_and_restore_stock(...)` | Hapus laporan + kembalikan stok |
 
 ---
 
@@ -159,15 +176,18 @@ src/
     └── SettingsDashboard.jsx    # SPV: Branding, WA Template, Drodown Defects config
 
 supabase/
-├── functions/
-│   └── fonnte-alert/index.ts        # Edge Function Fonnte Webhooks
-├── approve_rpc.sql                  
-├── audit_rpc.sql                    
-├── stok_masuk_rpc.sql               
-├── add_defects.sql                  # Schema: trx_defects & Dropdowns
-├── add_defect_webhook.sql           # Schema: defect triggers
-├── add_wa_templates.sql             
-└── add_wa_group.sql                 
+├── config.toml                      # fonnte-alert: verify_jwt = false
+├── schema/                          # Skema SQL berurutan (apply manual di SQL Editor)
+│   ├── 01_extensions_types.sql
+│   ├── 02_tables.sql
+│   ├── 03_policies_roles.sql
+│   ├── 04_rpc_functions.sql
+│   ├── 05_fonnte_triggers.sql
+│   ├── 06_seed_defaults.sql
+│   └── 99_patch_existing_database.sql   # Patch sekali jalan untuk DB yang sudah produksi
+└── functions/
+    ├── fonnte-alert/index.ts        # Webhook → Fonnte
+    └── fonnte-bot/                  # Bot terpisah (verify_jwt sesuai config)
 ```
 
 ## 9. Environment Variables (.env)
