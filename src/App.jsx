@@ -15,6 +15,7 @@ import SettingsDashboard from './pages/dashboard/SettingsDashboard'
 import InputReportDashboard from './pages/dashboard/InputReportDashboard'
 import DefectsDashboard from './pages/dashboard/DefectsDashboard'
 import SuppliersDashboard from './pages/dashboard/SuppliersDashboard'
+import WeeklyReportDashboard from './pages/dashboard/WeeklyReportDashboard'
 
 function ProtectedRoute({ session, userRole, isLoading }) {
   const location = useLocation();
@@ -38,7 +39,7 @@ function ProtectedRoute({ session, userRole, isLoading }) {
   }
 
   // Role Protection (SPV and HRD Only routes)
-  const spvHrdRoutes = ['/suppliers', '/reports'];
+  const spvHrdRoutes = ['/suppliers', '/reports', '/weekly-report'];
   if (spvHrdRoutes.includes(location.pathname) && !['SPV', 'HRD'].includes(userRole)) {
     return <Navigate to="/dashboard" replace />;
   }
@@ -116,6 +117,7 @@ function App() {
             <Route path="/defects" element={<DefectsDashboard />} />
             <Route path="/suppliers" element={<SuppliersDashboard userRole={userRole} />} />
             <Route path="/reports" element={<ReportsDashboard userRole={userRole} />} />
+            <Route path="/weekly-report" element={<WeeklyReportDashboard />} />
             <Route path="/profiles" element={<ProfilesDashboard />} />
             <Route path="/settings" element={<SettingsDashboard />} />
           </Route>

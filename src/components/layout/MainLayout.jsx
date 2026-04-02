@@ -4,7 +4,10 @@ import PWAInstallPrompt from '../PWAInstallPrompt';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { supabase } from '../../supabaseClient';
 import useAppStore from '../../store/useAppStore';
-import { Moon, Sun, Settings, Users } from 'lucide-react';
+import {
+    Moon, Sun, Settings, Users,
+    ClipboardList, FileEdit, Package, Factory, FileText, CalendarRange, AlertTriangle,
+} from 'lucide-react';
 
 const getRoleBadgeClass = (role) => {
     const r = (role || '').toString().trim().toUpperCase();
@@ -33,19 +36,19 @@ const getInitials = (nameOrEmail) => {
 const getTopbarMenuItems = (role) => {
     const r = (role || '').toString().trim().toUpperCase();
 
-    const items = [{ label: 'Log Harian', path: '/dashboard', roles: ['*'] }];
+    const items = [{ label: 'Log Harian', path: '/dashboard', roles: ['*'], icon: ClipboardList }];
 
-    // Input Laporan bisa dilihat oleh semua role (submit dibatasi di halaman).
-    items.push({ label: 'Input Laporan', path: '/input-report', roles: [r] });
+    items.push({ label: 'Input Laporan', path: '/input-report', roles: [r], icon: FileEdit });
 
-    items.push({ label: 'Inventory', path: '/inventory', roles: ['*'] });
+    items.push({ label: 'Inventory', path: '/inventory', roles: ['*'], icon: Package });
 
     if (r === 'SPV' || r === 'HRD') {
-        items.push({ label: 'Supplier', path: '/suppliers', roles: [r] });
-        items.push({ label: 'Reports', path: '/reports', roles: [r] });
+        items.push({ label: 'Supplier', path: '/suppliers', roles: [r], icon: Factory });
+        items.push({ label: 'Reports', path: '/reports', roles: [r], icon: FileText });
+        items.push({ label: 'Rekap Mingguan', path: '/weekly-report', roles: [r], icon: CalendarRange });
     }
 
-    if (r !== 'OP_CETAK') items.push({ label: 'Lapor Kendala', path: '/defects', roles: ['*'] });
+    if (r !== 'OP_CETAK') items.push({ label: 'Lapor Kendala', path: '/defects', roles: ['*'], icon: AlertTriangle });
 
     return items.filter((it) => it.roles.includes('*') || it.roles.includes(r));
 };
@@ -81,6 +84,12 @@ const getTopbarAccent = (path) => {
                 active: 'bg-purple-500/15 text-purple-400 border-purple-500/35 shadow-sm',
                 idle: 'bg-purple-500/10 border-purple-500/25 t-muted',
                 hover: 'hover:bg-purple-500/20 hover:text-purple-300 hover:border-purple-400/45',
+            };
+        case '/weekly-report':
+            return {
+                active: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/35 shadow-sm',
+                idle: 'bg-indigo-500/10 border-indigo-500/25 t-muted',
+                hover: 'hover:bg-indigo-500/20 hover:text-indigo-300 hover:border-indigo-400/45',
             };
         case '/defects':
             return {
@@ -193,91 +202,107 @@ export default function MainLayout({ children, userRole }) {
                             WebkitBackdropFilter: 'blur(16px)',
                         }}
                     >
-                        <div className="max-w-7xl mx-auto px-6 h-[64px] flex items-center justify-between gap-4">
-                            <div className="min-w-0 flex items-center gap-4">
-                                <div className="flex items-center gap-3 min-w-0">
-                                    <img
-                                        src="/Logo.svg"
-                                        alt="Logo"
-                                        className="w-9 h-9 object-contain"
-                                    />
-                                    <div className="min-w-0">
-                                        <p className="text-sm font-bold t-primary truncate font-app-brand tracking-tight">{appTitle}</p>
-                                        <div className="flex items-center gap-3 min-w-0">
-                                            <p className="text-[11px] t-muted font-app-brand font-medium uppercase tracking-wide truncate mb-0.5">
-                                                {appSubtitle}
-                                            </p>
-                                        </div>
-                                    </div>
+                        <div className="max-w-7xl mx-auto px-3 sm:px-4 min-h-[52px] flex items-center gap-2 sm:gap-2.5 min-w-0">
+                            {/* Brand — tidak mengecil melebihi wajar */}
+                            <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 min-w-0 max-w-[10rem] md:max-w-[13rem] xl:max-w-none">
+                                <img
+                                    src="/Logo.svg"
+                                    alt="Logo"
+                                    className="w-7 h-7 sm:w-8 sm:h-8 object-contain shrink-0"
+                                />
+                                <div className="min-w-0 hidden md:block leading-tight">
+                                    <p className="text-xs font-bold t-primary truncate font-app-brand tracking-tight">{appTitle}</p>
+                                    <p className="text-[10px] t-muted font-app-brand font-medium uppercase tracking-wide truncate">
+                                        {appSubtitle}
+                                    </p>
                                 </div>
                             </div>
 
-                            <nav className="flex items-center gap-2 min-w-0">
-                                {menuItems.map((it) => (
-                                    <NavLink
-                                        key={it.path}
-                                        to={it.path}
-                                        className={({ isActive }) => {
-                                            const accent = getTopbarAccent(it.path);
-                                            return `px-4 py-2 rounded-xl text-sm font-medium transition-colors border ${
-                                                isActive
-                                                    ? accent.active
-                                                    : `${accent.idle} ${accent.hover}`
-                                            }`;
-                                        }}
-                                    >
-                                        {it.label}
-                                    </NavLink>
-                                ))}
+                            {/* Nav utama — scroll horizontal jika tidak muat, tidak menimpa tombol kanan */}
+                            <nav
+                                className="flex flex-1 min-w-0 items-center justify-center gap-0.5 overflow-x-auto overflow-y-hidden py-1 px-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                                aria-label="Navigasi utama"
+                            >
+                                {menuItems.map((it) => {
+                                    const Icon = it.icon;
+                                    return (
+                                        <NavLink
+                                            key={it.path}
+                                            to={it.path}
+                                            end={it.path === '/dashboard'}
+                                            title={it.label}
+                                            aria-label={it.label}
+                                            className={({ isActive }) => {
+                                                const accent = getTopbarAccent(it.path);
+                                                return `inline-flex items-center justify-center gap-1.5 shrink-0 min-h-8 min-w-8 xl:min-w-0 xl:px-2.5 xl:py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+                                                    isActive
+                                                        ? accent.active
+                                                        : `${accent.idle} ${accent.hover}`
+                                                }`;
+                                            }}
+                                        >
+                                            {({ isActive }) => (
+                                                <>
+                                                    <Icon
+                                                        className={`w-3.5 h-3.5 shrink-0 xl:hidden ${isActive ? '' : 'opacity-90'}`}
+                                                        aria-hidden
+                                                    />
+                                                    <span className="hidden xl:inline whitespace-nowrap max-w-[9rem] truncate" title={it.label}>{it.label}</span>
+                                                </>
+                                            )}
+                                        </NavLink>
+                                    );
+                                })}
                             </nav>
 
-                            <div className="flex items-center gap-3 min-w-0">
+                            {/* Aksi kanan — selalu utuh, tidak tertindih nav */}
+                            <div className="flex shrink-0 items-center gap-1 pl-1.5 sm:pl-2 border-l border-theme/60">
                                 <button
                                     type="button"
                                     onClick={toggleTheme}
-                                    className="p-2 rounded-xl bg-blue-600/10 border border-blue-500/30 hover:bg-blue-600/15 transition-colors"
+                                    className="p-1.5 rounded-lg bg-blue-600/10 border border-blue-500/30 hover:bg-blue-600/15 transition-colors"
                                     title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
                                 >
                                     {theme === 'dark' ? (
-                                        <Sun className="w-4 h-4 text-blue-400" />
+                                        <Sun className="w-3.5 h-3.5 text-blue-400" />
                                     ) : (
-                                        <Moon className="w-4 h-4 text-blue-400" />
+                                        <Moon className="w-3.5 h-3.5 text-blue-400" />
                                     )}
                                 </button>
 
                                 {userRole === 'SPV' && (
                                     <NavLink
                                         to="/profiles"
-                                        className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/15 transition-colors"
+                                        className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/15 transition-colors"
                                         title="Profiles"
                                     >
-                                        <Users className="w-4 h-4 text-emerald-500" />
+                                        <Users className="w-3.5 h-3.5 text-emerald-500" />
                                     </NavLink>
                                 )}
 
                                 {userRole === 'SPV' && (
                                     <NavLink
                                         to="/settings"
-                                        className="p-2 rounded-xl bg-red-500/10 border border-red-500/30 hover:bg-red-500/15 transition-colors"
+                                        className="p-1.5 rounded-lg bg-red-500/10 border border-red-500/30 hover:bg-red-500/15 transition-colors"
                                         title="Settings"
                                     >
-                                        <Settings className="w-4 h-4 text-red-400" />
+                                        <Settings className="w-3.5 h-3.5 text-red-400" />
                                     </NavLink>
                                 )}
 
                                 <div
                                     ref={userMenuRef}
-                                    className="relative flex items-center gap-3 pl-2 border-l border-theme ml-1 min-w-0"
+                                    className="relative flex items-center gap-1.5 sm:gap-2 pl-1 min-w-0"
                                 >
                                     <button
                                         type="button"
                                         onClick={() => setIsUserMenuOpen((v) => !v)}
-                                        className="w-9 h-9 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center shrink-0 hover:bg-emerald-500/15 transition-colors cursor-pointer"
+                                        className="w-8 h-8 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center shrink-0 hover:bg-emerald-500/15 transition-colors cursor-pointer"
                                         aria-haspopup="menu"
                                         aria-expanded={isUserMenuOpen}
                                         title="Menu Akun"
                                     >
-                                        <span className="text-xs font-bold text-emerald-500">
+                                        <span className="text-[10px] font-bold text-emerald-500 leading-none">
                                             {getInitials(profile.full_name || profile.email)}
                                         </span>
                                     </button>
@@ -285,7 +310,7 @@ export default function MainLayout({ children, userRole }) {
                                     {isUserMenuOpen && (
                                         <div
                                             role="menu"
-                                            className="absolute right-0 top-[48px] w-[290px] border border-theme rounded-xl shadow-2xl p-4 z-[120]"
+                                            className="absolute right-0 top-[40px] w-[260px] border border-theme rounded-xl shadow-2xl p-3 z-[120]"
                                             style={{
                                                 backgroundColor: theme === 'light' ? '#ffffff' : '#0f172a',
                                             }}
@@ -324,10 +349,10 @@ export default function MainLayout({ children, userRole }) {
                                         </div>
                                     )}
 
-                                    <div className="min-w-0 hidden md:block">
-                                        <p className="text-sm font-semibold t-primary truncate">{profile.full_name || 'User'}</p>
+                                    <div className="min-w-0 hidden md:block max-w-[7rem] lg:max-w-[9rem]">
+                                        <p className="text-xs font-semibold t-primary truncate leading-tight">{profile.full_name || 'User'}</p>
                                         <span
-                                            className={`inline-flex items-center gap-2 text-xs font-mono px-2 py-0.5 rounded border ${getRoleBadgeClass(profile.role)}`}
+                                            className={`inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0 rounded border mt-0.5 ${getRoleBadgeClass(profile.role)}`}
                                         >
                                             {profile.role || 'GUEST'}
                                         </span>

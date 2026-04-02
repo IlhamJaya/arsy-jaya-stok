@@ -149,7 +149,7 @@ export default function InputReportDashboard({ userRole }) {
                 order_name: cuttingForm.order_name.trim(),
                 qty_cut: parseInt(cuttingForm.qty_cut),
                 notes: cuttingForm.notes.trim(),
-                item_id: cuttingForm.item_id || null,
+                item_id: cuttingForm.item_id,
             }]);
             if (error) throw error;
             showToast("Cutting log berhasil disimpan!");

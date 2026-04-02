@@ -55,6 +55,7 @@
 ### Route Protection (`App.jsx`)
 - `/profiles` dan `/settings` → **SPV only**
 - `/input-report` → OP_CETAK, OP_CUTTING, SALES (excluded: SPV, HRD)
+- `/suppliers`, `/reports`, **`/weekly-report`** → **SPV** dan **HRD** saja
 - `/defects` → All authenticated users (delete action restricted to SPV)
 - Semua route lain → all authenticated users
 
@@ -186,6 +187,7 @@ src/
     ├── DefectsDashboard.jsx     # UI Lapor Kendala produksi (Non-stok)
     ├── SuppliersDashboard.jsx   # Data supplier & kontak
     ├── ReportsDashboard.jsx     # Chart & Excel Export
+    ├── WeeklyReportDashboard.jsx # Rekap mingguan (usage/cutting/damage per kategori)
     ├── ProfilesDashboard.jsx    # SPV: User management
     └── SettingsDashboard.jsx    # SPV: WA Template, Defect config
 

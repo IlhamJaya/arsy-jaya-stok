@@ -31,6 +31,7 @@ function transformReportRow(d) {
     rawDate: new Date(d.created_at),
     operatorRole: d.operator?.role?.replace('OP_', '') || 'Unknown',
     itemName: d.item?.name || 'Unknown Item',
+    itemCategory: d.item?.category != null && String(d.item.category).trim() !== '' ? String(d.item.category).trim() : '-',
     itemUnit: d.item?.unit || '-',
     operatorName: d.operator?.full_name || 'Unknown Operator',
     qtyUsed: d.type === 'Usage' ? d.quantity : 0,
@@ -38,6 +39,17 @@ function transformReportRow(d) {
     reason: d.notes,
     finalStock: d.item?.stock
   };
+}
+
+/** Agregasi cutting/rekap: utamakan nama barang (jenis bahan), bukan kategori kasar seperti Stiker/Kertas */
+function cuttingMaterialLabel(log) {
+  const it = log?.item;
+  if (!it) return 'Tanpa master barang';
+  const n = it.name;
+  if (n != null && String(n).trim() !== '') return String(n).trim();
+  const c = it.category;
+  if (c != null && String(c).trim() !== '') return String(c).trim();
+  return 'Tanpa nama barang';
 }
 
 export default function ReportsDashboard({ userRole }) {
@@ -153,7 +165,7 @@ export default function ReportsDashboard({ userRole }) {
         .from('trx_reports')
         .select(`
             id, type, quantity, notes, status, created_at,
-            item:mst_items(name, unit, stock),
+            item:mst_items(name, unit, stock, category),
             operator:profiles!trx_reports_operator_id_fkey(full_name, role)
         `)
         .eq('status', 'Approved')
@@ -187,7 +199,7 @@ export default function ReportsDashboard({ userRole }) {
         .from('trx_reports')
         .select(`
             id, type, quantity, notes, status, created_at,
-            item:mst_items(name, unit, stock),
+            item:mst_items(name, unit, stock, category),
             operator:profiles!trx_reports_operator_id_fkey(full_name, role)
         `)
         .eq('status', 'Approved')
@@ -222,7 +234,7 @@ export default function ReportsDashboard({ userRole }) {
         .from('trx_stock_log')
         .select(`
             id, change_amount, previous_stock, final_stock, source, notes, created_at,
-            item:mst_items(name, unit)
+            item:mst_items(name, unit, category)
         `)
         .order('created_at', { ascending: false })
         .limit(800);
@@ -363,7 +375,7 @@ export default function ReportsDashboard({ userRole }) {
     });
     return Object.values(grouped)
       .sort((a, b) => b.totalKerusakan - a.totalKerusakan)
-      .slice(0, 8);
+      .slice(0, 12);
   }, [damageReports, chartType]);
 
   const usageByItem = useMemo(() => {
@@ -374,7 +386,7 @@ export default function ReportsDashboard({ userRole }) {
     return Object.entries(g)
       .map(([name, totalPemakaian]) => ({ name, totalPemakaian }))
       .sort((a, b) => b.totalPemakaian - a.totalPemakaian)
-      .slice(0, 8);
+      .slice(0, 12);
   }, [usageReports]);
 
   const usageByOperator = useMemo(() => {
@@ -385,7 +397,7 @@ export default function ReportsDashboard({ userRole }) {
     return Object.entries(g)
       .map(([name, totalPemakaian]) => ({ name, totalPemakaian }))
       .sort((a, b) => b.totalPemakaian - a.totalPemakaian)
-      .slice(0, 8);
+      .slice(0, 12);
   }, [usageReports]);
 
   const usageChartBars = useMemo(() => {
@@ -560,12 +572,11 @@ export default function ReportsDashboard({ userRole }) {
     return totalUsed / pemakaianPeriodDays;
   }, [totalUsed, pemakaianPeriodDays]);
 
-  // === Top Bahan Di-Cut Chart Data ===
-  const topBahanData = useMemo(() => {
+  // === Top Bahan Di-Cut — per nama barang (jenis bahan), sama seperti Rekap Mingguan ===
+  const cuttingByMaterialSummary = useMemo(() => {
     const grouped = {};
-    cuttingLogs.forEach(l => {
-      // "jenis bahan" dipakai dari kategori item (mis. Kertas/Stiker), bukan nama item spesifik
-      const key = l.item?.category || l.item?.name || 'Tidak Diketahui';
+    cuttingLogs.forEach((l) => {
+      const key = cuttingMaterialLabel(l);
       if (!grouped[key]) grouped[key] = { name: key, totalLembar: 0 };
       grouped[key].totalLembar += l.qty_cut;
     });
@@ -575,9 +586,10 @@ export default function ReportsDashboard({ userRole }) {
         ...g,
         avgPerDay: days > 0 ? g.totalLembar / days : 0,
       }))
-      .sort((a, b) => b.totalLembar - a.totalLembar)
-      .slice(0, 6);
+      .sort((a, b) => b.totalLembar - a.totalLembar);
   }, [cuttingLogs, cuttingPeriodDays]);
+
+  const topBahanData = useMemo(() => cuttingByMaterialSummary.slice(0, 12), [cuttingByMaterialSummary]);
 
 
 
@@ -635,7 +647,8 @@ export default function ReportsDashboard({ userRole }) {
           Tanggal: r.date,
           Operator: r.operatorName,
           Peran_operator: r.operatorRole,
-          Item: r.itemName,
+          Nama_barang: r.itemName,
+          Kategori: r.itemCategory,
           Satuan: r.itemUnit,
           Qty_pemakaian: r.qtyUsed,
           Catatan: r.reason || '-',
@@ -653,7 +666,8 @@ export default function ReportsDashboard({ userRole }) {
           Tanggal: r.date,
           Operator: r.operatorName,
           Peran_operator: r.operatorRole,
-          Item: r.itemName,
+          Nama_barang: r.itemName,
+          Kategori: r.itemCategory,
           Satuan: r.itemUnit,
           Qty_kerusakan: r.qtyDamage,
           Catatan: r.reason || '-',
@@ -669,7 +683,9 @@ export default function ReportsDashboard({ userRole }) {
       const ws = XLSX.utils.json_to_sheet(
         stockLogs.map((l) => ({
           Tanggal: new Date(l.created_at).toLocaleString('id-ID'),
-          Item: l.item?.name || '-',
+          Nama_barang: l.item?.name || '-',
+          Kategori: l.item?.category || '-',
+          Satuan: l.item?.unit || '-',
           Proses: SOURCE_LABELS[l.source]?.label || l.source,
           Perubahan: l.change_amount,
           Stok_awal: l.previous_stock,
@@ -683,17 +699,29 @@ export default function ReportsDashboard({ userRole }) {
     }
 
     if (activeTab === 'cutting') {
-      const ws = XLSX.utils.json_to_sheet(
+      const wsDetail = XLSX.utils.json_to_sheet(
         cuttingLogs.map((l) => ({
           Tanggal: new Date(l.created_at).toLocaleString('id-ID'),
           Order: l.order_name,
-          Bahan: l.item?.name || '-',
+          Nama_barang_jenis_bahan: l.item?.name || '-',
+          Kategori_master: l.item?.category || '-',
           Lembar_di_cut: l.qty_cut,
           Operator: l.operator?.full_name || '-',
           Catatan: l.notes || '-',
         }))
       );
-      XLSX.utils.book_append_sheet(workbook, ws, safeSheetName('Cutting'));
+      XLSX.utils.book_append_sheet(workbook, wsDetail, safeSheetName('Cutting_detail'));
+
+      const days = cuttingPeriodDays || 0;
+      const wsRekap = XLSX.utils.json_to_sheet(
+        cuttingByMaterialSummary.map((r) => ({
+          Nama_barang_jenis_bahan: r.name,
+          Total_lembar: r.totalLembar,
+          Rata_rata_per_hari: days > 0 ? Number(r.avgPerDay.toFixed(4)) : 0,
+          Hari_periode_untuk_rata_rata: days,
+        }))
+      );
+      XLSX.utils.book_append_sheet(workbook, wsRekap, safeSheetName('Rekap_jenis_bahan'));
       XLSX.writeFile(workbook, `ArsyStok_Cutting_${slug}_${ts}.xlsx`);
       return;
     }
@@ -911,7 +939,8 @@ export default function ReportsDashboard({ userRole }) {
           </h2>
           <p className="t-secondary max-w-2xl">
             Satu halaman per <strong className="t-primary font-semibold">jenis proses</strong>: pemakaian material, kerusakan, pergerakan stok (masuk/keluar/audit), cutting, dan kendala QC.
-            Pilih periode, baca ringkasan dan grafik, lalu unduh Excel per tab atau paket multi-sheet.
+            Grafik &amp; rekap memecah <strong className="t-primary font-semibold">nama barang</strong> di master (mis. tiap jenis stiker), bukan hanya kategori kasar.
+            Pilih periode, baca ringkasan dan grafik, lalu unduh Excel per tab (cutting: detail + rekap jenis bahan).
           </p>
         </div>
       </div>
@@ -1144,7 +1173,7 @@ export default function ReportsDashboard({ userRole }) {
                     <BarChart data={usageChartBars} layout="vertical" margin={{ top: 4, right: 24, left: 4, bottom: 4 }} barSize={14}>
                       <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(255,255,255,0.06)" />
                       <XAxis type="number" stroke="#64748b" fontSize={11} />
-                      <YAxis dataKey="name" type="category" width={110} stroke="#64748b" fontSize={11} tick={{ fill: 'var(--text-secondary)' }} />
+                      <YAxis dataKey="name" type="category" width={140} stroke="#64748b" fontSize={10} tick={{ fill: 'var(--text-secondary)' }} />
                       <Tooltip
                         cursor={{ fill: 'rgba(255,255,255,0.04)' }}
                         contentStyle={{
@@ -1634,9 +1663,12 @@ export default function ReportsDashboard({ userRole }) {
 
             {/* 2x1 Card: Top Bahan Di-Cut */}
             <div className="glass-card p-6 md:col-span-2 relative overflow-hidden flex flex-col">
-              <h3 className="text-md font-bold t-primary mb-4 flex items-center gap-2">
+              <h3 className="text-md font-bold t-primary mb-1 flex items-center gap-2">
                 <BarChart3 className="w-5 h-5 text-brand-amber" /> Top Bahan Paling Banyak Di-Cut
               </h3>
+              <p className="text-[11px] t-muted mb-4 max-w-xl">
+                Dipecah per <strong className="t-secondary font-semibold">nama barang</strong> di master (contoh: Stiker Vinyl, Stiker Chrome, Stiker Transparan), bukan hanya kategori &quot;Stiker&quot; atau &quot;Kertas&quot;.
+              </p>
 
               <div className="flex-1 min-h-[140px]">
                 {topBahanData.length === 0 ? (
@@ -1645,11 +1677,11 @@ export default function ReportsDashboard({ userRole }) {
                     <p className="text-xs t-secondary text-center">Belum ada data bahan untuk direkap.</p>
                   </div>
                 ) : (
-                  <ResponsiveContainer width="100%" height={250}>
-                    <BarChart data={topBahanData} layout="vertical" margin={{ top: 0, right: 30, left: 10, bottom: 0 }} barSize={16}>
+                  <ResponsiveContainer width="100%" height={280}>
+                    <BarChart data={topBahanData} layout="vertical" margin={{ top: 0, right: 30, left: 8, bottom: 0 }} barSize={14}>
                       <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(255,255,255,0.05)" />
                       <XAxis type="number" stroke="#64748b" fontSize={11} tickFormatter={(val) => val} />
-                      <YAxis dataKey="name" type="category" width={100} stroke="#64748b" fontSize={11} tick={{ fill: '#e2e8f0' }} />
+                      <YAxis dataKey="name" type="category" width={148} stroke="#64748b" fontSize={10} tick={{ fill: '#e2e8f0' }} />
                       <Tooltip
                         cursor={{ fill: 'rgba(255,255,255,0.05)' }}
                         contentStyle={{ backgroundColor: 'rgb(2 6 23)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', fontSize: '12px', color: '#f8fafc' }}
@@ -1670,12 +1702,12 @@ export default function ReportsDashboard({ userRole }) {
               {topBahanData.length > 0 && (
                 <div className="mt-4 pt-4 border-t border-theme">
                   <p className="text-[11px] t-secondary font-medium mb-3">
-                    Rata-rata Di-Cut per Hari (jenis bahan)
+                    Rata-rata di-cut per hari (per nama barang / jenis bahan)
                   </p>
                   <div className="space-y-2">
                     {topBahanData.map((b, idx) => (
-                      <div key={`${b.name}-${idx}`} className="flex items-center justify-between gap-3">
-                        <span className="text-xs t-muted truncate">{b.name}</span>
+                      <div key={`${b.name}-${idx}`} className="flex items-center justify-between gap-3 min-w-0">
+                        <span className="text-xs t-muted truncate min-w-0 flex-1" title={b.name}>{b.name}</span>
                         <span className="text-xs t-primary font-mono font-bold whitespace-nowrap">
                           {cuttingPeriodDays > 0 ? b.avgPerDay.toFixed(2) : '0.00'} / hari
                         </span>
