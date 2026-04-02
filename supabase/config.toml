@@ -1,4 +1,5 @@
-# Webhook Database memanggil URL ini tanpa JWT user — harus false agar INSERT trx_reports diterima.
+# Webhook Database → Edge Function memanggil tanpa JWT user (verify_jwt harus false).
+# Deploy: supabase functions deploy fonnte-alert --no-verify-jwt (atau setara di dashboard).
 [functions.fonnte-alert]
 enabled = true
 verify_jwt = false

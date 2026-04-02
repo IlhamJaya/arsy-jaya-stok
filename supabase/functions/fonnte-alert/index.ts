@@ -26,6 +26,41 @@ serve(async (req) => {
 
         const supabase = createClient(supabaseUrl, supabaseKey)
 
+        // ==========================================
+        // DEDUPLICATION LOGIC
+        // ==========================================
+        const eventKey = `${table}:${record.id}:${payload.type}`
+        
+        // 1. Cleanup old events first (keep it light, delete events older than 1 minute)
+        await supabase.from('processed_events').delete().lt('created_at', new Date(Date.now() - 60000).toISOString())
+
+        // 2. Try to insert current event (PK event_key = idempotency)
+        const { error: eventError } = await supabase
+            .from('processed_events')
+            .insert({ event_key: eventKey })
+            .select()
+            .single()
+
+        if (eventError) {
+            const errMsg = eventError.message ?? ''
+            const isDuplicate =
+                eventError.code === '23505' ||
+                errMsg.includes('duplicate key') ||
+                errMsg.includes('unique constraint')
+            if (isDuplicate) {
+                console.log(`[fonnte-alert] Duplicate event detected for ${eventKey}. Skipping.`)
+                return new Response(JSON.stringify({
+                    success: true,
+                    message: "Duplicate event detected and ignored.",
+                    key: eventKey,
+                }), { headers: { "Content-Type": "application/json" }, status: 200 })
+            }
+            console.error('[fonnte-alert] processed_events insert failed:', eventError)
+            throw new Error(`processed_events insert failed: ${errMsg}`)
+        }
+
+        console.log(`[fonnte-alert] Processing new event: ${eventKey}`)
+
         // Fetch Global Settings (Phone & Templates)
         // select('*') agar tidak error jika kolom template baru belum dimigrasikan
         const { data: settingsData, error: settingsError } = await supabase
