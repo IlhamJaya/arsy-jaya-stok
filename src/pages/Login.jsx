@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import useAppStore from '../store/useAppStore';
 import { Lock, Mail, AlertCircle, ArrowRight, Eye, EyeOff } from 'lucide-react';
-import { capitalizeWords, handleNumberInput } from '../utils/formatters.js';
 
 export default function Login() {
     const { appTitle, appSubtitle } = useAppStore();
@@ -48,15 +47,14 @@ export default function Login() {
             <div className="w-full max-w-md relative z-10">
 
                 {/* Login Form Card */}
-                <div className="glass-card p-8 sm:p-10 border-white/10 shadow-2xl relative overflow-hidden">
+                <div className="glass-card p-8 sm:p-10 border border-white/10 shadow-2xl relative overflow-hidden ring-1 ring-white/10 backdrop-blur-md">
 
                     {/* Logo and Branding Header Inside Modal */}
                     <div className="flex items-center gap-5 mb-8 pb-6 border-b border-theme border-dashed">
                         <img src="/Logo.svg" alt="ARSY JAYA Logo" className="w-[4.4rem] h-[4.4rem] object-contain drop-shadow-[0_0_12px_rgba(6,182,212,0.6)] shrink-0" />
-                        <div className="flex flex-col justify-center">
-                            <h1 className="text-2xl font-extrabold tracking-tight t-primary uppercase leading-none mb-1 font-app-brand">{appTitle}</h1>
-                            <p className="t-muted text-[11px] font-app-brand font-medium uppercase tracking-wide leading-none">{appSubtitle}</p>
-                            <span className="inline-block mt-2 text-xs font-semibold t-secondary bg-accent-base/10 text-accent-base px-2 py-0.5 rounded-md w-max">PORTAL MASUK</span>
+                        <div className="flex flex-col justify-center min-w-0">
+                            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight t-primary uppercase leading-tight mb-1.5 font-app-brand">{appTitle}</h1>
+                            <p className="t-muted text-xs sm:text-sm font-app-brand font-medium uppercase tracking-wide leading-snug">{appSubtitle}</p>
                         </div>
                     </div>
 
@@ -74,7 +72,7 @@ export default function Login() {
                                     onChange={(e) => setEmail(e.target.value)}
                                     className="w-full border rounded-xl pl-11 pr-4 py-3.5 focus:outline-none focus:border-accent-base focus:ring-1 focus:ring-accent-base/50 transition-all t-primary"
                                     style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}
-                                    placeholder="karyawan@arsy.co.id"
+                                    placeholder="karyawan@arsyjaya.com"
                                 />
                             </div>
                         </div>

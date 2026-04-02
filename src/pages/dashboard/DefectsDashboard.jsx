@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import PageHeader from '../../components/ui/PageHeader';
 import { supabase } from '../../supabaseClient';
 import { AlertTriangle, Send, History, CheckCircle, FileWarning, Edit2 } from 'lucide-react';
-import { capitalizeWords, handleNumberInput } from '../../utils/formatters.js';
 
-export default function DefectsDashboard() {
+export default function DefectsDashboard({ embedded = false }) {
     const [user, setUser] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -109,17 +109,21 @@ export default function DefectsDashboard() {
         );
     }
 
-    const canManageDefects = user?.role === 'SPV';
-
     return (
-        <div className="w-full animate-in fade-in py-2">
-            <div className="mb-8">
-                <h2 className="text-3xl font-bold tracking-tight t-primary mb-2 flex items-center gap-3">
-                    <AlertTriangle className="w-8 h-8 text-orange-500" />
-                    Lapor Kendala Produksi
-                </h2>
-                <p className="t-secondary">Laporkan cacat produksi, kesalahan desain, atau kegagalan sistem untuk evaluasi Quality Control tanpa mengubah stok fisik.</p>
-            </div>
+        <div className="w-full animate-in fade-in py-2 pb-10">
+            {!embedded && (
+                <PageHeader
+                    eyebrow="Quality control"
+                    title="Lapor Kendala Produksi"
+                    icon={AlertTriangle}
+                    iconClassName="text-orange-500"
+                    iconWrapperClassName="bg-orange-500/10 border border-orange-500/25 shadow-sm"
+                >
+                    <p>
+                        Laporkan cacat produksi, kesalahan desain, atau kegagalan sistem untuk evaluasi Quality Control tanpa mengubah stok fisik.
+                    </p>
+                </PageHeader>
+            )}
 
             {message.text && (
                 <div className={`p-4 mb-6 rounded-xl flex items-start gap-3 border ${message.type === 'success' ? 'bg-accent-base/10 border-accent-base/20 text-accent-base' : 'bg-brand-red/10 border-brand-red/20 text-brand-red'}`}>

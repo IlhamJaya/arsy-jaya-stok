@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import PageHeader from '../../components/ui/PageHeader';
 import { supabase } from '../../supabaseClient';
 import { CalendarRange, ClipboardList, Loader2, Copy, Check } from 'lucide-react';
 import {
@@ -75,7 +76,7 @@ function formatReportText(usage, cutting, damage, labelRange) {
   return lines.join('\n');
 }
 
-export default function WeeklyReportDashboard() {
+export default function WeeklyReportDashboard({ embedded = false }) {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
   const [reports, setReports] = useState([]);
@@ -200,7 +201,7 @@ export default function WeeklyReportDashboard() {
   };
 
   const Section = ({ title, hint, rows }) => (
-    <div className="glass-card p-6 md:p-8">
+    <div className="glass-card p-6 md:p-8 border border-theme/40 shadow-md shadow-black/5">
       <div className="mb-4">
         <h3 className="text-lg font-bold t-primary mb-1 flex items-center gap-2">
           <ClipboardList className="w-5 h-5 text-accent-base shrink-0" />
@@ -225,38 +226,59 @@ export default function WeeklyReportDashboard() {
     </div>
   );
 
+  const copyButton = (
+    <button
+      type="button"
+      onClick={handleCopy}
+      disabled={loading}
+      className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm border border-theme bg-[var(--bg-panel)] t-primary hover:bg-accent-base/10 transition-colors disabled:opacity-50 shadow-sm shrink-0"
+    >
+      {copied ? <Check className="w-4 h-4 text-accent-base" /> : <Copy className="w-4 h-4" />}
+      {copied ? 'Tersalin' : 'Salin teks laporan'}
+    </button>
+  );
+
   return (
-    <div className="w-full animate-in fade-in py-2 max-w-4xl mx-auto">
-      <div className="mb-8 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight t-primary mb-2 flex items-center gap-3">
-            <CalendarRange className="w-8 h-8 text-accent-base" />
-            Rekap Mingguan
-          </h2>
-          <p className="t-secondary text-sm max-w-xl">
-            Pengelompokan menurut <strong>nama barang</strong> di master (<code className="text-xs">mst_items.name</code>) — setiap jenis bahan
+    <div className="w-full max-w-5xl mx-auto animate-in fade-in py-2 pb-10">
+      {embedded ? (
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-indigo-400/90 mb-1">Agregat periode</p>
+            <h2 className="text-xl font-bold t-primary">Rekap mingguan</h2>
+            <p className="text-sm t-secondary mt-2">
+              Ringkasan per <strong>nama barang</strong> (WITA). Rentang tanggal di bawah; salin teks untuk WhatsApp.
+            </p>
+            {labelRange ? (
+              <p className="text-xs t-muted mt-3 flex items-center gap-2 flex-wrap">
+                <CalendarRange className="w-3.5 h-3.5 shrink-0" />
+                <span>Aktif: {labelRange}</span>
+              </p>
+            ) : null}
+          </div>
+          {copyButton}
+        </div>
+      ) : (
+        <PageHeader
+          eyebrow="Agregat periode"
+          title="Rekap Mingguan"
+          icon={CalendarRange}
+          actions={copyButton}
+        >
+          <p>
+            Pengelompokan menurut <strong>nama barang</strong> di master (<code>mst_items.name</code>) — setiap jenis bahan
             (mis. Stiker Vinyl, Stiker Chrome, Stiker Transparan) tampil terpisah, bukan digabung lewat kategori &quot;Stiker&quot; saja.
             Pilih rentang tanggal (zona waktu WITA); awal default mengikuti <strong>minggu berjalan</strong> (Senin–hari ini).
           </p>
           {labelRange ? (
-            <p className="text-xs t-muted mt-2 flex items-center gap-2">
+            <p className="text-xs t-muted mt-3 flex items-center gap-2 flex-wrap">
               <CalendarRange className="w-3.5 h-3.5 shrink-0" />
               <span>Aktif: {labelRange}</span>
             </p>
           ) : null}
-        </div>
-        <button
-          type="button"
-          onClick={handleCopy}
-          disabled={loading}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm border border-theme t-primary hover:bg-accent-base/10 transition-colors disabled:opacity-50"
-        >
-          {copied ? <Check className="w-4 h-4 text-accent-base" /> : <Copy className="w-4 h-4" />}
-          {copied ? 'Tersalin' : 'Salin teks laporan'}
-        </button>
-      </div>
+        </PageHeader>
+      )}
 
-      <div className="glass-card p-4 sm:p-5 mb-8 max-w-4xl">
+      <div className="glass-card p-4 sm:p-5 mb-8 border border-theme/40 shadow-lg shadow-black/5">
         <p className="text-sm font-semibold t-primary mb-3">Rentang periode</p>
         <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3 sm:gap-4">
           <label className="flex flex-col gap-1.5 min-w-0 flex-1 sm:max-w-[200px]">

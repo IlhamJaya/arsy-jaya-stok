@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import PageHeader from '../../components/ui/PageHeader';
 import { supabase } from '../../supabaseClient';
 import { FileEdit, Search, AlertCircle, Save, CheckCircle2, History, Scissors, Trash2, X } from 'lucide-react';
 import { capitalizeWords, handleNumberInput } from '../../utils/formatters.js';
 
-export default function InputReportDashboard({ userRole }) {
+export default function InputReportDashboard({ userRole, embedded = false }) {
     // == Shared State ==
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -111,7 +112,7 @@ export default function InputReportDashboard({ userRole }) {
         setIsSubmitting(true);
         try {
             if (qtyUsed > 0) {
-                const { data, error } = await supabase.rpc('submit_report_direct', {
+                const { error } = await supabase.rpc('submit_report_direct', {
                     p_item_id: selectedItem.id,
                     p_type: 'Usage',
                     p_quantity: qtyUsed,
@@ -120,7 +121,7 @@ export default function InputReportDashboard({ userRole }) {
                 if (error) throw error;
             }
             if (qtyDamage > 0) {
-                const { data, error } = await supabase.rpc('submit_report_direct', {
+                const { error } = await supabase.rpc('submit_report_direct', {
                     p_item_id: selectedItem.id,
                     p_type: 'Damage',
                     p_quantity: qtyDamage,
@@ -166,21 +167,18 @@ export default function InputReportDashboard({ userRole }) {
     );
 
     return (
-        <div className="w-full animate-in fade-in py-2">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
-                <div>
-                    <h2 className="text-3xl font-bold tracking-tight t-primary mb-2 flex items-center gap-3">
-                        <FileEdit className="w-8 h-8 text-accent-base" />
-                        Input Laporan {userRole === 'OP_CUTTING' ? 'Cutting' : 'Penggunaan Bahan'}
-                    </h2>
-                    <p className="t-secondary">
-                        Laporkan pemakaian material dan kerusakan. Stok akan langsung terpotong otomatis.
+        <div className="w-full animate-in fade-in py-2 pb-10">
+            {!embedded && (
+                <PageHeader
+                    eyebrow="Operator"
+                    title={`Input Laporan ${userRole === 'OP_CUTTING' ? 'Cutting' : 'Penggunaan Bahan'}`}
+                    icon={userRole === 'OP_CUTTING' ? Scissors : FileEdit}
+                >
+                    <p>
+                        Laporkan pemakaian material dan kerusakan. Stok akan langsung terpotong otomatis sesuai alur pengesahan.
                     </p>
-                </div>
-
-
-            </div>
+                </PageHeader>
+            )}
 
             {/* Toast */}
             {toastMessage && (
@@ -370,8 +368,8 @@ export default function InputReportDashboard({ userRole }) {
                                         <div key={r.id} className="bg-input p-3 rounded-lg border border-theme">
                                             <div className="flex justify-between items-start mb-1">
                                                 <p className="text-sm font-semibold t-primary truncate pr-2">{r.item?.name || 'Unknown'}</p>
-                                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${r.status === 'Approved' ? 'bg-accent-base/20 text-accent-base' : r.status === 'Rejected' ? 'bg-brand-red/20 text-brand-red' : 'bg-brand-amber/20 text-brand-amber'}`}>
-                                                    {r.status === 'Approved' ? 'TERCATAT' : r.status === 'Rejected' ? 'DITOLAK' : 'PENDING'}
+                                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-accent-base/20 text-accent-base">
+                                                    TERCATAT
                                                 </span>
                                             </div>
                                             <p className="text-xs t-secondary">

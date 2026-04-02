@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Link } from 'react-router-dom';
+import PageHeader from '../../components/ui/PageHeader';
 import { supabase } from '../../supabaseClient';
 import {
     CheckCircle2,
@@ -11,6 +13,11 @@ import {
     Package,
     CalendarDays,
     Filter,
+    BarChart3,
+    CalendarRange,
+    RefreshCw,
+    Warehouse,
+    LayoutDashboard,
 } from 'lucide-react';
 
 function dayBoundsISO(d) {
@@ -36,7 +43,7 @@ function formatLogTime(iso) {
     });
 }
 
-export default function ApprovalDashboard() {
+export default function DashboardPage({ userRole }) {
     const [selectedDate, setSelectedDate] = useState(() => {
         const t = new Date();
         return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
@@ -166,11 +173,6 @@ export default function ApprovalDashboard() {
                             ? `${r.operator.full_name} (${formatRole(r.operator.role)})`
                             : 'Operator tidak diketahui',
                         `${r.quantity} ${r.item?.unit || 'qty'}`,
-                        r.status === 'Approved'
-                            ? 'Status: Tercatat'
-                            : r.status === 'Rejected'
-                              ? 'Status: Ditolak'
-                              : 'Status: Pending',
                     ],
                     notes: r.notes || '',
                 });
@@ -302,8 +304,82 @@ export default function ApprovalDashboard() {
         }
     };
 
+    const canAccessReports = userRole === 'SPV' || userRole === 'HRD';
+    const canInputReport = userRole != null && ['OP_CETAK', 'OP_CUTTING', 'SALES'].includes(userRole);
+    const roleReady = userRole != null;
+
+    const selectedDateLabel = useMemo(() => {
+        try {
+            return selectedDay.toLocaleDateString('id-ID', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+            });
+        } catch {
+            return selectedDate;
+        }
+    }, [selectedDay, selectedDate]);
+
+    const quickLinkClass =
+        'inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold border border-theme bg-[var(--bg-panel)] t-primary hover:border-accent-base/35 hover:bg-accent-base/8 transition-colors shadow-sm';
+
     return (
         <div className="w-full animate-in fade-in py-4">
+            <PageHeader
+                eyebrow="Ringkasan operasional"
+                title="Dashboard"
+                icon={LayoutDashboard}
+                actions={
+                    <>
+                        {!roleReady ? (
+                            <div className="h-10 w-40 rounded-xl bg-[var(--bg-input)] border border-theme/50 animate-pulse" aria-hidden />
+                        ) : canAccessReports ? (
+                            <>
+                                <Link to="/reports" className={quickLinkClass}>
+                                    <BarChart3 className="w-4 h-4 text-accent-base shrink-0" />
+                                    Analisis &amp; ekspor
+                                </Link>
+                                <Link to="/reports?tab=rekap" className={quickLinkClass}>
+                                    <CalendarRange className="w-4 h-4 text-accent-base shrink-0" />
+                                    Rekap mingguan
+                                </Link>
+                            </>
+                        ) : (
+                            <>
+                                {userRole === 'SALES' ? (
+                                    <Link to="/inventory?tab=stock_in" className={quickLinkClass}>
+                                        <ArrowUpCircle className="w-4 h-4 text-accent-base shrink-0" />
+                                        Form stok masuk
+                                    </Link>
+                                ) : null}
+                                <Link to="/inventory" className={quickLinkClass}>
+                                    <Warehouse className="w-4 h-4 text-accent-base shrink-0" />
+                                    Inventori
+                                </Link>
+                                {userRole !== 'OP_CETAK' ? (
+                                    <Link to="/input-report?tab=kendala" className={quickLinkClass}>
+                                        <AlertTriangle className="w-4 h-4 text-accent-base shrink-0" />
+                                        Lapor kendala
+                                    </Link>
+                                ) : null}
+                                {canInputReport ? (
+                                    <Link to="/input-report" className={quickLinkClass}>
+                                        <FileText className="w-4 h-4 text-accent-base shrink-0" />
+                                        Input laporan
+                                    </Link>
+                                ) : null}
+                            </>
+                        )}
+                    </>
+                }
+            >
+                <p>
+                    Linimasa aktivitas per hari: laporan pemakaian &amp; kerusakan, cutting, kendala QC, stok masuk, dan audit.
+                    Analisis mendalam dan ekspor ada di menu laporan.
+                </p>
+            </PageHeader>
+
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
                 <div className="glass-card p-3 sm:p-4 flex items-center gap-3 sm:gap-4 group cursor-default col-span-2 lg:col-span-1 relative overflow-hidden">
                     <div className="absolute -bottom-6 -right-6 w-28 h-28 sm:w-32 sm:h-32 bg-cyan-500/5 rounded-full blur-2xl pointer-events-none transition-all group-hover:bg-cyan-500/15"></div>
@@ -372,13 +448,13 @@ export default function ApprovalDashboard() {
                 </div>
             </div>
 
-            <div className="glass-card p-5 sm:p-6 flex flex-col min-h-[480px]">
+            <div className="glass-card p-5 sm:p-6 flex flex-col min-h-[480px] border border-theme/40 shadow-lg shadow-black/5">
                 <div className="flex flex-col gap-4 mb-6">
                     <div>
                         <h2 className="text-xl sm:text-2xl font-bold tracking-tight t-primary mb-1 flex items-center gap-2">
                             Log harian
                         </h2>
-                        <p className="t-secondary text-sm">
+                        <p className="t-secondary text-sm leading-relaxed">
                             Satu linimasa: pemakaian & kerusakan stok, cutting, lapor kendala, stok masuk, dan audit
                             — tanpa duplikat dari laporan yang sama.
                         </p>
@@ -397,6 +473,7 @@ export default function ApprovalDashboard() {
                                     className="border rounded-xl py-2 px-3 text-sm t-primary focus:outline-none focus:ring-2 focus:ring-accent-base/30"
                                     style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}
                                 />
+                                <p className="text-[11px] t-muted mt-1.5 max-w-[220px] leading-snug">{selectedDateLabel}</p>
                             </div>
                             <button
                                 type="button"
@@ -426,6 +503,7 @@ export default function ApprovalDashboard() {
                         </div>
 
                         <button
+                            type="button"
                             onClick={() => {
                                 fetchDailyLog();
                                 fetchCriticalStock();
@@ -433,20 +511,9 @@ export default function ApprovalDashboard() {
                             className="p-2.5 rounded-xl border t-muted hover:t-primary transition-colors shrink-0 h-[42px] w-[42px] flex items-center justify-center self-end"
                             style={{ background: 'var(--bg-input)', borderColor: 'var(--border-glass)' }}
                             title="Muat ulang"
+                            aria-label="Muat ulang log"
                         >
-                            <svg
-                                className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`}
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                            >
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                                />
-                            </svg>
+                            <RefreshCw className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
                         </button>
                     </div>
 
@@ -511,6 +578,14 @@ export default function ApprovalDashboard() {
                             Tidak ada entri log untuk tanggal ini
                             {searchTerm || typeFilter !== 'ALL' ? ' (atau filter/pencarian tidak cocok)' : ''}.
                         </p>
+                        {roleReady && canAccessReports ? (
+                            <Link
+                                to="/reports"
+                                className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-accent-base hover:underline"
+                            >
+                                <BarChart3 className="w-4 h-4" /> Buka analisis &amp; ekspor laporan
+                            </Link>
+                        ) : null}
                     </div>
                 ) : (
                     <div className="flex flex-col space-y-3">

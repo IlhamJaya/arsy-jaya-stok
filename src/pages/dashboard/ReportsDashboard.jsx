@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import PageHeader from '../../components/ui/PageHeader';
 import { supabase } from '../../supabaseClient';
 import {
   FileText, Calendar, Download,
@@ -52,7 +53,7 @@ function cuttingMaterialLabel(log) {
   return 'Tanpa nama barang';
 }
 
-export default function ReportsDashboard({ userRole }) {
+export default function ReportsDashboard({ userRole, embedded = false }) {
   const [activeTab, setActiveTab] = useState('pemakaian'); // pemakaian | kerusakan | stok | cutting | kendala
   const [materialOptions, setMaterialOptions] = useState([]);
   const [usageReports, setUsageReports] = useState([]);
@@ -604,36 +605,6 @@ export default function ReportsDashboard({ userRole }) {
     return 'export';
   };
 
-  const getPeriodDescription = () => {
-    const fmt = (d) =>
-      d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
-    const now = new Date();
-    if (dateRange === 'today') return fmt(now);
-    if (dateRange === 'week') {
-      const s = new Date();
-      s.setDate(s.getDate() - 7);
-      return `${fmt(s)} – ${fmt(now)}`;
-    }
-    if (dateRange === 'month') {
-      const s = new Date();
-      s.setDate(s.getDate() - 30);
-      return `${fmt(s)} – ${fmt(now)}`;
-    }
-    if (dateRange === 'bulan' && selectedMonth) {
-      const [y, m] = selectedMonth.split('-').map(Number);
-      const start = new Date(y, m - 1, 1);
-      const end = new Date(y, m, 0);
-      return `${fmt(start)} – ${fmt(end)}`;
-    }
-    if (dateRange === 'custom') {
-      if (customStart && customEnd) return `${fmt(new Date(customStart))} – ${fmt(new Date(customEnd))}`;
-      if (customStart) return `Mulai ${fmt(new Date(customStart))}`;
-      return 'Rentang custom (lengkapi tanggal)';
-    }
-    if (dateRange === 'all') return 'Semua data tersedia';
-    return '-';
-  };
-
   const safeSheetName = (name) => name.replace(/[:\\/?*[\]]/g, '').slice(0, 31);
 
   const handleExportExcel = () => {
@@ -913,7 +884,7 @@ export default function ReportsDashboard({ userRole }) {
   };
 
   return (
-    <div className="w-full animate-in fade-in py-2">
+    <div className="w-full animate-in fade-in py-2 pb-10">
       {toastMessage && (
         <div
           className={`fixed top-6 right-6 z-[120] px-6 py-4 rounded-xl flex items-center gap-3 shadow-lg border animate-in slide-in-from-top-5 duration-300 ${
@@ -930,20 +901,19 @@ export default function ReportsDashboard({ userRole }) {
           <p className="font-semibold text-sm">{toastMessage.text}</p>
         </div>
       )}
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight t-primary mb-2 flex items-center gap-3">
-            <BarChart3 className="w-8 h-8 text-brand-amber" />
-            Analisis & ekspor laporan
-          </h2>
-          <p className="t-secondary max-w-2xl">
-            Satu halaman per <strong className="t-primary font-semibold">jenis proses</strong>: pemakaian material, kerusakan, pergerakan stok (masuk/keluar/audit), cutting, dan kendala QC.
-            Grafik &amp; rekap memecah <strong className="t-primary font-semibold">nama barang</strong> di master (mis. tiap jenis stiker), bukan hanya kategori kasar.
+      {!embedded && (
+        <PageHeader
+          eyebrow="Laporan & analitik"
+          title="Analisis & ekspor laporan"
+          icon={BarChart3}
+        >
+          <p>
+            Satu halaman per <strong>jenis proses</strong>: pemakaian material, kerusakan, pergerakan stok (masuk/keluar/audit), cutting, dan kendala QC.
+            Grafik &amp; rekap memecah <strong>nama barang</strong> di master (mis. tiap jenis stiker), bukan hanya kategori kasar.
             Pilih periode, baca ringkasan dan grafik, lalu unduh Excel per tab (cutting: detail + rekap jenis bahan).
           </p>
-        </div>
-      </div>
+        </PageHeader>
+      )}
 
       {/* Proses — satu tab = satu laporan */}
       <div className="flex flex-wrap gap-2 mb-6">
@@ -1110,7 +1080,7 @@ export default function ReportsDashboard({ userRole }) {
               <div className="relative z-10">
                 <h3 className="t-secondary text-sm font-medium mb-1 uppercase tracking-wider">Total qty pemakaian</h3>
                 <div className="text-4xl font-mono font-bold t-primary group-hover:text-sky-400 transition-colors">{totalUsed}</div>
-                <p className="text-[11px] t-muted mt-2">Penjumlahan quantity laporan pemakaian (approved).</p>
+                <p className="text-[11px] t-muted mt-2">Penjumlahan quantity laporan pemakaian (tercatat).</p>
               </div>
             </div>
 
@@ -1124,7 +1094,7 @@ export default function ReportsDashboard({ userRole }) {
               <div className="relative z-10">
                 <h3 className="t-secondary text-sm font-medium mb-1 uppercase tracking-wider">Penggunaan qty bahan</h3>
                 <div className="text-4xl font-mono font-bold t-primary group-hover:text-sky-400 transition-colors">{totalUsed}</div>
-                <p className="text-[11px] t-muted mt-2">Total qty bahan pemakaian pada periode ini (approved).</p>
+                <p className="text-[11px] t-muted mt-2">Total qty bahan pemakaian pada periode ini (tercatat).</p>
               </div>
             </div>
 
@@ -1299,7 +1269,7 @@ export default function ReportsDashboard({ userRole }) {
               <div className="relative z-10">
                 <h3 className="t-secondary text-sm font-medium mb-1 uppercase tracking-wider">Total qty kerusakan</h3>
                 <div className="text-4xl font-mono font-bold t-primary text-brand-red group-hover:text-brand-red transition-colors">{totalDamage}</div>
-                <p className="text-[11px] t-muted mt-2">Material yang dilaporkan rusak (approved).</p>
+                <p className="text-[11px] t-muted mt-2">Material yang dilaporkan rusak (tercatat).</p>
               </div>
             </div>
 

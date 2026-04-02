@@ -1,5 +1,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import PageHeader from '../../components/ui/PageHeader';
+import SuppliersDashboard from './SuppliersDashboard';
 import { supabase } from '../../supabaseClient';
 import useAppStore from '../../store/useAppStore';
 import { 
@@ -7,7 +10,6 @@ import {
     AlertTriangle, CheckCircle2, Factory, Phone,
     MessageCircle, FileEdit, Edit3, ChevronDown
  } from 'lucide-react';
-import { capitalizeWords, handleNumberInput } from '../../utils/formatters.js';
 
 const CustomItemSelect = ({ value, onChange, items, title }) => {
     const [isOpen, setIsOpen] = useState(false);
@@ -102,7 +104,29 @@ export default function InventoryDashboard({ userRole }) {
     const isDark = theme === 'dark';
     const blue = '#3b82f6'; // "biru" biar tidak terlihat purcat
 
-    const [activeTab, setActiveTab] = useState('inventory'); // 'inventory' | 'suppliers' | 'stock_in'
+    const [searchParams, setSearchParams] = useSearchParams();
+    const rawTab = searchParams.get('tab');
+
+    const activeTab = (() => {
+        if (rawTab === 'suppliers' && (userRole === 'SPV' || userRole === 'HRD')) return 'suppliers';
+        if (rawTab === 'stock_in' && (userRole === 'SPV' || userRole === 'SALES')) return 'stock_in';
+        if (rawTab === 'inventory') return 'inventory';
+        return 'inventory';
+    })();
+
+    const setTab = (t) => {
+        if (t === 'inventory') setSearchParams({});
+        else setSearchParams({ tab: t });
+    };
+
+    useEffect(() => {
+        if (rawTab === 'suppliers' && !(userRole === 'SPV' || userRole === 'HRD')) {
+            setSearchParams({}, { replace: true });
+        }
+        if (rawTab === 'stock_in' && !(userRole === 'SPV' || userRole === 'SALES')) {
+            setSearchParams({}, { replace: true });
+        }
+    }, [rawTab, userRole, setSearchParams]);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('Semua');
 
@@ -304,47 +328,60 @@ export default function InventoryDashboard({ userRole }) {
     };
 
     return (
-        <div className="w-full animate-in fade-in py-2">
+        <div className="w-full animate-in fade-in py-2 pb-10">
 
-            {/* Header & Tabs */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
-                <div>
-                    <h2 className="text-3xl font-bold tracking-tight t-primary mb-2 flex items-center gap-3">
-                        <Package className="w-8 h-8 text-accent-base" />
-                        Inventory & Suplai
-                    </h2>
-                    <p className="t-secondary">Kelola master data barang, cek ketersediaan stok, dan hubungi supplier.</p>
-                </div>
-
-                <div className="flex items-center gap-2 p-1 bg-input rounded-xl border border-theme w-fit">
-                    <button
-                        onClick={() => setActiveTab('inventory')}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'inventory'
-                            ? 't-primary shadow-sm'
-                            : 't-primary opacity-80 hover:opacity-100'
-                            }`}
-                        style={activeTab === 'inventory' ? { background: 'var(--bg-surface)', boxShadow: '0 1px 3px rgba(0,0,0,0.1), inset 0 0 0 1px var(--border-glass)' } : {}}
-                    >
-                        Data Master & Stok
-                    </button>
-                    {(userRole === 'SPV' || userRole === 'SALES') && (
+            <PageHeader
+                eyebrow="Master data & stok"
+                title="Stok &amp; mitra"
+                icon={Package}
+                actions={
+                    <div className="flex flex-wrap items-center gap-1.5 p-1 bg-[var(--bg-input)] rounded-xl border border-theme w-fit shadow-sm max-w-full">
                         <button
-                            onClick={() => { setActiveTab('stock_in'); setStockInSuccess(false); setFormError(null); }}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'stock_in'
+                            type="button"
+                            onClick={() => setTab('inventory')}
+                            className={`px-3 sm:px-4 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === 'inventory'
                                 ? 't-primary shadow-sm'
-                                : 't-primary opacity-80 hover:opacity-100'
+                                : 't-primary opacity-75 hover:opacity-100'
                                 }`}
-                            style={activeTab === 'stock_in' ? { background: 'var(--bg-surface)', boxShadow: '0 1px 3px rgba(0,0,0,0.1), inset 0 0 0 1px var(--border-glass)' } : {}}
+                            style={activeTab === 'inventory' ? { background: 'var(--bg-surface)', boxShadow: '0 1px 3px rgba(0,0,0,0.1), inset 0 0 0 1px var(--border-glass)' } : {}}
                         >
-                            Stok Masuk
+                            Data Master &amp; Stok
                         </button>
-                    )}
-                </div>
-            </div>
+                        {(userRole === 'SPV' || userRole === 'SALES') && (
+                            <button
+                                type="button"
+                                onClick={() => { setTab('stock_in'); setStockInSuccess(false); setFormError(null); }}
+                                className={`px-3 sm:px-4 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === 'stock_in'
+                                    ? 't-primary shadow-sm'
+                                    : 't-primary opacity-75 hover:opacity-100'
+                                    }`}
+                                style={activeTab === 'stock_in' ? { background: 'var(--bg-surface)', boxShadow: '0 1px 3px rgba(0,0,0,0.1), inset 0 0 0 1px var(--border-glass)' } : {}}
+                            >
+                                Stok Masuk
+                            </button>
+                        )}
+                        {(userRole === 'SPV' || userRole === 'HRD') && (
+                            <button
+                                type="button"
+                                onClick={() => setTab('suppliers')}
+                                className={`px-3 sm:px-4 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === 'suppliers'
+                                    ? 't-primary shadow-sm'
+                                    : 't-primary opacity-75 hover:opacity-100'
+                                    }`}
+                                style={activeTab === 'suppliers' ? { background: 'var(--bg-surface)', boxShadow: '0 1px 3px rgba(0,0,0,0.1), inset 0 0 0 1px var(--border-glass)' } : {}}
+                            >
+                                Mitra
+                            </button>
+                        )}
+                    </div>
+                }
+            >
+                <p>Kelola master data barang, stok masuk, dan mitra supplier.</p>
+            </PageHeader>
 
             {/* Controls */}
             <div className="flex flex-col md:flex-row gap-4 mb-6">
-                {activeTab !== 'stock_in' && (
+                {activeTab !== 'stock_in' && activeTab !== 'suppliers' && (
                     <div className="relative flex-1 md:max-w-md">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 t-muted" />
                         <input
@@ -640,6 +677,10 @@ export default function InventoryDashboard({ userRole }) {
                     </div>
                 )
             }
+
+            {activeTab === 'suppliers' && (userRole === 'SPV' || userRole === 'HRD') && (
+                <SuppliersDashboard userRole={userRole} embedded />
+            )}
 
             {/* Audit Modal */}
             {

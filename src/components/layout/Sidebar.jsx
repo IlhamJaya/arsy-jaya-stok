@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
-    Package, Users, Settings, FileText, FileEdit, LogOut,
-    ChevronRight, ClipboardList, Sun, Moon, Menu, X, AlertTriangle, Factory, CalendarRange
+    Package, Settings, FileText, FileEdit, LogOut,
+    ChevronRight, ClipboardList, Sun, Moon, Menu, X
 } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import useAppStore from '../../store/useAppStore';
@@ -41,27 +41,19 @@ export default function Sidebar({ userRole }) {
     };
 
     let menuItems = [
-        { icon: ClipboardList, label: 'Log Harian', shortLabel: 'Log', path: '/dashboard' }
+        { icon: ClipboardList, label: 'Dashboard', shortLabel: 'Home', path: '/dashboard' }
     ];
 
-    // Input Laporan bisa dilihat oleh semua role (submit tetap akan dibatasi di halaman ini).
-    menuItems.push({ icon: FileEdit, label: 'Input Laporan', shortLabel: 'Input', path: '/input-report' });
+    menuItems.push({ icon: FileEdit, label: 'Input & kendala', shortLabel: 'Input', path: '/input-report' });
 
-    menuItems.push({ icon: Package, label: 'Inventory', shortLabel: 'Inventory', path: '/inventory' });
+    menuItems.push({ icon: Package, label: 'Stok & mitra', shortLabel: 'Stok', path: '/inventory' });
 
     if (userRole === 'SPV' || userRole === 'HRD') {
-        menuItems.push({ icon: Factory, label: 'Partner & Supplier', shortLabel: 'Mitra', path: '/suppliers' });
-        menuItems.push({ icon: FileText, label: 'Reports', shortLabel: 'Laporan', path: '/reports' });
-        menuItems.push({ icon: CalendarRange, label: 'Rekap Mingguan', shortLabel: 'Mingguan', path: '/weekly-report' });
-    }
-
-    if (userRole !== 'OP_CETAK') {
-        menuItems.push({ icon: AlertTriangle, label: 'Lapor Kendala', shortLabel: 'Kendala', path: '/defects' });
+        menuItems.push({ icon: FileText, label: 'Laporan', shortLabel: 'Laporan', path: '/reports' });
     }
 
     if (userRole === 'SPV') {
-        menuItems.push({ icon: Users, label: 'Profiles', shortLabel: 'Profiles', path: '/profiles' });
-        menuItems.push({ icon: Settings, label: 'Settings', shortLabel: 'Settings', path: '/settings' });
+        menuItems.push({ icon: Settings, label: 'Pengaturan', shortLabel: 'Admin', path: '/settings' });
     }
 
     return (
