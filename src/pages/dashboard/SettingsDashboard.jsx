@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import PageHeader from '../../components/ui/PageHeader';
 import { Settings, Save, Smartphone, BellRing, MessageSquare, AlertTriangle } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 
@@ -30,7 +31,7 @@ const AccordionCard = ({ title, isActive, onToggleActive, children, isOpen, onTo
     </div>
 );
 
-export default function SettingsDashboard() {
+export default function SettingsDashboard({ embedded = false }) {
     const [settings, setSettings] = useState({
         wa_threshold: 10,
         spv_wa_number: '628159440003',
@@ -227,14 +228,18 @@ export default function SettingsDashboard() {
     }
 
     return (
-        <div className="w-full animate-in fade-in py-2">
-            <div className="mb-8">
-                <h2 className="text-3xl font-bold tracking-tight t-primary mb-2 flex items-center gap-3">
-                    <Settings className="w-8 h-8 t-secondary" />
-                    Pengaturan Sistem
-                </h2>
-                <p className="t-secondary">Konfigurasi notifikasi WhatsApp dan template laporan.</p>
-            </div>
+        <div className="w-full animate-in fade-in py-2 pb-10">
+            {!embedded && (
+                <PageHeader
+                    eyebrow="Administrasi"
+                    title="Pengaturan Sistem"
+                    icon={Settings}
+                    iconClassName="text-slate-500 dark:text-slate-400"
+                    iconWrapperClassName="bg-[var(--bg-input)] border border-theme shadow-sm"
+                >
+                    <p>Konfigurasi notifikasi WhatsApp, template laporan, dan integrasi Fonnte — tanpa mengubah alur data transaksi.</p>
+                </PageHeader>
+            )}
 
             {message.text && (
                 <div className={`p-4 mb-6 rounded-xl flex items-start gap-3 border ${message.type === 'success'

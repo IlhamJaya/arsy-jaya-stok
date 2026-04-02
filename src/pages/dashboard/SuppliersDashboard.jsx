@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import PageHeader from '../../components/ui/PageHeader';
 import { supabase } from '../../supabaseClient';
 import {  Factory, Search, Plus, Phone, MessageCircle, Edit3  } from 'lucide-react';
-import { capitalizeWords, handleNumberInput } from '../../utils/formatters.js';
 
-export default function SuppliersDashboard({ userRole }) {
+export default function SuppliersDashboard({ userRole, embedded = false }) {
     const [searchTerm, setSearchTerm] = useState('');
     const [suppliers, setSuppliers] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -89,18 +89,41 @@ export default function SuppliersDashboard({ userRole }) {
         s.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    return (
-        <div className="space-y-6 lg:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h2 className="text-2xl lg:text-3xl font-bold tracking-tight t-primary flex items-center gap-3">
-                        <Factory className="w-8 h-8 text-accent-base" /> Partner & Supplier
-                    </h2>
-                    <p className="t-secondary mt-1">Kelola data partner dan supplier bahan baku Anda.</p>
-                </div>
-            </div>
+    const newSupplierBtn =
+        userRole === 'SPV' ? (
+            <button
+                type="button"
+                onClick={() => openSupplierModal()}
+                className="flex items-center gap-2 px-4 py-2.5 font-semibold rounded-xl transition shadow-[0_0_15px_rgba(34,197,94,0.15)] hover:brightness-110 text-sm shrink-0"
+                style={{ backgroundColor: 'var(--color-accent-base)', color: 'var(--text-on-accent)' }}
+            >
+                <Plus className="w-4 h-4 shrink-0" /> Supplier baru
+            </button>
+        ) : null;
 
-            <div className="flex flex-col md:flex-row gap-4 mb-6">
+    return (
+        <div className="space-y-6 lg:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
+            {embedded ? (
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                    <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-accent-base/85 mb-1">Pengadaan</p>
+                        <h2 className="text-xl font-bold t-primary">Partner &amp; supplier</h2>
+                        <p className="text-sm t-secondary mt-1">Kelola data partner dan supplier bahan baku.</p>
+                    </div>
+                    {newSupplierBtn}
+                </div>
+            ) : (
+                <PageHeader
+                    eyebrow="Pengadaan"
+                    title="Partner & Supplier"
+                    icon={Factory}
+                    actions={newSupplierBtn}
+                >
+                    <p>Kelola data partner dan supplier bahan baku.</p>
+                </PageHeader>
+            )}
+
+            <div className="flex flex-col md:flex-row gap-4">
                 <div className="relative flex-1 md:max-w-md">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 t-muted" />
                     <input
@@ -111,18 +134,6 @@ export default function SuppliersDashboard({ userRole }) {
                         className="w-full bg-input border border-theme t-primary rounded-xl py-2 pl-9 pr-4 focus:outline-none focus:ring-2 focus:ring-accent-base/30 text-sm placeholder:t-muted"
                     />
                 </div>
-
-                {userRole === 'SPV' && (
-                    <div className="flex gap-2">
-                        <button
-                            onClick={() => openSupplierModal()}
-                            className="flex items-center gap-2 px-4 py-2 font-medium rounded-xl transition shadow-[0_0_15px_rgba(34,197,94,0.15)] hover:brightness-110"
-                            style={{ backgroundColor: 'var(--color-accent-base)', color: 'var(--text-on-accent)' }}
-                        >
-                            <Plus className="w-4 h-4" /> <span className="text-sm">Supplier Baru</span>
-                        </button>
-                    </div>
-                )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">

@@ -7,15 +7,11 @@ import UpdateBanner from './components/UpdateBanner'
 
 import MainLayout from './components/layout/MainLayout'
 import Login from './pages/Login'
-import ApprovalDashboard from './pages/dashboard/ApprovalDashboard'
+import DashboardPage from './pages/dashboard/DashboardPage'
 import InventoryDashboard from './pages/dashboard/InventoryDashboard'
-import ReportsDashboard from './pages/dashboard/ReportsDashboard'
-import ProfilesDashboard from './pages/dashboard/ProfilesDashboard'
-import SettingsDashboard from './pages/dashboard/SettingsDashboard'
-import InputReportDashboard from './pages/dashboard/InputReportDashboard'
-import DefectsDashboard from './pages/dashboard/DefectsDashboard'
-import SuppliersDashboard from './pages/dashboard/SuppliersDashboard'
-import WeeklyReportDashboard from './pages/dashboard/WeeklyReportDashboard'
+import SettingsHub from './pages/dashboard/SettingsHub'
+import InputReportHub from './pages/dashboard/InputReportHub'
+import ReportsHub from './pages/dashboard/ReportsHub'
 
 function ProtectedRoute({ session, userRole, isLoading }) {
   const location = useLocation();
@@ -33,13 +29,13 @@ function ProtectedRoute({ session, userRole, isLoading }) {
   }
 
   // Role Protection (SPV Only routes)
-  const spvOnlyRoutes = ['/profiles', '/settings'];
+  const spvOnlyRoutes = ['/settings'];
   if (spvOnlyRoutes.includes(location.pathname) && userRole !== 'SPV') {
     return <Navigate to="/dashboard" replace />;
   }
 
   // Role Protection (SPV and HRD Only routes)
-  const spvHrdRoutes = ['/suppliers', '/reports', '/weekly-report'];
+  const spvHrdRoutes = ['/reports'];
   if (spvHrdRoutes.includes(location.pathname) && !['SPV', 'HRD'].includes(userRole)) {
     return <Navigate to="/dashboard" replace />;
   }
@@ -62,7 +58,7 @@ function App() {
 
   const fetchRole = async (userId) => {
     try {
-      const { data, error } = await supabase.from('profiles').select('role').eq('id', userId).single();
+      const { data } = await supabase.from('profiles').select('role').eq('id', userId).single();
       if (data) {
         setUserRole(data.role);
       }
@@ -111,15 +107,15 @@ function App() {
           {/* Protected Routes */}
           <Route element={<ProtectedRoute session={session} userRole={userRole} isLoading={isLoading} />}>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<ApprovalDashboard />} />
+            <Route path="/dashboard" element={<DashboardPage userRole={userRole} />} />
             <Route path="/inventory" element={<InventoryDashboard userRole={userRole} />} />
-            <Route path="/input-report" element={<InputReportDashboard userRole={userRole} />} />
-            <Route path="/defects" element={<DefectsDashboard />} />
-            <Route path="/suppliers" element={<SuppliersDashboard userRole={userRole} />} />
-            <Route path="/reports" element={<ReportsDashboard userRole={userRole} />} />
-            <Route path="/weekly-report" element={<WeeklyReportDashboard />} />
-            <Route path="/profiles" element={<ProfilesDashboard />} />
-            <Route path="/settings" element={<SettingsDashboard />} />
+            <Route path="/input-report" element={<InputReportHub userRole={userRole} />} />
+            <Route path="/defects" element={<Navigate to="/input-report?tab=kendala" replace />} />
+            <Route path="/suppliers" element={<Navigate to="/inventory?tab=suppliers" replace />} />
+            <Route path="/reports" element={<ReportsHub userRole={userRole} />} />
+            <Route path="/weekly-report" element={<Navigate to="/reports?tab=rekap" replace />} />
+            <Route path="/profiles" element={<Navigate to="/settings?tab=pengguna" replace />} />
+            <Route path="/settings" element={<SettingsHub />} />
           </Route>
         </Routes>
       </BrowserRouter>

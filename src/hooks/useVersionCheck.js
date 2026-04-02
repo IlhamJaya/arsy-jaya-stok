@@ -35,7 +35,8 @@ export default function useVersionCheck() {
     }, []);
 
     useEffect(() => {
-        // Cek saat pertama mount
+        // Cek saat pertama mount (polling memicu setState; diizinkan di effect ini)
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- sync client version with server on mount + interval
         checkVersion();
 
         // Polling berkala

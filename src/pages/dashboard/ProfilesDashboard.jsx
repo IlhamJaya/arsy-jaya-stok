@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import PageHeader from '../../components/ui/PageHeader';
 import { supabase, supabaseAdmin } from '../../supabaseClient';
 import { 
     Users, UserPlus, Shield, User, Scissors, Paintbrush, Edit3,
     Settings, CheckCircle2, AlertTriangle, AlertCircle, Trash2
  } from 'lucide-react';
-import { capitalizeWords, handleNumberInput } from '../../utils/formatters.js';
 import useAppStore from '../../store/useAppStore';
 
-export default function ProfilesDashboard() {
+export default function ProfilesDashboard({ embedded = false }) {
     const [profiles, setProfiles] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -172,7 +172,7 @@ export default function ProfilesDashboard() {
     };
 
     // Perform Delete User (only when confirmed)
-    const performDeleteUser = async (userId, userEmail) => {
+    const performDeleteUser = async (userId) => {
         setConfirmDeleteUser(null);
         setIsLoading(true);
         setError(null);
@@ -240,25 +240,40 @@ export default function ProfilesDashboard() {
         return undefined;
     };
 
-    return (
-        <div className="w-full animate-in fade-in py-2">
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
-                <div>
-                    <h2 className="text-3xl font-bold tracking-tight t-primary mb-2 flex items-center gap-3">
-                        <Users className="w-8 h-8 text-blue-400" />
-                        Manajemen Pengguna
-                    </h2>
-                    <p className="t-secondary">Atur profil, level akses (role), dan pengaturan akun.</p>
-                </div>
+    const addUserButton = (
+        <button
+            type="button"
+            onClick={() => setIsAddUserModalOpen(true)}
+            className="flex items-center gap-2 px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-xl transition-all shadow-lg shadow-blue-500/20 ring-1 ring-blue-500/50 hover:ring-blue-400"
+        >
+            <UserPlus className="w-5 h-5 shrink-0" />
+            Tambah pengguna baru
+        </button>
+    );
 
-                <button
-                    onClick={() => setIsAddUserModalOpen(true)}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-blue-500 hover:bg-blue-600 t-primary font-medium rounded-xl transition-all shadow-lg shadow-blue-500/20 ring-1 ring-blue-500/50 hover:ring-blue-400"
+    return (
+        <div className="w-full animate-in fade-in py-2 pb-10">
+            {embedded ? (
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
+                    <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-blue-400/85 mb-1">Supervisor</p>
+                        <h2 className="text-xl font-bold t-primary">Manajemen pengguna</h2>
+                        <p className="text-sm t-secondary mt-1">Atur profil, level akses (role), dan pengaturan akun.</p>
+                    </div>
+                    {addUserButton}
+                </div>
+            ) : (
+                <PageHeader
+                    eyebrow="Supervisor"
+                    title="Manajemen Pengguna"
+                    icon={Users}
+                    iconClassName="text-blue-400"
+                    iconWrapperClassName="bg-blue-500/10 border border-blue-500/25 shadow-sm"
+                    actions={addUserButton}
                 >
-                    <UserPlus className="w-5 h-5" />
-                    Tambah Pengguna Baru
-                </button>
-            </div>
+                    <p>Atur profil, level akses (role), dan pengaturan akun.</p>
+                </PageHeader>
+            )}
 
             {error && !isAddUserModalOpen && !isEditProfileModalOpen && (
                 <div className="mb-8 p-4 bg-brand-red/10 border border-brand-red/20 rounded-xl flex items-start gap-3">
@@ -572,7 +587,7 @@ export default function ProfilesDashboard() {
                             <button
                                 type="button"
                                 onClick={() =>
-                                    performDeleteUser(confirmDeleteUser.userId, confirmDeleteUser.userEmail)
+                                    performDeleteUser(confirmDeleteUser.userId)
                                 }
                                 className="px-5 py-2 text-sm font-bold text-white bg-brand-red rounded-xl hover:bg-brand-red/90 transition-colors shadow-lg shadow-brand-red/20 flex items-center justify-center min-w-[160px]"
                                 disabled={isLoading}

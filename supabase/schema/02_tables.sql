@@ -124,7 +124,7 @@ CREATE TABLE IF NOT EXISTS public.trx_reports (
   type public.report_type NOT NULL,
   quantity NUMERIC NOT NULL CHECK (quantity > 0),
   notes TEXT,
-  status TEXT DEFAULT 'Pending' CHECK (status IN ('Pending', 'Approved', 'Rejected')),
+  status TEXT DEFAULT 'Approved' CHECK (status IN ('Pending', 'Approved', 'Rejected')),
   reviewed_by UUID REFERENCES auth.users(id),
   reviewed_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT now()

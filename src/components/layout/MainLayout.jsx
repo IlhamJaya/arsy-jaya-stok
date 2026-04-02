@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Sidebar from './Sidebar';
 import PWAInstallPrompt from '../PWAInstallPrompt';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { supabase } from '../../supabaseClient';
 import useAppStore from '../../store/useAppStore';
 import {
-    Moon, Sun, Settings, Users,
-    ClipboardList, FileEdit, Package, Factory, FileText, CalendarRange, AlertTriangle,
+    Moon, Sun, Settings,
+    ClipboardList, FileEdit, Package, FileText,
 } from 'lucide-react';
 
 const getRoleBadgeClass = (role) => {
@@ -36,19 +36,15 @@ const getInitials = (nameOrEmail) => {
 const getTopbarMenuItems = (role) => {
     const r = (role || '').toString().trim().toUpperCase();
 
-    const items = [{ label: 'Log Harian', path: '/dashboard', roles: ['*'], icon: ClipboardList }];
+    const items = [{ label: 'Dashboard', path: '/dashboard', roles: ['*'], icon: ClipboardList }];
 
-    items.push({ label: 'Input Laporan', path: '/input-report', roles: [r], icon: FileEdit });
+    items.push({ label: 'Input & kendala', path: '/input-report', roles: [r], icon: FileEdit });
 
-    items.push({ label: 'Inventory', path: '/inventory', roles: ['*'], icon: Package });
+    items.push({ label: 'Stok & mitra', path: '/inventory', roles: ['*'], icon: Package });
 
     if (r === 'SPV' || r === 'HRD') {
-        items.push({ label: 'Supplier', path: '/suppliers', roles: [r], icon: Factory });
-        items.push({ label: 'Reports', path: '/reports', roles: [r], icon: FileText });
-        items.push({ label: 'Rekap Mingguan', path: '/weekly-report', roles: [r], icon: CalendarRange });
+        items.push({ label: 'Laporan', path: '/reports', roles: [r], icon: FileText });
     }
-
-    if (r !== 'OP_CETAK') items.push({ label: 'Lapor Kendala', path: '/defects', roles: ['*'], icon: AlertTriangle });
 
     return items.filter((it) => it.roles.includes('*') || it.roles.includes(r));
 };
@@ -73,29 +69,11 @@ const getTopbarAccent = (path) => {
                 idle: 'bg-brand-amber/10 border-brand-amber/25 t-muted',
                 hover: 'hover:bg-brand-amber/20 hover:text-brand-amber hover:border-brand-amber/40',
             };
-        case '/suppliers':
-            return {
-                active: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/35 shadow-sm',
-                idle: 'bg-emerald-500/10 border-emerald-500/30 t-muted',
-                hover: 'hover:bg-emerald-500/20 hover:text-emerald-300 hover:border-emerald-400/45',
-            };
         case '/reports':
             return {
                 active: 'bg-purple-500/15 text-purple-400 border-purple-500/35 shadow-sm',
                 idle: 'bg-purple-500/10 border-purple-500/25 t-muted',
                 hover: 'hover:bg-purple-500/20 hover:text-purple-300 hover:border-purple-400/45',
-            };
-        case '/weekly-report':
-            return {
-                active: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/35 shadow-sm',
-                idle: 'bg-indigo-500/10 border-indigo-500/25 t-muted',
-                hover: 'hover:bg-indigo-500/20 hover:text-indigo-300 hover:border-indigo-400/45',
-            };
-        case '/defects':
-            return {
-                active: 'bg-brand-red/15 text-brand-red border-brand-red/30 shadow-sm',
-                idle: 'bg-brand-red/10 border-brand-red/25 t-muted',
-                hover: 'hover:bg-brand-red/20 hover:text-brand-red hover:border-brand-red/40',
             };
         default:
             return {
@@ -117,7 +95,6 @@ export default function MainLayout({ children, userRole }) {
 
     const menuItems = useMemo(() => getTopbarMenuItems(userRole), [userRole]);
 
-    const navigate = useNavigate();
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
     const userMenuRef = useRef(null);
 
@@ -202,7 +179,7 @@ export default function MainLayout({ children, userRole }) {
                             WebkitBackdropFilter: 'blur(16px)',
                         }}
                     >
-                        <div className="max-w-7xl mx-auto px-3 sm:px-4 min-h-[52px] flex items-center gap-2 sm:gap-2.5 min-w-0">
+                        <div className="max-w-7xl mx-auto px-3 sm:px-4 min-h-[52px] flex items-center gap-3 sm:gap-4 min-w-0">
                             {/* Brand — tidak mengecil melebihi wajar */}
                             <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 min-w-0 max-w-[10rem] md:max-w-[13rem] xl:max-w-none">
                                 <img
@@ -218,144 +195,160 @@ export default function MainLayout({ children, userRole }) {
                                 </div>
                             </div>
 
-                            {/* Nav utama — scroll horizontal jika tidak muat, tidak menimpa tombol kanan */}
-                            <nav
-                                className="flex flex-1 min-w-0 items-center justify-center gap-0.5 overflow-x-auto overflow-y-hidden py-1 px-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-                                aria-label="Navigasi utama"
-                            >
-                                {menuItems.map((it) => {
-                                    const Icon = it.icon;
-                                    return (
-                                        <NavLink
-                                            key={it.path}
-                                            to={it.path}
-                                            end={it.path === '/dashboard'}
-                                            title={it.label}
-                                            aria-label={it.label}
-                                            className={({ isActive }) => {
-                                                const accent = getTopbarAccent(it.path);
-                                                return `inline-flex items-center justify-center gap-1.5 shrink-0 min-h-8 min-w-8 xl:min-w-0 xl:px-2.5 xl:py-1.5 rounded-lg text-xs font-medium transition-colors border ${
-                                                    isActive
-                                                        ? accent.active
-                                                        : `${accent.idle} ${accent.hover}`
-                                                }`;
-                                            }}
-                                        >
-                                            {({ isActive }) => (
-                                                <>
-                                                    <Icon
-                                                        className={`w-3.5 h-3.5 shrink-0 xl:hidden ${isActive ? '' : 'opacity-90'}`}
-                                                        aria-hidden
-                                                    />
-                                                    <span className="hidden xl:inline whitespace-nowrap max-w-[9rem] truncate" title={it.label}>{it.label}</span>
-                                                </>
-                                            )}
-                                        </NavLink>
-                                    );
-                                })}
-                            </nav>
-
-                            {/* Aksi kanan — selalu utuh, tidak tertindih nav */}
-                            <div className="flex shrink-0 items-center gap-1 pl-1.5 sm:pl-2 border-l border-theme/60">
-                                <button
-                                    type="button"
-                                    onClick={toggleTheme}
-                                    className="p-1.5 rounded-lg bg-blue-600/10 border border-blue-500/30 hover:bg-blue-600/15 transition-colors"
-                                    title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                            {/* Satu kelompok rata kanan: menu + utilitas (tanpa nav di tengah layar) */}
+                            <div className="flex flex-1 min-w-0 justify-end items-center gap-2 sm:gap-2.5 py-1 min-h-[52px]">
+                                <nav
+                                    className="flex min-w-0 shrink items-center gap-1.5 sm:gap-2 overflow-x-auto overflow-y-visible py-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                                    aria-label="Navigasi utama"
                                 >
-                                    {theme === 'dark' ? (
-                                        <Sun className="w-3.5 h-3.5 text-blue-400" />
-                                    ) : (
-                                        <Moon className="w-3.5 h-3.5 text-blue-400" />
-                                    )}
-                                </button>
-
-                                {userRole === 'SPV' && (
-                                    <NavLink
-                                        to="/profiles"
-                                        className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/15 transition-colors"
-                                        title="Profiles"
-                                    >
-                                        <Users className="w-3.5 h-3.5 text-emerald-500" />
-                                    </NavLink>
-                                )}
-
-                                {userRole === 'SPV' && (
-                                    <NavLink
-                                        to="/settings"
-                                        className="p-1.5 rounded-lg bg-red-500/10 border border-red-500/30 hover:bg-red-500/15 transition-colors"
-                                        title="Settings"
-                                    >
-                                        <Settings className="w-3.5 h-3.5 text-red-400" />
-                                    </NavLink>
-                                )}
+                                    {menuItems.map((it) => {
+                                        const Icon = it.icon;
+                                        return (
+                                            <NavLink
+                                                key={it.path}
+                                                to={it.path}
+                                                end={it.path === '/dashboard'}
+                                                title={it.label}
+                                                aria-label={it.label}
+                                                className={({ isActive }) => {
+                                                    const accent = getTopbarAccent(it.path);
+                                                    return `inline-flex items-center justify-center gap-1.5 shrink-0 min-h-8 min-w-8 xl:min-w-0 xl:px-2.5 xl:py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+                                                        isActive
+                                                            ? accent.active
+                                                            : `${accent.idle} ${accent.hover}`
+                                                    }`;
+                                                }}
+                                            >
+                                                {({ isActive }) => (
+                                                    <>
+                                                        <Icon
+                                                            className={`w-3.5 h-3.5 shrink-0 xl:hidden ${isActive ? '' : 'opacity-90'}`}
+                                                            aria-hidden
+                                                        />
+                                                        <span className="hidden xl:inline whitespace-nowrap max-w-[9rem] truncate" title={it.label}>{it.label}</span>
+                                                    </>
+                                                )}
+                                            </NavLink>
+                                        );
+                                    })}
+                                </nav>
 
                                 <div
-                                    ref={userMenuRef}
-                                    className="relative flex items-center gap-1.5 sm:gap-2 pl-1 min-w-0"
+                                    className="flex shrink-0 items-center gap-2 border-l border-theme/50 pl-2 sm:pl-2.5 overflow-visible"
+                                    aria-label="Pengaturan tampilan dan akun"
                                 >
                                     <button
                                         type="button"
-                                        onClick={() => setIsUserMenuOpen((v) => !v)}
-                                        className="w-8 h-8 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center shrink-0 hover:bg-emerald-500/15 transition-colors cursor-pointer"
-                                        aria-haspopup="menu"
-                                        aria-expanded={isUserMenuOpen}
-                                        title="Menu Akun"
+                                        onClick={toggleTheme}
+                                        className={
+                                            `h-8 w-8 rounded-lg flex items-center justify-center transition-colors ` +
+                                            (theme === 'dark'
+                                                ? 'bg-white border border-slate-200/95 hover:bg-slate-50 shadow-sm'
+                                                : 'bg-black/95 border border-neutral-600/45 hover:bg-black/90 shadow-sm')
+                                        }
+                                        title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
                                     >
-                                        <span className="text-[10px] font-bold text-emerald-500 leading-none">
-                                            {getInitials(profile.full_name || profile.email)}
-                                        </span>
+                                        {theme === 'dark' ? (
+                                            <Sun className="w-4 h-4 shrink-0 text-blue-600" />
+                                        ) : (
+                                            <Moon className="w-4 h-4 shrink-0 text-sky-400" />
+                                        )}
                                     </button>
 
-                                    {isUserMenuOpen && (
-                                        <div
-                                            role="menu"
-                                            className="absolute right-0 top-[40px] w-[260px] border border-theme rounded-xl shadow-2xl p-3 z-[120]"
-                                            style={{
-                                                backgroundColor: theme === 'light' ? '#ffffff' : '#0f172a',
-                                            }}
+                                    {userRole === 'SPV' && (
+                                        <NavLink
+                                            to="/settings"
+                                            className={
+                                                `h-8 w-8 rounded-lg flex items-center justify-center transition-colors ` +
+                                                (theme === 'dark'
+                                                    ? 'bg-white border border-slate-200/95 hover:bg-slate-50 shadow-sm'
+                                                    : 'bg-black/95 border border-neutral-600/45 hover:bg-black/90 shadow-sm')
+                                            }
+                                            title="Pengaturan"
                                         >
-                                            <div className="flex items-start gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-accent-base/10 border border-accent-base/20 flex items-center justify-center shrink-0">
-                                                    <span className="text-sm font-bold text-accent-base">
-                                                        {getInitials(profile.full_name || profile.email)}
-                                                    </span>
-                                                </div>
-
-                                                <div className="min-w-0 flex-1">
-                                                    <p className="text-sm font-semibold t-primary truncate">{profile.full_name || 'User'}</p>
-                                                    <p className="text-xs t-muted font-mono truncate mt-0.5">
-                                                        {profile.email || '-'}
-                                                    </p>
-                                                    <div className="mt-2">
-                                                        <span
-                                                            className={`inline-flex items-center gap-2 text-xs font-mono px-2 py-0.5 rounded border ${getRoleBadgeClass(profile.role)}`}
-                                                        >
-                                                            {profile.role || 'GUEST'}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div className="mt-4 space-y-2">
-                                                <button
-                                                    type="button"
-                                                    onClick={handleLogout}
-                                                    className="w-full flex items-center justify-center px-3 py-2.5 rounded-lg border border-brand-red/20 bg-brand-red/10 hover:bg-brand-red/20 transition-colors text-brand-red font-bold text-sm"
-                                                >
-                                                    Logout
-                                                </button>
-                                            </div>
-                                        </div>
+                                            <Settings className={`w-4 h-4 shrink-0 ${theme === 'dark' ? 'text-red-600' : 'text-red-400'}`} />
+                                        </NavLink>
                                     )}
 
-                                    <div className="min-w-0 hidden md:block max-w-[7rem] lg:max-w-[9rem]">
-                                        <p className="text-xs font-semibold t-primary truncate leading-tight">{profile.full_name || 'User'}</p>
-                                        <span
-                                            className={`inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0 rounded border mt-0.5 ${getRoleBadgeClass(profile.role)}`}
+                                    <div
+                                        ref={userMenuRef}
+                                        className="relative z-[130] flex items-center gap-2 lg:gap-0 min-w-0 overflow-visible"
+                                    >
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsUserMenuOpen((v) => !v)}
+                                            className={
+                                                `h-8 w-8 rounded-lg flex items-center justify-center shrink-0 transition-colors cursor-pointer ` +
+                                                (theme === 'dark'
+                                                    ? 'bg-white border border-slate-200/95 hover:bg-slate-50 shadow-sm'
+                                                    : 'bg-black/95 border border-neutral-600/45 hover:bg-black/90 shadow-sm')
+                                            }
+                                            aria-haspopup="menu"
+                                            aria-expanded={isUserMenuOpen}
+                                            title="Menu Akun"
                                         >
-                                            {profile.role || 'GUEST'}
-                                        </span>
+                                            <span
+                                                className={
+                                                    `text-[10px] font-bold leading-none select-none ` +
+                                                    (theme === 'dark' ? 'text-emerald-600' : 'text-emerald-400')
+                                                }
+                                            >
+                                                {getInitials(profile.full_name || profile.email)}
+                                            </span>
+                                        </button>
+
+                                        {isUserMenuOpen && (
+                                            <div
+                                                role="menu"
+                                                aria-label="Menu akun"
+                                                className="absolute right-0 top-[calc(100%+8px)] w-[min(260px,calc(100vw-2rem))] border border-theme rounded-xl shadow-2xl p-3 z-[200]"
+                                                style={{
+                                                    backgroundColor: theme === 'light' ? '#ffffff' : '#0f172a',
+                                                }}
+                                            >
+                                                <div className="flex items-start gap-3">
+                                                    <div className="w-10 h-10 rounded-full bg-accent-base/10 border border-accent-base/20 flex items-center justify-center shrink-0">
+                                                        <span className="text-sm font-bold text-accent-base">
+                                                            {getInitials(profile.full_name || profile.email)}
+                                                        </span>
+                                                    </div>
+
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="text-sm font-semibold t-primary truncate">{profile.full_name || 'User'}</p>
+                                                        <p className="text-xs t-muted font-mono truncate mt-0.5">
+                                                            {profile.email || '-'}
+                                                        </p>
+                                                        <div className="mt-2">
+                                                            <span
+                                                                className={`inline-flex items-center gap-2 text-xs font-mono px-2 py-0.5 rounded border ${getRoleBadgeClass(profile.role)}`}
+                                                            >
+                                                                {profile.role || 'GUEST'}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="mt-4 space-y-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleLogout}
+                                                        className="w-full flex items-center justify-center px-3 py-2.5 rounded-lg border border-brand-red/20 bg-brand-red/10 hover:bg-brand-red/20 transition-colors text-brand-red font-bold text-sm"
+                                                    >
+                                                        Logout
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Nama + role: tablet saja; desktop (lg+) hanya ikon agar sebaris rapi */}
+                                        <div className="min-w-0 hidden md:block lg:hidden max-w-[7rem]">
+                                            <p className="text-xs font-semibold t-primary truncate leading-tight">{profile.full_name || 'User'}</p>
+                                            <span
+                                                className={`inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0 rounded border mt-0.5 ${getRoleBadgeClass(profile.role)}`}
+                                            >
+                                                {profile.role || 'GUEST'}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
